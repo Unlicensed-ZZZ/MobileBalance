@@ -1,0 +1,61 @@
+/* table.css
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Каскадные стили для страницы настроек (вкладки) расширения MobileBalance
+ * Редакция:  2022.02.19
+ *
+*/
+
+.tabs {
+  border: 1px solid #DDDDDD;        /* Цвет рамки всей вкладки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+/*  font-size: 1em; */
+  font-size: medium;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tabs__nav {
+  display: flex;
+/*  flex-wrap: wrap; */
+  flex-wrap: nowrap;
+  list-style-type: none;
+  background: #F8F8F8;              /* Цвет фона пассивной вкладки - 'White smoke' rgb(248,248,248) #F8F8F8 */
+  margin: 0;
+  border-bottom: 1px solid #DDDDDD; /* Цвет нижней рамки пассивной вкладки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+.tabs__link {
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+  color: black;
+  text-align: center;
+  flex-shrink: 0;
+  flex-grow: 1;
+}
+
+.tabs__link:focus-visible {
+  border-color: #B0B0B0;            /* Цвет рамки вкладки - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+  outline: 2px solid #B0B0B0;       /* Цвет рамки фокуса вкладки - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+}
+
+.tabs__link_active {
+  background: #DDDDDD;              /* Цвет фона активной вкладки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  cursor: default;
+}
+
+.tabs__link:not(.tabs__link_active):hover,
+.tabs__link:not(.tabs__link_active):focus {
+  background-color: #EFEFEF;        /* Цвет фона выбираемой вкладки - 'Isabelline' rgb(239,239,239) #EFEFEF */
+}
+
+.tabs__content {
+  padding: 1rem;
+}
+
+.tabs__pane {
+  display: none;
+}
+
+.tabs__pane_show {
+  display: block;
+}

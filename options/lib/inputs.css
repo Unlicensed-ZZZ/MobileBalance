@@ -1,0 +1,206 @@
+/* inputs.css
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Каскадные стили для страницы настроек (поля ввода и переключатели) расширения MobileBalance
+ * Редакция:  2022.09.22
+ *
+*/
+
+/* Надписи к полям ввода и выбору из списка */
+label {
+  display: block;
+  margin: 6px;
+  color: #333333; /* Цвет - 'Olive Drab' rgb(51,51,51) #333333 */
+  cursor: pointer;
+}
+
+/* Поля ввода и выбора из списка */
+input, select {
+  display: block;
+  padding: 2px;
+  margin: 6px 0 6px 0;
+  width: -webkit-fill-available; /* Ширина 'окна'-содержимого относительно ширины блока */
+  border: thin solid #B0B0B0; /* Цвет рамки элемента - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+  border-radius: 0.1em;
+}
+
+input:focus-visible, select:focus-visible {
+  outline: 2px solid #B0B0B0; /* Цвет внешней рамки фокуса поля - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+  outline-offset: 0px;
+}
+
+/* input поля ввода времени не воспринимается без указания типа (type='time') */
+input[type='time'], select {
+  cursor: pointer;
+}
+
+input[type='time'][disabled], select[disabled] {
+  cursor: initial;
+}
+
+
+/* Переключатель типа CheckBox */
+/* Его вместе с парным псевдо-переключателем следует поместить в div. Label позиции - вне этого div-а */
+.chkbox {
+  position: absolute;
+  z-index: 10;             /* Переключатель - в слое более высоком, чем другие (включая модальные окна) */
+  opacity: 0;              /* Переключатель невидимый - полностью прозрачный */
+  margin: 6px 6px 6px 6px; /* Выставляем равные отступы сверху и снизу */
+  width: 50px;             /* Ширина переключателя = ширине фона псевдо-переключателя (50px) */
+  height: 24px;            /* Высота переключателя = высота фона псевдо-переключателя (24px) */
+  cursor: pointer;
+}
+
+/* Зона отрисовки псевдо-переключателя (его габариты) */
+.chkbox_pseudo {
+  position: relative;
+  padding: 6px 6px 30px 56px; /* Зона псевдо-переключателя = margin:6px + height:24px + width:50px */
+  cursor: pointer;
+}
+
+/* Фон псевдо-переключателя в выключенном положении */
+.chkbox_pseudo::before {
+  content: '';
+  position: absolute;
+  top: 6px;            /* Смещение на margin-top (6px) */
+  left: 6px;           /* Смещение на margin-left (6px) */
+  width: 50px;
+  height: 24px;
+  border-radius: 12px;
+  background: #DDDDDD; /* Цвет фона псевдо-переключателя - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  box-shadow: inset 0px 2px 3px rgba(0, 0, 0, 0.2);
+  transition: 0.1s;
+}
+
+/* Фон псевдо-переключателя в положении checked */
+.chkbox:checked + .chkbox_pseudo::before {
+  background: rgba(153, 255, 102, 0.6); /* Цвет фона переключателя - 'Inchworm' rgb(153,255,102) #99FF66 */
+}
+
+/* Подвижный элемент псевдо-переключателя в выключенном положении */
+.chkbox_pseudo::after {
+  content: '';
+  position: absolute;
+  top: 8px;            /* Смещение на margin-top (6px) + 2px для попадания внутрь пассивного элемента */
+  left: 8px;           /* Смещение на margin-left (6px) + 2px для попадания внутрь пассивного элемента */
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #FFFFFF; /* Цвет элемента псевдо-переключателя - 'White' rgb(255,255,255) #FFFFFF */
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.3);
+  transition: 0.1s;
+}
+
+/* Подвижный элемент псевдо-переключателя в положении checked */
+.chkbox:checked + .chkbox_pseudo::after {
+  left: 34px; /* Позиция для положения checked */
+}
+
+/* Внешняя рамка при фокусе на псевдо-переключателе */
+.chkbox:focus + .chkbox_pseudo::before {
+  box-shadow: inset 0 2px 2px rgba(0, 0, 0, 0.2), 0 0 0 2px rgba(176, 176, 176, 0.7);
+  /* Цвет внешней рамки фокуса псевдо-переключателя - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+}
+
+
+/* Переключатель типа RadioButton */
+/* Его вместе с парным псевдо-переключателем следует поместить в div. Label позиции - следом за этим div-ом */
+.radiobtn {
+  position: absolute;
+  z-index: 10;                /* Переключатель - в слое более высоком, чем другие (включая модальные окна) */
+  opacity: 0;                 /* Переключатель невидимый - полностью прозрачный */
+  height: 24px;               /* Высота переключателя = высоте фона псевдо-переключателя (22px + 2x1px-рамки) */
+  width: 24px;                /* Ширина переключателя = ширине фона псевдо-переключателя (22px + 2x1px-рамки) */
+  margin: 6px 6px 6px 6px;    /* Выставляем равные отступы */
+  cursor: pointer;
+}
+
+/* Зона отрисовки псевдо-переключателя (его габариты) */
+.radiobtn_pseudo {
+  position: relative;
+  padding: 0 0 36px 36px;  /* Зона псевдо-переключателя width:22px + 2x1px-рамки + 2xmargin:6px */
+  cursor: pointer;
+}
+
+/* Фон псевдо-переключателя в выключенном положении */
+.radiobtn_pseudo::before {
+  content: '';
+  position: absolute;
+  top: 6px;             /* Смещение псевдо-переключателя на величину margin-top переключателя (6px) */
+  left: 6px;            /* Смещение псевдо-переключателя на величину margin-left переключателя (6px) */
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #FFFFFF; /* Цвет фона псевдо-переключателя - 'White' rgb(255,255,255) #FFFFFF */
+  border: thin solid #B0B0B0; /* Цвет рамки элемента - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+}
+
+/* Подвижный элемент псевдо-переключателя в выключенном положении */
+.radiobtn_pseudo::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #99FF66; /* Цвет элемента псевдо-переключателя - 'Inchworm' rgb(153,255,102) #99FF66 */
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: 0.1s;
+}
+
+/* Подвижный элемент псевдо-переключателя в положении checked */
+.radiobtn:checked + .radiobtn_pseudo::after {
+  opacity: 1;
+}
+
+/* Внешняя рамка при фокусе на псевдо-переключателе */
+.radiobtn:focus + .radiobtn_pseudo::before {
+  box-shadow: 0 0 0 2px rgba(176, 176, 176, 0.7);
+  /* Цвет внешней рамки фокуса псевдо-переключателя - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+}
+
+
+/* Всплывающая подсказка */
+.toolTip {
+  position: relative;        /* Привязываем подсказку к зоне её появления */
+  display: inline-block;
+  /*  border-bottom: 1px dotted #333333;  /* Выделение зоны подсказки подчёккнутой линией. Актуально для текста */
+}
+
+/* Текст всплывающей подсказки */
+.toolTip .toolTipText {
+  visibility: hidden;
+  width: 18vw;
+  background-color: #FFFF99; /* Цвет фона подсказки - 'Pastel yellow' rgb(255,255,153) #FFFF99 */
+  color: #333333;            /* Цвет текста подсказки - 'Olive Drab' rgb(51,51,51) #333333 */
+  font-size: small;
+  text-align: justify;
+  border: thin solid #DDDDDD;
+  border-radius: 10px;
+  padding: 5px;
+  position: absolute;        /* Позиционируем подсказку относительно точки её привязки в :hover */
+  z-index: 10;               /* Подсказка - в слое более высоком, чем другие (включая модальные окна) */
+  right: 50%;
+}
+
+/* Появление всплывающей подсказки и её позиционирование относительно точки привязки */
+.toolTip:hover .toolTipText {
+  visibility: visible;
+  top: 135%;
+  right: -50%;
+  box-shadow: 6px -4px 12px 0px #DDDDDD;
+}
+
+/* Стрелка всплывающей подсказки и её позиционирование относительно текста подсказки */
+.toolTip .toolTipText::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;  /* На верхней грания блока текста подсказки */
+  left: 88%;     /* В правой части блока текста подсказки (50% - середина по горизонтали) */
+  margin-left: -5px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #FFFF99 transparent;
+}

@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "MobileBalance",
+  "description": "Получение данных баланса у провайдера",
+  "version": "1.0.68",
+  "author": "ZZZ (aka Unlicensed)",
+  "action": {
+    "default_icon": {
+      "16": "./images/MB.png",
+      "24": "./images/MB.png",
+      "32": "./images/MB.png",
+      "48": "./images/MB.png",
+      "64": "./images/MB.png"
+    },
+    "default_popup": "./content/popup.html",
+    "default_title": "MobileBalance"
+  },
+  "icons": {
+    "16": "./images/MB.png",
+    "24": "./images/MB.png",
+    "32": "./images/MB.png",
+    "48": "./images/MB.png",
+    "64": "./images/MB.png"
+  },
+  "background": {
+    "service_worker": "./mbSrvWrk.js",
+    "type": "module"
+  },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" 
+                             },
+  "externally_connectable": {
+    "ids": [ "*" ]
+  },
+  "host_permissions": [ "https://*/*" ],
+  "options_ui": {
+    "page": "./options/options.html",
+    "open_in_tab": true
+  },
+  "permissions": [ "alarms", "background", "scripting", "storage",
+                   "notifications", "tabs", "webNavigation" ]
+}

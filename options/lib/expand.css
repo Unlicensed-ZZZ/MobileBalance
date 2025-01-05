@@ -1,0 +1,29 @@
+/* expand.css
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Каскадные стили для страницы настроек (плавно выпадающий элемент) расширения MobileBalance
+ * Редакция:  2022.01.21
+ *
+*/
+
+.expandable { /* Это аналог скрытия display:'none' */
+  background-color: #EFEFEF; /* Цвет фона текстового блока - 'Isabelline' rgb(239,239,239) #EFEFEF */
+  color: #212121;            /* Цвет шрифта текстового блока - 'Dark jungle green' rgb(33,33,33) #212121 */
+  border-radius: 0.3em;
+  text-align: justify;
+  opacity: 0;
+  height: 0;
+  overflow: auto;
+  -moz-transition: height 0.3s 0.2s, opacity 0.5s;
+  -ms-transition: height 0.3s 0.2s, opacity 0.5s;
+  transition: height 0.3s 0.2s, opacity 0.5s; /* При закрытии блока: гасим прозрачность -> уменьшаем высоту  */
+}
+
+.expanded { /* Это аналог демонстрации display:'block' */
+  height: 20vh; /* Значение по умолчанию. Перед развёртыванием блока (добавлением тэгу класса expanded) нужно */
+                /* скриптом установить подходящее значение и сбросить его в 0 после сворачивания блока */
+  opacity: 1;
+  -moz-transition: height 0.5s, opacity 1s 0.2s;
+  -ms-transition: height 0.5s, opacity 1s 0.2s;
+  transition: height 0.5s, opacity 1s 0.2s;  /* При открытии блока: увеличиваем высоту -> повышаем прозрачность */
+}

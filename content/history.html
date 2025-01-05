@@ -1,0 +1,45 @@
+<!--
+ * history.html
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Страница окна истории запросов расширения MobileBalance по учётным данным
+ * Редакция:  2024.12.27
+ *
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>История запросов MobileBalance</title>
+
+      <link type='text/css' rel='stylesheet' href='lib/history.css'>
+      <link type='text/css' rel='stylesheet' href='lib/buttons.css'>
+
+      <script defer src='lib/history.js'></script>
+  </head>
+
+  <body>
+    <div align='center' style='display:flex; justify-content:space-between; align-center;'>
+      <h1 style='margin-block:0 0.5em; text-align:center; cursor:default;'>История запросов MobileBalance по учётным данным</h1>
+      <form action='./historyPerDate.html' style='margin-block: 0 0.5em;'>
+        <button id='changeMode' type='submit' class='requestButton' style='width:fit-content; font-size:large;' disabled>Показать по датам</button>
+      </form>
+    </div>
+    <div id='historyPage' align='center' style='overflow:hidden;'>
+      <table class='resultTable' style='width:100%; font-size:medium; cursor:default;'>
+        <thead id='historyTitles'>
+          <tr>
+            <th style='display:inline-flex; flex:0 1 25em; justify-content:left;'>Название</th>
+            <th style='display:inline-flex; flex:0 1 10em; justify-content:center;'>Логин (номер)</th>
+            <th style='display:inline-flex; flex:1 1 auto; justify-content:left;'>Провайдер (плагин)</th>
+            <!-- технический столбец для отображения количества записей и кнопок развёртывания списка/удаления записи -->
+            <th style='display:inline-flex; flex:0 1 6.4em;  justify-content:center; font-size:small;' id='totalRecCounter'></th>
+          </tr>
+        </thead>
+        <tbody id='historyItems' tabIndex='0' class='makeBlind' style='max-height:86vh; font-size:medium; overflow-y:scroll; cursor:default;'></tbody>
+      </table>
+    </div>
+  </body>
+</html>

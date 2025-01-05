@@ -1,0 +1,39 @@
+/* buttons.css
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Каскадные стили для страницы настроек (кнопочная панель) расширения MobileBalance
+ * Редакция:  2022.02.14
+ *
+*/
+
+.panelButton {
+  display: inline-flex;
+  align-items: center;
+  align-content: center;
+  text-align: left;
+  font-size: medium;
+  border-width: thin;
+  border-radius: 0.3em;
+  margin-block: 0.5em 0.1em;
+  margin-inline: 0.6em;
+  padding-block: 0.12em;
+  padding-inline: 0.4em;
+  width: -webkit-fill-available;
+  cursor: pointer;
+  --imgColor: #333333; /*  Переменная для заполнения svg цветом в fill - 'Olive Drab' rgb(51,51,51) #333333 */
+}
+
+.panelButton:focus-visible {
+  border-color: #B0B0B0; /* Цвет рамки элемента - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+  outline: 2px solid #B0B0B0; /* Цвет внешней рамки фокуса - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+}
+
+.panelButton[disabled] {
+  cursor: initial;
+  --imgColor: #DDDDDD; /*  Переменная для заполнения svg цветом в fill - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+/* Запрещаем клики на svg. Все эти события пойдут к родителю - кнопке */
+.panelButton svg {
+  pointer-events: none;
+}

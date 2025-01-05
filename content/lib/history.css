@@ -1,0 +1,137 @@
+/* history.css
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Каскадные стили для страницы истории запросов расширения MobileBalance
+ * Редакция:  2024.12.26
+ *
+*/
+
+:root {
+  --border-width: 0.2em;
+  --border-color: #DDDDDD;            /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  --border: var(--border-width) solid var(--border-color);
+}
+
+/* Внешняя таблица заголовочного списка учётных данных */
+.resultTable {
+  border-collapse: collapse;
+  background-color: #FFFFE6;          /* Цвет фона - 'Light Yellow' rgb(255,255,230) #FFFFE6 */
+  table-layout: auto;
+  text-align: left;
+  border: var(--border);              /* Цвет внешней рамки фокуса - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+.resultTable thead {
+  background: var(--border-color);    /* Цвет фона - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  font-size: 1em;
+  font-weight: normal;
+}
+
+.resultTable thead tr {
+  overflow: hidden;
+  display: inline-flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  width: -webkit-fill-available;
+}
+
+.resultTable thead th {
+  font-weight: normal;
+}
+
+.resultTable tbody {
+  display: block;
+  overflow: auto;
+  width: 100%;
+  outline: var(--border);             /* Цвет внешней рамки фокуса - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+.resultTable tbody tr {
+  overflow: auto;
+  display: inline-flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  width: -webkit-fill-available;
+}
+
+.resultTable tbody td {
+  font-size: 1em;
+  font-weight: normal;
+}
+
+.resultTable th,
+.resultTable td {
+  border: var(--border);              /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  padding: 0.2em 0.4em;
+  vertical-align: top;
+}
+
+.resultTable .noMaintain {
+  text-decoration: line-through;
+}
+
+
+/* Вложенная таблица строк истории запросов по указанным учётным данным */
+.inlayTable {
+  border-collapse: collapse;
+  background-color: #F8F8F8;          /* Цвет фона - 'White smoke' rgb(248,248,248) #F8F8F8 */
+  font-size: small;
+  font-weight: normal;
+  table-layout: auto;
+  /* table-layout: fixed; */
+  text-align: left;
+  width: 100%;
+}
+
+.inlayTable thead {
+  background: var(--border-color);    /* Цвет фона - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+.inlayTable thead tr {
+  display: table-row;
+}
+
+.inlayTable thead th {
+  background: var(--border-color);    /* Цвет фона - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  display: table-cell;
+  position: -webkit-sticky;
+  position: sticky;
+  top: -2px;
+/* z-index: 2; */
+  padding: 0.4em 0.4em;
+}
+
+.inlayTable tbody {
+  display: table-row-group;
+}
+
+.inlayTable tbody tr {
+  display: table-row;
+}
+
+.inlayTable tbody td {
+  display: table-cell;
+}
+
+.inlayTable th,
+.inlayTable td {
+  border: 0.2em solid #DDDDDD;        /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+/*  padding: 0.2em 0.4em; */
+  padding: 0 0.4em;
+  vertical-align: top;
+}
+
+
+/* Плавное проявление содержимого объекта */
+.makeBlind { /* Аналог скрытия display:'none' */
+  opacity: 0;                         /* Устанавливаем полную прозрачность содержимого */
+}
+
+.makeVisible { /* Это аналог демонстрации display:'block' */
+  opacity: 1;                         /* Устанавливаем полную непрозрачность содержимого */
+  -moz-transition: opacity 0.5s 0.2s;
+  -ms-transition: opacity 0.5s 0.2s;
+  transition: opacity 0.5s 0.2s;      /* Плавно повышаем непрозрачность от 0 до 1 */
+}

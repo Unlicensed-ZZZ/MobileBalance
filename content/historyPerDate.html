@@ -1,0 +1,87 @@
+<!--
+ * historyPerDate.html
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Страница окна истории запросов расширения MobileBalance по датам
+ * Редакция:  2024.12.27
+ *
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>История запросов MobileBalance</title>
+
+    <link type='text/css' rel='stylesheet' href='lib/historyPerDate.css'>
+    <link type='text/css' rel='stylesheet' href='lib/buttons.css'>
+
+    <script defer src='lib/historyPerDate.js'></script>
+</head>
+
+<body>
+<!-- <body style='justify-items:center;'> -->
+  <div style='display:flex; justify-content:space-between; align-items:center; width:-webkit-fill-available;'>
+    <h1 style='margin-block:0 0.5em; text-align:center; cursor:default;'>История запросов MobileBalance по датам</h1>
+    <div>
+      <div style='display:inline-flex; align-items:center;'>
+        <button id='prevDate' class='requestButton' title='На день назад' style='width:fit-content; margin-block:0 0.1em; font-size:large;' disabled>
+          <svg width='24' height='24' style='vertical-align:middle;' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+            <path fill='var(--imgColor)' d="M15 17.8983C15 18.9722 13.7351 19.5462 12.9268 18.839L6.61617 13.3172C5.81935 12.6199 5.81935 11.3804 6.61617 10.6831L12.9268 5.16132C13.7351 4.45412 15 5.02809 15 6.10204L15 17.8983Z" fill="#212121"/>
+          </svg>
+        </button>
+        <input type='date' id='curDateInput' title='Дата истории опроса' style='margin-block:0 0.1em; font-size:x-large; font-weight:bold; cursor:pointer;' required disabled />
+        <button id='nextDate' class='requestButton'  title='На день вперёд' style='width:fit-content; margin-block:0 0.1em; font-size:large;' disabled>
+          <svg width='24' height='24' style='vertical-align:middle;' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+            <path fill='var(--imgColor)' d="M9 17.8983C9 18.9722 10.2649 19.5462 11.0731 18.839L17.3838 13.3172C18.1806 12.6199 18.1806 11.3804 17.3838 10.6831L11.0731 5.16132C10.2649 4.45412 9 5.02809 9 6.10204V17.8983Z" fill="#212121"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div style='font-size:large;'>
+      <label for='showMaintained' style='display:flex; align-items:center; line-height:1em; cursor:pointer;'>
+        <div style='margin-right:6px'>
+          <input type='checkbox' class='chkbox' id='showMaintained' disabled>
+          <div class='chkbox_pseudo'></div>
+        </div>
+        исключённые<br>из опросов
+      </label>
+    </div>
+    <form action='./history.html' style='margin-block: 0 0.5em;'>
+      <button id='changeMode' type='submit' class='requestButton' style='width:fit-content; font-size:large;' disabled>Показать по учётным данным</button>
+    </form>
+  </div>
+  <!-- Таблица результатов опроса -->
+  <!-- Внешний 'div' - для ограничения видимой зоны вложенной таблицы и обеспечения прокрутки области в ней -->
+  <div align='center' style='display:block;'> <!-- Внешний 'div' - для центрирования вложенных элементов -->
+    <!-- Внешний 'div' - для ограничения видимой зоны вложенной таблицы и обеспечения прокрутки области в ней -->
+    <div id='scrollDiv' tabIndex='0' style='display:flex; justify-content:center; overflow-y:scroll; overflow-x:hidden; width:fit-content; max-height:90vh; outline-color:#DDDDDD;'>
+      <table class='resultTable' style='font-size:small;'>
+        <thead id='pollingTitles' class='makeBlind'>
+          <tr>
+            <th>Получено</th>
+            <th>Название</th>
+            <th>Номер (логин)</th>
+            <th><b>Баланс</b>/Кредит</th>
+            <th>Расход</th>
+            <th>Не менялся</th>
+            <th>Баланс2/Баланс3</th>
+            <th>SMS</th>
+            <th>Минуты</th>
+            <th>Интернет</th>
+            <th>До (дата)</th>
+            <th>Блок</th>
+            <th>Услуги</th>
+            <th>Провайдер</th>
+            <th>Тарифный план</th>
+            <th>Лиц.счёт</th>
+            <th>Владелец</th>
+          </tr>
+        </thead>
+        <tbody id='pollingItems' class='makeBlind' style='height:-webkit-fill-available;'></tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

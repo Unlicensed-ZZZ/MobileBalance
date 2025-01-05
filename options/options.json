@@ -1,0 +1,15 @@
+{
+  "popupShortInfo":             true,
+  "cycleOrder":                 "sequence",
+  "daylyMaintain":              true,
+  "daylyMaintainTime":          "16:00",
+  "repeatAttempts":             4,
+  "markNegative":               false,
+  "notificationsEnable":        true,
+  "notificationsOnError":       true,
+  "notificationsOnProcess":     true,
+  "notificationsOnUpdateDelay": true,
+  "poolingWinAlive":            false,
+  "deleteSameDateRecord":       8,
+  "historyShowMaintained":      true
+}

@@ -1,0 +1,56 @@
+/* resultTable.css
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Каскадные стили для страницы результатов опроса (таблица результатов) расширения MobileBalance
+ * Редакция:  2024.12.26
+ *
+*/
+
+:root {
+  --border-width: 0.2em;
+  --border-color: #DDDDDD;            /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  --border: var(--border-width) solid var(--border-color);
+}
+
+/* Таблица списка учётных данных, участвующих в опросе */
+.resultTable {
+  border-collapse: separate;          /* Убираем автоматические рамки, обеспечиваемые таблицей */
+  border-spacing: 0;                  /* Убираем промежутки между ячейками */
+  background-color: #FFFFE6;          /* Цвет фона - 'Light Yellow' rgb(255,255,230) #FFFFE6 */
+  table-layout: fixed;
+  text-align: left;
+  font-size: small;
+}
+
+.resultTable thead {
+  position: sticky;                   /* Закрепляем 'thead' с его содержимым ... */
+  top: 0;                             /*   ... в верхней левой точке таблицы     */
+  background: var(--border-color);    /* Цвет фона - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  font-weight: normal;
+}
+
+.resultTable thead th {
+  font-weight: normal;
+}
+
+.resultTable tbody td {
+  font-weight: normal;
+}
+
+.resultTable th,
+.resultTable td {
+                                      /* Для таблицы рамки отключили - определяем их для 'th' и 'td' */
+  border: var(--border);              /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  padding: 0.2em 0.4em;
+  vertical-align: top;
+}
+
+.resultTable tbody tr:not(.checked):hover {
+  background: rgba(153, 255, 153, 0.6); /* Подсветка выбираемой позиции - 'Mint green' rgb(153,255,153) #99FF99 */
+  cursor: pointer;
+}
+
+.resultTable .checked {
+  background: rgba(153, 255, 102, 0.6); /* Цвет выбранной позиции - 'Inchworm' rgb(153,255,102) #99FF66 */
+  cursor: pointer;
+}

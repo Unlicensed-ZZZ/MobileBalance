@@ -1,0 +1,51 @@
+/* table.css
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Каскадные стили для страницы настроек (таблица) расширения MobileBalance
+ * Редакция:  2022.02.19
+ *
+*/
+
+.loginTable {
+/*  border: 0.6em solid #DDDDDD; */
+  border-collapse: collapse;
+  line-height: 1.25rem;
+  table-layout: fixed;
+  text-align: left;
+}
+
+.loginTable thead {
+  font-size: 1em;
+  font-weight: normal;
+  border: 0.6em solid #DDDDDD; /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  background: #DDDDDD;         /* Цвет фона - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+.loginTable thead th {
+  font-weight: normal;
+}
+
+.loginTable tbody td {
+  font-size: 1em;
+  font-weight: normal;
+  border: 0.6em solid #DDDDDD; /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+.loginTable th,
+.loginTable td {
+  border: 0.6em solid #DDDDDD; /* Цвет рамки - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+  padding: 0.2em 0.4em;
+  vertical-align: top;
+}
+
+.loginTable tbody tr:not(.checked):hover {
+  background: rgba(153, 255, 153, 0.6); /* Подсветка выбираемой позиции - 'Mint green' rgb(153,255,153) #99FF99 */
+}
+
+.loginTable .checked {
+  background: rgba(153, 255, 102, 0.6); /* Цвет выбранной позиции - 'Inchworm' rgb(153,255,102) #99FF66 */
+}
+
+.loginTable .noMaintain {
+  text-decoration: line-through;
+}
