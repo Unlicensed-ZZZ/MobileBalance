@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2024.12.26
+ * Редакция:  2025.01.08
  *
 */
 
@@ -805,7 +805,7 @@ chrome.runtime.onMessage.addListener(
           break;
         }
         // Если для провайдера запрошено удаление cookies на стратовой странице (перед авторизацией), то инициируем их очистку
-        if ( ['login', 'log&pass'].indexOf( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] ) >= 0 ) {
+        if ( [ 'login', 'log&pass' ].indexOf( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] ) >= 0 ) {
           if ( provider[ idx ].startUrlClearCookies == true ) {
             await chrome.scripting.executeScript( { target: { tabId: provider[ idx ].pullingTab }, files: [ `./content/lib/clearCookies.js` ] } )
             .catch( async function ( err ) {
@@ -824,67 +824,44 @@ chrome.runtime.onMessage.addListener(
           }
         }
         await drawPoolingState( currentNumber, 'Pooling', String(pollingCycle[ currentNumber ].requestStage) );
-        // Вставляем на страницу провайдера скрипт текущей части запроса
-        debugger;
+        debugger;     // Вставляем на страницу провайдера скрипт текущего этапа запроса
         await chrome.scripting.executeScript( { target: { tabId: provider[ idx ].pullingTab },
               files: [`./providers/${provider[ idx ].scriptFiles[ pollingCycle[ currentNumber ].requestStage ]}`] })
         .then( async () => {
           let scriptLost = false;
           console.log( `[MB] Script "${provider[ idx ].scriptFiles[ pollingCycle[ currentNumber ].requestStage ]}" injected` );
-          switch( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] ) {
-            case 'login':
-            case 'password':
-            case 'log&pass': {
-              // Для работы с паролем его декодируем
-              let arr = pollingCycle[ currentNumber ].passwValue.split( '' )  // Трансформируем строку в массив символов
-                  .map( function(c) { return c.charCodeAt( 0 ); } )   // Меняем в массиве символы на их ASCII-номера
-                  .map( function(i) { return i ^ 13; } );             // XOR-"encryption"
-              // Трюк: цифровой массив в массив ASCII-символов, объединяя их в единую строку
-              let str = String.fromCharCode.apply( undefined, arr );
-              debugger;
-              await chrome.tabs.sendMessage( provider[ idx ].pullingTab, 
-                                             { message: 'MB_takeData', 
-                                               action:  provider[ idx ].scriptActions[pollingCycle[currentNumber].requestStage],
-                                               login:   pollingCycle[ currentNumber ].loginValue,
-                                               passw:   decodeURI( atob( str ) ),
-                                               detail:  ( pollingCycle[ currentNumber ].detail === undefined ) ? undefined : pollingCycle[ currentNumber ].detail
-                                             } )
-              .then( function( response ) {
-                chrome.webNavigation.onCompleted.addListener( waitPullingTabLoading ); // Запускаем контроль обновления вкладки
-              })
-              .catch( async function ( err ) {
-                // Обработка ошибки из-за утраты скрипта текущей части запроса, вставленного на страницу провайдера (нет отклика на сообщение)
-                if ( err.message.includes( 'Receiving end does not exist' ) ) {
-                  scriptLost = true;
-                  chrome.runtime.onMessage.dispatch( { message: 'MB_workTab_repeatCurrentPhase', error: `Script for "${pollingCycle[ currentNumber ].description}"` +
-                                                       ` was lost, injecting it again to perform request stage ${pollingCycle[ currentNumber ].requestStage}` },
-                                                     { tab: await chrome.tabs.get( provider[ idx ].pullingTab ), id: self.location.origin } );
-                }
-                else
-                  throw err; // Пробрасываем ошибки, отличные от 'Could not establish connection. Receiving end does not exist.'
-              })
-              break; }
-            case 'polling': {
-              debugger;
-              await chrome.tabs.sendMessage( provider[ idx ].pullingTab,
-                                             { message: 'MB_takeData',
-                                               action:  provider[ idx ].scriptActions[pollingCycle[currentNumber].requestStage],
-                                               login:   pollingCycle[ currentNumber ].loginValue,
-                                               detail:  ( pollingCycle[ currentNumber ].detail === undefined ) ? undefined : pollingCycle[ currentNumber ].detail
-                                             } )
-              .catch( async function ( err ) {
-                // Обработка ошибки из-за утраты скрипта текущей части запроса, вставленного на страницу провайдера (нет отклика на сообщение)
-                if ( err.message.includes( 'Receiving end does not exist' ) ) {
-                  scriptLost = true;
-                  chrome.runtime.onMessage.dispatch( { message: 'MB_workTab_repeatCurrentPhase', error: `Script for "${pollingCycle[ currentNumber ].description}"` +
-                                                       ` was lost, injecting it again to perform request stage ${pollingCycle[ currentNumber ].requestStage}` },
-                                                     { tab: await chrome.tabs.get( provider[ idx ].pullingTab ), id: self.location.origin } );
-                }
-                else
-                  throw err; // Пробрасываем ошибки, отличные от 'Could not establish connection. Receiving end does not exist.'
-              })
-              break; }
-          } // switch //
+          let passw = undefined;                                            // Для этапов запроса, требующих использования пароля, декодируем его
+          if ( [ 'password', 'log&pass' ].includes( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] ) ) {
+            let arr = pollingCycle[ currentNumber ].passwValue.split( '' )  // Трансформируем строку в массив символов
+                .map( function( c ) { return c.charCodeAt( 0 ); } )         // Меняем в массиве символы на их ASCII-номера
+                .map( function( i ) { return i ^ 13; } );                   // XOR-"encryption"
+            passw = String.fromCharCode.apply( undefined, arr );            // Трюк: цифровой массив в массив ASCII-символов, объединяя их в единую строку
+            passw = decodeURI( atob( passw ) );                             // Декодируем Base64 в ASCII-символы, результат декодируем из UTF-8
+          }
+          debugger;   // Направляем рабочей вкладке провайдера сообщение с параметрами для текущего этапа запроса
+          await chrome.tabs.sendMessage( provider[ idx ].pullingTab, 
+                                         { message: 'MB_takeData', 
+                                           action:  provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ],
+                                           login:   pollingCycle[ currentNumber ].loginValue,
+                                           passw:   ( passw === undefined ) ? undefined : passw, // Если этап запроса не требует пароля, то исключаем этот параметр
+                                           detail:  ( pollingCycle[ currentNumber ].detail === undefined ) ? // Если сохранённых данных нет, то исключаем этот параметр
+                                                    undefined : pollingCycle[ currentNumber ].detail
+                                         } )
+          .then( function( response ) {
+            if ( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] !== 'polling' )  // Для всех этапов, кроме непосредственно запроса,
+              chrome.webNavigation.onCompleted.addListener( waitPullingTabLoading );                          // запускаем контроль обновления рабочей вкладки
+          })
+          .catch( async function ( err ) {
+            // Обработка ошибки из-за утраты скрипта текущей части запроса, вставленного на страницу провайдера (нет отклика на сообщение)
+            if ( err.message.includes( 'Receiving end does not exist' ) ) {
+              scriptLost = true;
+              chrome.runtime.onMessage.dispatch( { message: 'MB_workTab_repeatCurrentPhase', error: `Script for "${pollingCycle[ currentNumber ].description}"` +
+                                                   ` was lost, injecting it again to perform request stage ${pollingCycle[ currentNumber ].requestStage}` },
+                                                 { tab: await chrome.tabs.get( provider[ idx ].pullingTab ), id: self.location.origin } );
+            }
+            else
+              throw err; // Пробрасываем ошибки, отличные от 'Could not establish connection. Receiving end does not exist.'
+          })
           if ( scriptLost ) // При обнаружении утраты скрипта выходим из .then
             return true;
           console.log( `[MB] Message "${provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ]}"` +
@@ -1171,16 +1148,16 @@ chrome.runtime.onMessage.addListener(
             drawPoolingState( currentNumber, pollingCycle[ currentNumber ].lastState, ra );
           }
 
-        // Обновляем для учётных данных значения 'detail' в структурах данных по значениям массива 'detail' из ответа
-          if ( request.detail !== undefined  ) {
-            let renewDetailData = undefined;
-            if ( ( request.detail.renew !== undefined ) && request.detail.renew ) {
-              if ( Object.values( request.detail ).length > 1 ) {
+        // Обновляем для учётных данных значения 'detail' в структурах данных по значениям 'detail' из ответа
+          if ( ( request.detail !== undefined ) && ( request.detail.renew !== undefined ) ) {   // Если есть структура 'detail'
+            if ( request.detail.renew ) {                     // ... и она содержит требование обновления данных (renew = true)
+              let renewDetailData = undefined;
+              if ( Object.values( request.detail ).length > 1 ) {   // ... и кроме параметра 'renew' есть данные для сохранения
                 renewDetailData = Object.assign( new Object(), request.detail );
                 delete renewDetailData.renew;
               }
+              await renewDetail( renewDetailData ); // Обновляем значения 'detail' в структурах данных
             }
-            await renewDetail( renewDetailData );
           }
 
         // Если в настройках провайдера для текущих учётных данных...

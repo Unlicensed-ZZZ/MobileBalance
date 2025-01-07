@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МГТС - сбор данных с html-страницы
- * Редакция:  2022.03.29
+ * Редакция:  2025.01.08
  *
 */
 
@@ -18,15 +18,9 @@ chrome.runtime.onMessage.addListener( ( request, sender, sendResponse ) => {
       let loginForm = document.all.Login;
       switch ( request.action ) {
         case 'login': {
-          if ( ( loginForm !== undefined ) && // Сайт не отвечает, страница не прогрузилась или изменена
-               ( loginForm.classList.contains( '-loginForm' ) ) )
-            loginInput( request.login )
-          else
-            if ( ( loginForm !== undefined ) && // Сайт не отвечает, страница не прогрузилась или изменена
-                 ( loginForm.classList.contains( 'passwordForm' ) ) ) {
-              chrome.runtime.sendMessage( sender.id, { message: 'MB_workTab_skipNextPhase' }, null );
-              passwInput( request.passw );
-            }
+          if ( loginForm === undefined ) return; // Сайт не отвечает, страница не прогрузилась или изменена
+          if ( loginForm.classList.contains( '-loginForm' ) )
+            loginInput( request.login );
           break;
         }
         case 'password': {
@@ -42,7 +36,7 @@ chrome.runtime.onMessage.addListener( ( request, sender, sendResponse ) => {
           }, 2000);
           break;
         }
-      }
+      } // switch //
     }
     else return;
   }

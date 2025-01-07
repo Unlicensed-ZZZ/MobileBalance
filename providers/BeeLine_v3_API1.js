@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2024.12.30
+ * Редакция:  2025.01.08
  *
 */
 
@@ -330,8 +330,8 @@ function initLogout() {
 }
 
 
-async function getData( login, passw ) {
-//             -----------------------
+async function getData() {
+//             ---------
   fetch( window.location.origin + '/apigw/ub/balance/main/', { method: 'GET', credentials: 'include' } )
   .then( function( response ) {
     response.json()

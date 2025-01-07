@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.01.01
+ * Редакция:  2025.01.08
  *
 */
 
@@ -1474,22 +1474,20 @@ function loginWin( itemId = undefined ) {       // Если itemId = undefined -
 // Кодирование пароля для хранения в local storage и внутренних структурах расширения
 function encodePassword( psw ) {
 //       ---------------------
-  let str = btoa( encodeURI( psw ) );
-  let arr = str.split( '' )                           // Трансформируем строку в массив символов
-  .map( function(c) { return c.charCodeAt( 0 ); } )   // Меняем в массиве символы на их ASCII-номера
-  .map( function(i) { return i ^ 13; } );             // XOR-"encryption"
-  // Трюк: цифровой массив в массив ASCII-символов, объединяя их в единую строку
-  return (String.fromCharCode.apply( undefined, arr ) );
+  let str = btoa( encodeURI( psw ) );                     // Кодируем символы в UTF-8, результат кодируем по Base64
+  let arr = str.split( '' )                               // Трансформируем строку в массив символов
+  .map( function( c ) { return c.charCodeAt( 0 ); } )     // Меняем в массиве символы на их ASCII-номера
+  .map( function( i ) { return i ^ 13; } );               // XOR-"encryption"
+  return ( String.fromCharCode.apply( undefined, arr ) ); // Трюк: цифровой массив в массив ASCII-символов, объединяя их в единую строку
 }
 
 // Декодирование пароля работы с ним в окне учётных данных и сохранении в файл
 function decodePassword( psw ) {
 //       ---------------------
-  let arr = psw.split( '' )                           // Трансформируем строку в массив символов
-  .map( function(c) { return c.charCodeAt( 0 ); } )   // Меняем в массиве символы на их ASCII-номера
-  .map( function(i) { return i ^ 13; } );             // XOR-"encryption"
-  // Трюк: цифровой массив в массив ASCII-символов, объединяя их в единую строку
-  let str = String.fromCharCode.apply( undefined, arr );
-  return (decodeURI( atob( str ) ) );
+  let arr = psw.split( '' )                               // Трансформируем строку в массив символов
+  .map( function( c ) { return c.charCodeAt( 0 ); } )     // Меняем в массиве символы на их ASCII-номера
+  .map( function( i ) { return i ^ 13; } );               // XOR-"encryption"
+  let str = String.fromCharCode.apply( undefined, arr );  // Трюк: цифровой массив в массив ASCII-символов, объединяя их в единую строку
+  return ( decodeURI( atob( str ) ) );                    // Декодируем Base64 в ASCII-символы, результат декодируем из UTF-8
 }
 
