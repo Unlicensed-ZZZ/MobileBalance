@@ -6,14 +6,20 @@
  *
 */
 
-let Delay, dbVersion, sleep;
-import('./../../vars.mjs').then( (module) => { // Глобальные переменные расширения (из модуля vars.mjs)
+let Delay, dbVersion, sleep;                    // Глобальные переменные расширения (из модуля vars.mjs)
+import('./../../vars.mjs').then( (module) => {
   Delay = module.Delay;
   dbVersion = module.dbVersion;
   MBResult = module.MBResult;    // Структура ответа на запрос по учётным данным провайдера
   sleep = module.sleep;
 })
-.catch( (err) => { console.log( `[MB] ${err}` ); } );
+.catch( (err) => { console.log( `[MB] Error: ${err}` ) } );
+
+async function importAwait() {  // Ожидание завершения импорта значений и функций из модуля
+  do {                          // Нужно вызвать в первой инициализируемой функци с await
+    await new Promise( resolve => setTimeout( resolve, 50 ) );
+  } while ( sleep === undefined );
+}
 
 let workTab = 0;                 // Идентификатор окна и рабочей вкладки результатов опроса
 chrome.tabs.getCurrent().then( result => { workTab = result.id; });
@@ -193,6 +199,11 @@ initCommonParams();
 // Инициализация переменных из local storage
 async function initCommonParams() {
 //             ------------------
+  await importAwait();  // Ожидание завершения импорта значений и функций из модуля
+  do {  // Ждём, пока иницализируется объект доступа к хранилищу
+    await sleep( 50 );
+  } while ( dbMB === undefined );
+  // Получаем значения из localStorage
   provider = (await chrome.storage.local.get( 'provider' )).provider;
   accounts = (await chrome.storage.local.get( 'accounts' )).accounts;
   repeatAttempts = (await chrome.storage.local.get( 'repeatAttempts' )).repeatAttempts;

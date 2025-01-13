@@ -2,19 +2,23 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2024.12.27
+ * Редакция:  2025.01.13
  *
 */
 
-let Delay, dbVersion;        // Глобальные переменные расширения (из модуля vars.mjs)
+let Delay, dbVersion, sleep;                    // Глобальные переменные расширения (из модуля vars.mjs)
 import('./../../vars.mjs').then( (module) => {
   Delay = module.Delay;
   dbVersion = module.dbVersion;
+  sleep = module.sleep;
 })
-.catch((err) => {
-  console.log(`[MB] Error: ${err}`);
-});
+.catch( (err) => { console.log( `[MB] Error: ${err}` ) } );
 
+async function importAwait() {  // Ожидание завершения импорта значений и функций из модуля
+  do {                          // Нужно вызвать в первой инициализируемой функци с await
+    await new Promise( resolve => setTimeout( resolve, 50 ) );
+  } while ( sleep === undefined );
+}
 
 // Отображение наименования и версии расширения
 aboutName.innerHTML = chrome.runtime.getManifest().name + '&nbsp;&nbsp;' + chrome.runtime.getManifest().version;
@@ -106,21 +110,22 @@ function providerOpenSite ( event ) {
     winId =    response.windowId;
     chrome.tabs.update( tabId, { url: startUrl, autoDiscardable: false } )
     .then( async function ( response ) {
+      await importAwait();                                                  // Ожидание завершения импорта значений и функций из модуля
       if ( startUrlClearCookies || startUrlBypassCache ) {
         let resp = undefined;
         do { // Ждём завершения загрузки страницы
-          await (new Promise( resolve => setTimeout( resolve, 200 ) ));     // Пауза для завершения загрузки страницы
+          await sleep( 200 );                                               // Пауза для завершения загрузки страницы
           resp = await chrome.tabs.get( tabId );                            // Получаем параметры вкладки,
         } while ( resp !== undefined && resp.status !== 'complete' );       //   контролируем в них статаус загрузки страницы
         // Если для провайдера запрошено удаление cookies со страницы авторизации, то инициируем их очистку
         if ( startUrlClearCookies ) {
           await chrome.scripting.executeScript( { target: { tabId: tabId }, files: [ `./content/lib/clearCookies.js` ] } );
-          await (new Promise( resolve => setTimeout( resolve, 300 ) ));     // Пауза для завершения загрузки и выполнения скрипта
+          await sleep( 300 );                                               // Пауза для завершения загрузки и выполнения скрипта
         }
         // Если для провайдера запрошено обновление страницы с сервера (сброс кэша), то выполняем обновление страницы с сервера (bypassCache=true)
         if ( startUrlBypassCache ) { // Обновление с параметром 'bypassCache' = 'true' должно инициировать загрузку страницы с сервера (как нажатие Ctrl+F5)
           await chrome.tabs.reload( tabId, { bypassCache: true } );
-          await (new Promise( resolve => setTimeout( resolve, 200 ) ));     // Пауза для завершения загрузки страницы
+          await sleep( 200 );                                               // Пауза для завершения загрузки страницы
         }
       }
       return chrome.tabs.highlight( { windowId: winId, tabs: tabIndex } );  // Переходим на вкладку с сайтом провайдера

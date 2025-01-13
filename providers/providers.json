@@ -34,7 +34,7 @@
                   "startUrl":             "https://beeline.ru/login",
                   "startUrlClearCookies": true,
                   "startUrlBypassCache":  false,
-                  "finishUrl":            "https://beeline.ru",
+                  "finishUrl":            "https://beeline.ru/login",
                   "scriptActions":        [ "log&pass", "polling" ],
                   "scriptFiles":          [ "BeeLine_v3_API1.js", "BeeLine_v3_API1.js" ],
                   "requestDelay":         false,
@@ -42,7 +42,7 @@
                   "onUpdateDelay":        true,
                   "onUpdateDelayValue":   5,
                   "respondTimeout":       true,
-                  "respondTimeoutValue":  40,
+                  "respondTimeoutValue":  60,
                   "inetUnits":            "G",
                   "ignoreFractional":     false
                 },

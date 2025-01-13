@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Страница окна (процесса) опроса учётных записей
- * Редакция:  2024.12.27
+ * Редакция:  2025.01.13
  *
 -->
 
@@ -124,7 +124,7 @@
       <!-- Внешний 'div' - для ограничения видимой зоны вложенной таблицы и обеспечения прокрутки области в ней -->
       <div id='scrollDiv' tabIndex='0' style='display:flex; justify-content:center; overflow-y:auto; overflow-x:hidden; width:fit-content; max-height:76vh; outline-color:#DDDDDD;'>
         <table class='resultTable'>
-          <thead>
+          <thead id='pollingTitles'>
             <tr>
               <td>Статус</td>
               <td>Название</td>

@@ -2,16 +2,23 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна истории запросов расширения MobileBalance по датам
- * Редакция:  2024.12.18
+ * Редакция:  2025.01.13
  *
 */
 
-let Delay, dbVersion;                           // Глобальные переменные расширения (из модуля vars.mjs)
-import('./../../vars.mjs').then( (module) => {  // Глобальные переменные расширения (из модуля vars.mjs)
+let Delay, dbVersion, sleep;                    // Глобальные переменные расширения (из модуля vars.mjs)
+import('./../../vars.mjs').then( (module) => {
   Delay = module.Delay;
   dbVersion = module.dbVersion;
+  sleep = module.sleep;
 })
 .catch( (err) => { console.log( `[MB] Error: ${err}` ) } );
+
+async function importAwait() {  // Ожидание завершения импорта значений и функций из модуля
+  do {                          // Нужно вызвать в первой инициализируемой функци с await
+    await new Promise( resolve => setTimeout( resolve, 50 ) );
+  } while ( sleep === undefined );
+}
 
 let provider = [];                              // Наборы параметров для провайдеров (plugin-ов)
 let accounts = [];                              // Наборы параметров для учётных записей
@@ -122,17 +129,13 @@ async function dbGetBoundRecords() {
   });
 }
 
-function sleep( ms ) {
-//       -----------
-  return new Promise( resolve => setTimeout( resolve, ms ) );
-}
-
 initCommonParams();
 
 
 // Инициализация переменных из 'local.storage' и дат для запросов
 async function initCommonParams() {
 //             ------------------
+  await importAwait();  // Ожидание завершения импорта значений и функций из модуля
   do {  // Ждём, пока иницализируется объект доступа к хранилищу
     await sleep( 50 );
   } while ( dbMB === undefined );
