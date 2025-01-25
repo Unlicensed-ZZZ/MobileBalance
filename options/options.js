@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.01.08
+ * Редакция:  2025.01.26
  *
 */
 
@@ -811,7 +811,7 @@ aboutPage.addEventListener( 'click', async function(evnt) {
             console.log(`[MB] ${err}`);
           }
         }
-        changeLogText.style.height = '42vh';
+        changeLogText.style.height = '36vh';
         changeLogText.classList.toggle( 'expanded' );
       }
     break; }
