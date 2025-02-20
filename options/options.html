@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Страница настроек расширения MobileBalance
- * Редакция:  2025.01.26
+ * Редакция:  2025.02.16
  *
 -->
 
@@ -28,7 +28,7 @@
   <script defer src='options.js'></script>
 </head>
 
-<body>
+<body style='overflow-y:hidden'>
   <div style='text-align:center; cursor:default'><h1>Настройки MobileBalance</h1></div>
   <div class='tabs'>
     <div class='tabs__nav'>
@@ -56,11 +56,14 @@
 <!--  Вкладка общих настроек -->
       <div class='tabs__pane tabs__pane_show' id='optionsPage' style='cursor:default'>
         <!-- Скрываем инициализацию органов управления, в конце процесса делаем div видимым -->
-        <div id='optionsBlock' class='expandable' style='display:flex; justify-content:space-around; overflow:hidden; background-color:inherit'>
-          <table style='color:#333333; width:80%'>
+        <div id='optionsBlock' class='expandable' style='display:flex; justify-content:space-around; overflow-y:scroll; background-color:inherit; max-height:71vh'>
+          <table style='color:#333333;  width:80%'>
             <tbody>
               <tr>
-                <td style='text-align:right; width:50%'>
+                <td rowspan='7' style='vertical-align:top'>
+                  <p style='font-size:x-large; color:#DDDDDD; line-height:2vh; margin-block:0'>Общие<br>настройки</p>
+                </td>
+                <td style='text-align:right; width:35%'>
                   <label for='cycleOrder_sequence' style='margin-right:6px'>Порядок опроса</label>
                 </td>
                 <td style='display:flex; text-align:left; align-items:center'>
@@ -69,7 +72,7 @@
                       <input type='radio' class='radiobtn' id='cycleOrder_sequence' name='cycleOrder' value='sequence'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    последовательно
+                    <span>последовательно</span>
                     <div class='toolTip'>
                       <svg width='20' height='20' style='vertical-align:middle; padding-inline:0.3em;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                         <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
@@ -82,7 +85,7 @@
                       <input type='radio' class='radiobtn' id='cycleOrder_parallel' name='cycleOrder' value='parallel'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    параллельно
+                    <span>параллельно</span>
                     <div class='toolTip'>
                       <svg width='20' height='20' style='vertical-align:middle; padding-inline:0.3em;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                         <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
@@ -127,7 +130,8 @@
                 <td colspan=2 style='text-align:right'>
                   <div id='maintainNoteText' class='expandable'>
                     <p style='margin: 0.5em 1em 0.5em 0; padding: 0 0 0 1.5em'>
-                      Чтобы опросы запускались в указанное время следует разрешить работу браузера в фоновом режиме в его настройках. Этот параметр находится в подразделе системных настроек браузера.<br>Название параметра для разных браузеров различается: <i>продолжать работу фоновых приложений, когда ... закрыт; разрешить работу в фоне...; не отключать работающие в фоновом режиме сервисы при закрытии...</i><br>Если этот параметр в настройках браузера не установлен, то расширение будет корректно работать с опросами по расписанию только если браузер в момент проведения опроса запущен. При запуске браузера он может предпринять попытку выполнить пропущенный опрос (зависит от браузера).
+                    Чтобы опросы запускались в указанное время следует разрешить работу браузера в фоновом режиме в его настройках. Этот параметр находится в подразделе системных настроек браузера.<br>Название параметра для разных браузеров различается: <i>продолжать работу фоновых приложений, когда ... закрыт; разрешить работу в фоне...; не отключать работающие в фоновом режиме сервисы при закрытии...</i><br>Если этот параметр в настройках браузера не установлен, то расширение будет корректно работать с опросами по расписанию только если браузер в момент проведения опроса запущен. При запуске браузера он может предпринять попытку выполнить пропущенный опрос (зависит от браузера).
+                    </p>
                   </div>
                 </td>
               </tr>
@@ -152,7 +156,7 @@
                             <input type='checkbox' class='chkbox' id='enableNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
-                          при...
+                          <span>при...</span>
                         </label>
                       </div>
                       <div id='notifDisabled' style='display:inline-flex; color:#C1C1C1'>
@@ -164,7 +168,7 @@
                             <input type='checkbox' class='chkbox' id='onProcessNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
-                          начале / завершении опроса
+                          <span>начале / завершении опроса</span>
                         </label>
                       </div>
                     </div>
@@ -175,7 +179,7 @@
                             <input type='checkbox' class='chkbox' id='onErrorNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
-                          ошибках запросов
+                          <span>ошибках запросов</span>
                         </label>
                       </div>
                       <div class='notifMB' style='display:none; align-items:center'>
@@ -184,7 +188,7 @@
                             <input type='checkbox' class='chkbox' id='onUpdateDelayNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
-                          отсутствии изменений баланса
+                          <span>отсутствии изменений баланса</span>
                         </label>
                       </div>
                     </div>
@@ -193,22 +197,37 @@
               </tr>
               <tr>
                 <td style='text-align:right'>
-                  <label for='poolingWinAlive' style='margin-right:6px'>Не закрывать окно результатов по окончании опроса</label>
+                  <span style='margin-right:6px'>По окончании опроса:</span>
                 </td>
-                <td style='display:flex; align-items:center; justify-content:space-between'>
-                  <div style='position: relative'>
-                    <div>
-                      <input type='checkbox' id='poolingWinAlive' class='chkbox'>
-                      <div class='chkbox_pseudo'></div>
+                <td style='text-align:left'>
+                  <div style='display:flex; align-items:center; justify-content:space-between'>
+                    <div style='display:flex'>
+                      <label for='poolingWinAlive' style='display:flex; align-items:center; margin-right:6px'>
+                        <div style='margin-right:6px'>
+                          <input type='checkbox' class='chkbox' id='poolingWinAlive'>
+                          <div class='chkbox_pseudo'></div>
+                        </div>
+                        <span>не закрывать окно результатов</span>
+                      </label>
                     </div>
-                  </div>
-                  <div style='display:flex; align-items:center; justify-content:flex-end; flex:auto'>
-                    <label for='markNegative' style='display:flex; align-items:center; margin-right:12px'>Выделять отрицательный баланс&nbsp;<font color='#FF00FF'>цветом</font>&nbsp;&nbsp;
-                      <div>
-                        <input type='checkbox' id='markNegative' class='chkbox'>
-                        <div class='chkbox_pseudo'></div>
-                      </div>
-                    </label>
+                    <div style='display:flex'>
+                      <label for='poolingLogSave' style='display:flex; align-items:center; margin-right:6px'>
+                        <div style='margin-right:6px'>
+                          <input type='checkbox' class='chkbox' id='poolingLogSave'>
+                          <div class='chkbox_pseudo'></div>
+                        </div>
+                        <span>сохранять лог при закрытии окна</span>
+                      </label>
+                    </div>
+                    <div style='display:flex'>
+                      <label for='markNegative' style='display:flex; align-items:center; margin-right:6px'>
+                        <div style='margin-right:6px'>
+                        <input type='checkbox' class='chkbox' id='markNegative' >
+                          <div class='chkbox_pseudo'></div>
+                        </div>
+                        <span>Выделять отрицательный баланс <font color='#FF00FF'>цветом</font></span>
+                      </label>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -223,16 +242,17 @@
                     <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em;' id='optionsLoad'>
                       <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                         <path fill='var(--imgColor)' d='M8.20693 4C8.66749 4 9.1153 4.14129 9.49094 4.40235L9.64734 4.5215L12.022 6.5H19.75C20.8867 6.5 21.8266 7.34297 21.9785 8.43788L21.9948 8.59595L22 8.75V17.75C22 18.9409 21.0748 19.9156 19.904 19.9948L19.75 20H4.25C3.05914 20 2.08436 19.0748 2.00519 17.904L2 17.75V6.25C2 5.05914 2.92516 4.08436 4.09595 4.00519L4.25 4H8.20693ZM9.64734 9.9785C9.29353 10.2733 8.85906 10.4515 8.40335 10.4914L8.20693 10.5L3.5 10.499V17.75C3.5 18.1297 3.78215 18.4435 4.14823 18.4932L4.25 18.5H19.75C20.1297 18.5 20.4435 18.2178 20.4932 17.8518L20.5 17.75V8.75C20.5 8.3703 20.2178 8.05651 19.8518 8.00685L19.75 8H12.021L9.64734 9.9785ZM8.20693 5.5H4.25C3.8703 5.5 3.55651 5.78215 3.50685 6.14823L3.5 6.25V8.999L8.20693 9C8.34729 9 8.4841 8.96063 8.60221 8.88738L8.68706 8.82617L10.578 7.249L8.68706 5.67383C8.57923 5.58398 8.44893 5.52664 8.31129 5.5073L8.20693 5.5Z'/> \
-                      </svg>
-                      Загрузить
-                    </button>
+                      </svg>Загрузить</button>
                   </div>
                 </td>
               </tr>
               <tr>
-                <td colspan='2' style='background:#EFEFEF'></td>
+                <td colspan='3' style='background:#EFEFEF'></td> <!-- Линия разделетель между блоками настроек -->
               </tr>
               <tr>
+                <td rowspan='7' style='vertical-align:top'>
+                  <p style='font-size:x-large; color:#DDDDDD; line-height:2vh; margin-block:0'>Настройки<br>провайдеров</p>
+                </td>
                 <td style='text-align:right'>
                   <label for='chooseProvider' style='margin-right:6px'>Между запросами к провайдеру</label>
                 </td>
@@ -295,14 +315,14 @@
                       <input type='radio' class='radiobtn' id='providerInetGb' name='providerInetUnits' value='G'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    гигибайтах
+                    <span>гигибайтах</span>
                   </label>
                   <label for='providerInetMb' style='display:flex; align-items:center; margin-right:6px'>
                     <div style='margin-right:6px'>
                       <input type='radio' class='radiobtn' id='providerInetMb' name='providerInetUnits' value='M'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    мегабайтах
+                    <span>мегабайтах</span>
                   </label>
                 </td>
               </tr>
@@ -322,7 +342,7 @@
                         <input type="checkbox" class="chkbox" id="providerClearCookies">
                         <div class="chkbox_pseudo"></div>
                       </div>
-                      Удалять для страницы cookies перед запросом
+                      <span>Удалять для страницы cookies перед запросом</span>
                     </label>
                   </div>
                   <div>
@@ -331,7 +351,7 @@
                         <input type="checkbox" class="chkbox" id="providerBypassCache">
                         <div class="chkbox_pseudo"></div>
                       </div>
-                      Сбрасывать кэш страницы перед запросом
+                      <span>Сбрасывать кэш страницы перед запросом</span>
                       <div class='toolTip'>
                         <svg width='20' height='20' style='vertical-align:middle; padding-inline:0.3em;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                             <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
@@ -368,8 +388,8 @@
               </tr>
               <!-- Заметка о плагинах для запросов к личным кабинетам провайдеров -->
               <tr>
-                <td colspan=2 style='text-align:right'>
-                  <div id='providerNoteText' class='expandable' style='padding: 0 0 0 1.5em'>
+                <td colspan=3 style='text-align:right'>
+                  <div id='providerNoteText' class='expandable' style='padding:0'>
                     <ul style='margin: 0.5em 0.5em 0 0'>
                       <li>Операции <i>загрузки / сохранения / удаления</i> относятся только к параметрам провайдера (не к его скриптам).</li>
                       <li>Операции <i>сохранения и удаления</i> выполняются в отношении записи, указанной в списке выбора провайдера.</li>
@@ -383,9 +403,12 @@
                 </td>
               </tr>
               <tr>
-                <td colspan='2' style='background:#EFEFEF'></td>
+                <td colspan='3' style='background:#EFEFEF'></td> <!-- Линия разделетель между блоками настроек -->
               </tr>
               <tr>
+                <td rowspan='2' style='vertical-align:top'>
+                  <p style='font-size:x-large; color:#DDDDDD; line-height:2vh; margin-block:0'>База<br>данных</p>
+                </td>
                 <td style='text-align:right'>
                   <label for='sameDateRecord' style='margin-right:6px'>Удалять предыдущие запросы текущей даты за период</label>
                 </td>
@@ -395,28 +418,28 @@
                       <input type='radio' class='radiobtn' id='4hAge' name='sameDateRecord' value='4'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    4 часа
+                    <span>4 часа</span>
                   </label>
                   <label for='8hAge' style='display:flex; align-items:center; margin-right:6px'>
                     <div style='margin-right:6px'>
                       <input type='radio' class='radiobtn' id='8hAge' name='sameDateRecord' value='8'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    8 часов
+                    <span>8 часов</span>
                   </label>
                   <label for='12hAge' style='display:flex; align-items:center; margin-right:6px'>
                     <div style='margin-right:6px'>
                       <input type='radio' class='radiobtn' id='12hAge' name='sameDateRecord' value='12'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    12 часов
+                    <span>12 часов</span>
                   </label>
                   <label for='notDelete' style='display:flex; align-items:center; margin-right:6px'>
                     <div style='margin-right:6px'>
                       <input type='radio' class='radiobtn' id='notDelete' name='sameDateRecord' value='0'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
-                    не удалять
+                    <span>не удалять</span>
                   </label>
                 </td>
               </tr>
@@ -448,6 +471,22 @@
                   </div>
                 </td>
               </tr>
+              <!-- Заметка по загрузке-сохранению csv-файла истории запросов -->
+              <tr>
+                <td colspan=3 style='text-align:right'>
+                  <div id='historyNoteText' class='expandable' style='padding:0'>
+                    <ul style='margin: 0.5em 0.5em 0 0'>
+                      <li>При переходе с автономной программы MobileBalance возможно сохранить собранную в ней историю запросов в файл и импортировать её в хранилище расширения. <a href='MB_export.txt' tabIndex=-1 download>Загрузить инструкцию</a> по подготовке файла истории запросов программы MobileBalance для импорта в расширение.</li>
+                      <li>Воздержитесь от загрузки или сохранения истории запросов во время выполнения очередного опроса. Это может вызвать конфликт работы расширения с хранилищем. Дождитесь завершения текущего опроса.</li>
+                      <li>Данные расширения (история запросов, общие настройки, учётные данные для опроса, настройки для провайдеров) технически хранятся во внутренних структурах браузера. Если вы решили переустановить расширение, перенести (дублировать) его на другой компьютер или в другой браузер - сохраните эти данные в файлы <b>до</b> удаления расширения. После (пере)установки расширения вы сможете загрузить в него данные из сохранённых файлов и продолжить работу. Объём донастройки расширения при этом будет минимальным. И, что важно, - не будет утрачена история предыдущих запросов.</li>
+                    </ul>
+                    <div style='margin: 0 0.5em 0.5em 0; padding: 0 0 0 1.5em'>
+                      <span style='color:#C00000'>Внимание, важно!</span><br>
+                      <span>При удалении расширения все сохраняемые им данные удаляются вместе с расширением без дополнительных уведомлений со стороны браузера. Это действие необратимо и восстановить данные не получится.</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>	
         <!-- Модальное информационное окно -->
@@ -455,18 +494,6 @@
             <div class='modal-content' id='infoWinContent'>
               <span class='modal-title' id='infoText'>Ожидаем завершения операций импорта-экспорта данных...</span>
             </div>
-          </div>
-        </div>
-        <!-- Заметка по загрузке-сохранению csv-файла истории запросов -->
-        <div id='historyNoteText' class='expandable' style='margin: 0.5em 0 0.5em 0; padding: 0 0 0 1.5em'>
-          <ul style='margin: 0.5em 0.5em 0 0'>
-            <li>При переходе с автономной программы MobileBalance возможно сохранить собранную в ней историю запросов в файл и импортировать её в хранилище расширения. <a href='MB_export.txt' tabIndex=-1 download>Загрузить инструкцию</a> по подготовке файла истории запросов программы MobileBalance для импорта в расширение.</li>
-            <li>Воздержитесь от загрузки или сохранения истории запросов во время выполнения очередного опроса. Это может вызвать конфликт работы расширения с хранилищем. Дождитесь завершения текущего опроса.</li>
-            <li>Данные расширения (история запросов, общие настройки, учётные данные для опроса, настройки для провайдеров) технически хранятся во внутренних структурах браузера. Если вы решили переустановить расширение, перенести (дублировать) его на другой компьютер или в другой браузер - сохраните эти данные в файлы <b>до</b> удаления расширения. После (пере)установки расширения вы сможете загрузить в него данные из сохранённых файлов и продолжить работу. Объём донастройки расширения при этом будет минимальным. И, что важно, - не будет утрачена история предыдущих запросов.</li>
-          </ul>
-          <div style='margin: 0.5em 0.5em 0.5em 0; padding: 0 0 0 1.5em'>
-            <span style='color:#800000'>Внимание, важно!</span><br>
-            При удалении расширения все сохраняемые им данные удаляются вместе с расширением без дополнительных уведомлений со стороны браузера. Это действие необратимо и восстановить данные не получится.
           </div>
         </div>
       </div>
@@ -542,7 +569,7 @@
                         <div class='chkbox_pseudo'></div>
                       </div>
                       <div style='display:flex; align-items:center; font-size:small; color: #B0B0B0'>
-                        Внимание! Номер вводится в 10-значном формате: 9991234567
+                        <span>Внимание! Номер вводится в 10-значном формате: 9991234567</span>
                       </div>
                     </div>
                   </td>
@@ -632,16 +659,16 @@
                                             <a href='https://github.com/Unlicensed-ZZZ/MobileBalance' target='_blank'>GitHub</a></td>
               </tr>
               <tr>
-                <td colspan='4' style='background:#EFEFEF'></td>
+                <td colspan='4' style='background:#EFEFEF'></td> <!-- Линия разделетель между блоками настроек -->
               </tr>
               <tr><td colspan='4' style='text-align:justify; padding-top:1vh'>
-              Расширение разработано на основе прототипа&nbsp;- автономной программы MobileBalance для Microsoft Windows. Основанная на взаимодействии с Microsoft Internet Explorer, автономная MobileBalance может работать всё с меньшим количеством провайдеров&nbsp;- они перестают поддерживать Internet Explorer на своих сайтах.
+              <span>Расширение разработано на основе прототипа&nbsp;- автономной программы MobileBalance для Microsoft Windows. Основанная на взаимодействии с Microsoft Internet Explorer, автономная MobileBalance может работать всё с меньшим количеством провайдеров&nbsp;- они перестают поддерживать Internet Explorer на своих сайтах.</span>
               </td></tr>
               <tr><td colspan='4' style='text-align:justify'>
-              Расширение является одной из альтернатив для получения сведений о текущем балансе на компьютерах&nbsp;/ ноутбуках. Поскольку оно рассчитано на работу в среде Chromium-браузерах, то по сравнению с автономной программой у него в активе кроссбраузерность и кроссплатформенность. На текущий момент работоспособность проверена в среде MS Windows (Google Chrome, Yandex browser, Microsoft Edge) и Linux (Chromium на базе Debian).
+              <span>Расширение является одной из альтернатив для получения сведений о текущем балансе на компьютерах&nbsp;/ ноутбуках. Поскольку оно рассчитано на работу в среде Chromium-браузерах, то по сравнению с автономной программой у него в активе кроссбраузерность и кроссплатформенность. На текущий момент работоспособность проверена в среде MS Windows (Google Chrome, Yandex browser, Microsoft Edge) и Linux (Chromium на базе Debian).</span>
               </td></tr>
               <tr><td colspan='4' style='text-align:justify'>
-              Коллекция планинов при необходимости может быть дополнена (обращайтесь, попробуем). Кроме того, в расширении воспроизведена возможность дополнения плагинами, разрабатываемыми сообществом. В отличии от автономной MobileBalance, код расширения полностью открыт и оно может быть дополнено новыми возможностями. Плагины расширения очень близки по алгоритму работы к плагинам прототипа. Но они имеют б<i>о</i>льшую свободу в использовании современных языковых конструкций JavaScript, на котором они (как и само расширение) написаны.
+              <span>Коллекция планинов при необходимости может быть дополнена (обращайтесь, попробуем). Кроме того, в расширении воспроизведена возможность дополнения плагинами, разрабатываемыми сообществом. В отличии от автономной MobileBalance, код расширения полностью открыт и оно может быть дополнено новыми возможностями. Плагины расширения очень близки по алгоритму работы к плагинам прототипа. Но они имеют б<i>о</i>льшую свободу в использовании современных языковых конструкций JavaScript, на котором они (как и само расширение) написаны.</span>
               </td></tr>
             </tbody>
           </table>

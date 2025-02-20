@@ -10,6 +10,7 @@
   "notificationsOnProcess":     true,
   "notificationsOnUpdateDelay": true,
   "poolingWinAlive":            false,
+  "poolingLogSave":             false,
   "deleteSameDateRecord":       8,
   "historyShowMaintained":      true
 }

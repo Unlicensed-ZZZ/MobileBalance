@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.01.26
+ * Редакция:  2025.02.16
  *
 */
 
@@ -17,7 +17,7 @@ import('./../vars.mjs').then( (module) => { // Глобальные переме
 
 let dbMB, dbTrnsMB, dbObjStorMB, dbCrsrMB;
 let providerRecords = [], loginRecords = [];
-let cycleOrder = '', daylyMntn = false, mntnTime = '', rptAttempts = 0, poolWinAlive = false, paintNegative = false, deleteSameDateRecord = 0;
+let cycleOrder = '', daylyMntn = false, mntnTime = '', rptAttempts = 0, poolWinAlive = false, poolLog = false, paintNegative = false, deleteSameDateRecord = 0;
 let fileClamedBy = ''; // Идентификатор кнопки, которой инициирована функция загрузки файла
 // Блок переменных по разрешениям показа уведомлений (оповещений)
 let notifPermission = 'denied';
@@ -98,6 +98,7 @@ async function getOptionsFromStorage() {
     ntfOnProcess = fromStorage.notificationsOnProcess;
     ntfOnUpdateDelay = fromStorage.notificationsOnUpdateDelay;
     poolWinAlive = fromStorage.poolingWinAlive;
+    poolLog = fromStorage.poolingLogSave;
     paintNegative = fromStorage.markNegative;
     deleteSameDateRecord = fromStorage.deleteSameDateRecord;
     loginRecords = (fromStorage.accounts !== undefined) ? fromStorage.accounts : Array([]);
@@ -203,6 +204,7 @@ async function drawOptions() {
       onProcessNotifications.checked = onUpdateDelayNotifications.checked = false;
   }
   poolingWinAlive.checked = ( poolWinAlive ) ? true : false;
+  poolingLogSave.checked = ( poolLog ) ? true : false;
   markNegative.checked = ( paintNegative ) ? true : false;
   switch ( deleteSameDateRecord ) {
     case 0: {
@@ -566,7 +568,7 @@ optionsPage.addEventListener( 'click', async function(evnt) {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       chrome.storage.local.get( [ 'popupShortInfo', 'cycleOrder', 'daylyMaintain', 'daylyMaintainTime', 'deleteSameDateRecord',
                                   'notificationsEnable', 'notificationsOnError', 'notificationsOnProcess', 'notificationsOnUpdateDelay',
-                                  'poolingWinAlive', 'markNegative', 'repeatAttempts', 'historyShowMaintained' ],
+                                  'poolingWinAlive', 'poolingLogSave', 'markNegative', 'repeatAttempts', 'historyShowMaintained' ],
                                 function( fromStorage ) {
         let blob = new Blob( [ JSON.stringify( fromStorage, null, 2 ) ], { type: 'text/json', endings: 'native' } );
         let link = document.createElement( 'a' );
@@ -943,6 +945,11 @@ optionsPage.addEventListener( 'change', async function(evnt) {
       poolWinAlive = poolingWinAlive.checked;
       chrome.storage.local.set( { poolingWinAlive: poolWinAlive } );
       break; }
+    case 'poolingLogSave': {  // Сохранять лог после закрытия окна опроса
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      poolLog = poolingLogSave.checked;
+      chrome.storage.local.set( { poolingLogSave: poolLog } );
+      break; }
     case 'markNegative': { // Выделять отрицательное значение баланса цыетом
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       paintNegative = markNegative.checked;
@@ -1235,6 +1242,9 @@ function getLoadedFile( btnId, fsHandle ) {
         }
         if ( jsonFile.poolingWinAlive !== undefined ) {
           chrome.storage.local.set( { poolingWinAlive: poolWinAlive = jsonFile.poolingWinAlive } );
+        }
+        if ( jsonFile.poolingLogSave !== undefined ) {
+          chrome.storage.local.set( { poolingLogSave: poolLog = jsonFile.poolingLogSave } );
         }
         if ( jsonFile.markNegative !== undefined ) {
           chrome.storage.local.set( { markNegative: paintNegative = jsonFile.markNegative } );
