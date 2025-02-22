@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.02.16
+ * Редакция:  2025.02.22
  *
 */
 
@@ -233,36 +233,35 @@ async function drawOptions() {
 // Инициализация блока провайдеров на вкладке общих настроек по параметрам из local storage
 async function drawProvider() {
 //             --------------
-  for ( let i = 0; i < providerRecords.length; ++i ) {
-    if ( chooseProvider.value === providerRecords[ i ].name ) {
-      providerInfo.innerHTML = '<b>Версия:</b> ' + providerRecords[ i ].version + '<br>' +
-                               '<b>Автор:</b> ' + providerRecords[ i ].author + '<br>' +
-                               '<b>Описание:</b> ' + providerRecords[ i ].annotation;
-      requestDelay.checked = (providerRecords[ i ].requestDelay) ? true : false;
-      requestDelayValue.value = providerRecords[ i ].requestDelayValue;
+  providerRecords.forEach( function( item, index ) {
+    if ( chooseProvider.value === item.name ) {
+      providerInfo.innerHTML = '<b>Версия:</b> ' + item.version + '<br>' +
+                               '<b>Автор:</b> ' + item.author + '<br>' +
+                               '<b>Описание:</b> ' + item.annotation;
+      requestDelay.checked = (item.requestDelay) ? true : false;
+      requestDelayValue.value = item.requestDelayValue;
       requestDelayValue.disabled = (requestDelay.checked) ? false : true;
       // Если в записи провайдера нет изображения - вставляем картинку по умолчанию
-      providerIcon.src = (providerRecords[ i ].icon === '') ?
+      providerIcon.src = (item.icon === '') ?
         'data:image/svg+xml;utf8,%3Csvg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="%23333333" style="transform:rotate(90deg);"%3E \
          %3Cpath d="M9.75 10C8.23122 10 7 11.2312 7 12.75V16.25C7 17.7688 8.23122 19 9.75 19H14.25C15.7688 19 17 17.7688 17 16.25V12.75C17 11.2312 15.7688 10 14.25 10H9.75ZM8.5 12.75C8.5 12.0596 9.05964 11.5 9.75 11.5H12V14H8.5V12.75ZM8.5 15.5H12V17.5H9.75C9.05964 17.5 8.5 16.9404 8.5 16.25V15.5ZM13.5 17.5V11.5H14.25C14.9404 11.5 15.5 12.0596 15.5 12.75V16.25C15.5 16.9404 14.9404 17.5 14.25 17.5H13.5Z"/%3E \
          %3Cpath d="M7.25 2C5.45507 2 4 3.45507 4 5.25V18.75C4 20.5449 5.45507 22 7.25 22H16.75C18.5449 22 20 20.5449 20 18.75V9.28553C20 8.42358 19.6576 7.59693 19.0481 6.98744L15.0126 2.9519C14.4031 2.34241 13.5764 2 12.7145 2H7.25ZM5.5 5.25C5.5 4.2835 6.2835 3.5 7.25 3.5H12.7145C13.1786 3.5 13.6237 3.68437 13.9519 4.01256L17.9874 8.0481C18.3156 8.37629 18.5 8.82141 18.5 9.28553V18.75C18.5 19.7165 17.7165 20.5 16.75 20.5H7.25C6.2835 20.5 5.5 19.7165 5.5 18.75V5.25Z"/%3E \
-         %3C/svg%3E' : providerRecords[ i ].icon;
-      onUpdateDelay.checked = (providerRecords[ i ].onUpdateDelay) ? true : false;
-      onUpdateDelayValue.value = providerRecords[ i ].onUpdateDelayValue;
+         %3C/svg%3E' : item.icon;
+      onUpdateDelay.checked = (item.onUpdateDelay) ? true : false;
+      onUpdateDelayValue.value = item.onUpdateDelayValue;
       onUpdateDelayValue.disabled = (onUpdateDelay.checked) ? false : true;
-      respondTimeout.checked = (providerRecords[ i ].respondTimeout) ? true : false;
-      respondTimeoutValue.value = providerRecords[ i ].respondTimeoutValue;
+      respondTimeout.checked = (item.respondTimeout) ? true : false;
+      respondTimeoutValue.value = item.respondTimeoutValue;
       respondTimeoutValue.disabled = (respondTimeout.checked) ? false : true;
-      if ( providerRecords[ i ].inetUnits === '' ) // Если указаны единицы измерения, то устанавливаем их
+      if ( item.inetUnits === '' ) // Если указаны единицы измерения, то устанавливаем их
         document.querySelectorAll( `[id^='providerInet']` ).forEach( function( item ) { item.checked = false; } );
       else
-        document.querySelector( `[id^='providerInet'][value='${providerRecords[ i ].inetUnits}']` ).checked = true;
-      providerIgnoreFractional.checked = (providerRecords[ i ].ignoreFractional) ? true : false;
-      providerClearCookies.checked = (providerRecords[ i ].startUrlClearCookies) ? true : false;
-      providerBypassCache.checked = (providerRecords[ i ].startUrlBypassCache) ? true : false;
-      break; /* for i*/
+        document.querySelector( `[id^='providerInet'][value='${item.inetUnits}']` ).checked = true;
+      providerIgnoreFractional.checked = (item.ignoreFractional) ? true : false;
+      providerClearCookies.checked = (item.startUrlClearCookies) ? true : false;
+      providerBypassCache.checked = (item.startUrlBypassCache) ? true : false;
     }
-  }
+  });
 }
 
 
@@ -546,7 +545,7 @@ loginData.addEventListener( 'click', async function( evnt ) {
 optionsPage.addEventListener( 'click', async function(evnt) {
 //        -----------------
   let crsr = document.body.style.cursor;
-  switch (evnt.target.id) {
+  switch ( evnt.target.id ) {
     case 'maintainNote': { // Пояснение по настройкам браузера для работы с таймером опроса по расписанию
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       if (maintainNoteText.classList.contains( 'expanded' )) {
@@ -591,71 +590,6 @@ optionsPage.addEventListener( 'click', async function(evnt) {
       .catch( function ( err ) {
         console.log( `[MB] ${err}` );
       });
-      break; }
-    case 'providerDelete': { // Удалить набор файлов текущего плагина
-      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      let pIdx = providerRecords.findIndex( function( item, index ) {
-        return ( ( chooseProvider.value === item.name ) && ( chooseProvider.selectedIndex === index ) )
-      });
-      if ( pIdx >= 0) { // Если такой провайдер есть - удаляем его данные
-        if ( ( providerRecords.length > 0 ) &&
-             ( confirm( `\nПараметры провайдера "${providerRecords[ pIdx ].description}" будут удалены\n\n` +
-                        `Продолжить?` ) ) ) {
-          console.log( `[MB] Provider script "${providerRecords[ pIdx ].name}.js" deleted` )
-          providerRecords.splice( pIdx, 1 );                          // Удаляем из массива запись этого провайдера
-          chrome.storage.local.set( { provider: providerRecords } )   // Сохраняем обновлённые значения в local storage
-          .then( () => {
-            getProviderFromStorage()                                  // Обновляем записи провайдеров в списках выбора...
-            .then( () => {
-              drawProvider();                                         // ...и отрисовываем его параметры
-              for ( let i = (dataList.rows.length - 1); i >= 0; --i ) // Удаляем строки таблицы на 'вкладке' учётных записей...
-                dataList.deleteRow( i );
-              drawLoginTable( 'dataList' );                           // ...и отрисовываем их заново
-            })
-          })
-        }
-      }
-      break; }
-    case 'providerSave': { // Сохранить набор файлов текущего плагина на диск
-      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      let pIdx = providerRecords.findIndex( function( item, index ) {
-        return ( ( chooseProvider.value === item.name ) && ( chooseProvider.selectedIndex === index ) )
-      });
-      if ( pIdx >= 0) { // Если такой провайдер есть - сохраняем его данные в файл
-          let blob = new Blob( [ JSON.stringify( providerRecords[ pIdx ], null, 2 ) ], { type: 'text/json', endings: 'native' } );
-          let link = document.createElement( 'a' );
-          link.setAttribute( 'href', URL.createObjectURL( blob ) );
-          link.setAttribute( 'download', createDateStr() + ' MB-provider-' + providerRecords[ pIdx ].name + '.json' );
-          link.click();
-          link.remove();
-      }
-      break; }
-    case 'providerLoad': { // Загрузить новый набор файлов плагина с диска
-      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      if ( confirm( `\nЕсли провайдер с таким именем (значение 'name' в структуре файла) уже существует, то его запись будет замещена данными из загружаемого файла\n\nПродолжить?` ) ) {
-        window.showOpenFilePicker( { multiple: false, excludeAcceptAllOption: true,
-                                     types: [ { description: 'Файл настроек провайдера',
-                                                accept: { 'application/json': [ '.json' ] }
-                                              } ]
-                                   } )
-        .then( function( fsHandles ) {
-          getLoadedFile( 'providerLoad', fsHandles[ 0 ] );
-        })
-        .catch( function ( err ) {
-          console.log( `[MB] ${err}` );
-        });
-      }
-      break; }
-    case 'providerNote': { // Пояснение по плагинам расширения
-      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      if ( providerNoteText.classList.contains( 'expanded' ) ) {
-        providerNoteText.classList.toggle( 'expanded' );
-        providerNoteText.style.height = 0;
-      }
-      else {
-        providerNoteText.style.height = 'auto';
-        providerNoteText.classList.toggle( 'expanded' );
-      }
       break; }
     case 'historyDelete': { // Очистить историю запросов в хранилище 'Phones' indexedDb
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
@@ -793,6 +727,81 @@ optionsPage.addEventListener( 'click', async function(evnt) {
 });
 
 
+// Обработка нажатия кнопок управления по onclick на Div-"вкладке" параметров провайдеров
+providersPage.addEventListener( 'click', async function(evnt) {
+//        -----------------
+  let crsr = document.body.style.cursor;
+  switch ( evnt.target.id ) {
+    case 'providerDelete': { // Удалить набор файлов текущего плагина
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      let pIdx = providerRecords.findIndex( function( item, index ) {
+        return ( ( chooseProvider.value === item.name ) && ( chooseProvider.selectedIndex === index ) )
+      });
+      if ( pIdx >= 0) { // Если такой провайдер есть - удаляем его данные
+        if ( ( providerRecords.length > 0 ) &&
+             ( confirm( `\nПараметры провайдера "${providerRecords[ pIdx ].description}" будут удалены\n\n` +
+                        `Продолжить?` ) ) ) {
+          console.log( `[MB] Provider script "${providerRecords[ pIdx ].name}.js" deleted` )
+          providerRecords.splice( pIdx, 1 );                          // Удаляем из массива запись этого провайдера
+          chrome.storage.local.set( { provider: providerRecords } )   // Сохраняем обновлённые значения в local storage
+          .then( () => {
+            getProviderFromStorage()                                  // Обновляем записи провайдеров в списках выбора...
+            .then( () => {
+              drawProvider();                                         // ...и отрисовываем его параметры
+              for ( let i = (dataList.rows.length - 1); i >= 0; --i ) // Удаляем строки таблицы на 'вкладке' учётных записей...
+                dataList.deleteRow( i );
+              drawLoginTable( 'dataList' );                           // ...и отрисовываем их заново
+            })
+          })
+        }
+      }
+      break; }
+    case 'providerSave': { // Сохранить набор файлов текущего плагина на диск
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      let pIdx = providerRecords.findIndex( function( item, index ) {
+        return ( ( chooseProvider.value === item.name ) && ( chooseProvider.selectedIndex === index ) )
+      });
+      if ( pIdx >= 0) { // Если такой провайдер есть - сохраняем его данные в файл
+          let blob = new Blob( [ JSON.stringify( providerRecords[ pIdx ], null, 2 ) ], { type: 'text/json', endings: 'native' } );
+          let link = document.createElement( 'a' );
+          link.setAttribute( 'href', URL.createObjectURL( blob ) );
+          link.setAttribute( 'download', createDateStr() + ' MB-provider-' + providerRecords[ pIdx ].name + '.json' );
+          link.click();
+          link.remove();
+      }
+      break; }
+    case 'providerLoad': { // Загрузить новый набор файлов плагина с диска
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      if ( confirm( `\nЕсли провайдер с таким именем (значение 'name' в структуре файла) уже существует, то его запись будет замещена данными из загружаемого файла\n\nПродолжить?` ) ) {
+        window.showOpenFilePicker( { multiple: false, excludeAcceptAllOption: true,
+                                     types: [ { description: 'Файл настроек провайдера',
+                                                accept: { 'application/json': [ '.json' ] }
+                                              } ]
+                                   } )
+        .then( function( fsHandles ) {
+          getLoadedFile( 'providerLoad', fsHandles[ 0 ] );
+        })
+        .catch( function ( err ) {
+          console.log( `[MB] ${err}` );
+        });
+      }
+      break; }
+    case 'providerNote': { // Пояснение по плагинам расширения
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      if ( providerNoteText.classList.contains( 'expanded' ) ) {
+        providerNoteText.classList.toggle( 'expanded' );
+        providerNoteText.style.height = 0;
+      }
+      else {
+        providerNoteText.style.height = 'auto';
+        providerNoteText.classList.toggle( 'expanded' );
+      }
+      break; }
+  } /* switch */
+  return true;
+});
+
+
 // Обработка нажатия кнопок управления по onclick на Div-"вкладке" сведений о расширении
 aboutPage.addEventListener( 'click', async function(evnt) {
 //        -----------------
@@ -866,7 +875,7 @@ chrome.runtime.onMessage.addListener(
 // Обработка состояния объектов управления по onchange на Div-"вкладке" основных параметров
 optionsPage.addEventListener( 'change', async function(evnt) {
 //        -----------------
-  switch (evnt.target.id) {
+  switch ( evnt.target.id ) {
     case 'cycleOrder_sequence': // Порядок опроса
     case 'cycleOrder_parallel': {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
@@ -966,6 +975,15 @@ optionsPage.addEventListener( 'change', async function(evnt) {
       deleteSameDateRecord = Number( document.querySelector( `[id='${evnt.target.id}']` ).value );
       chrome.storage.local.set( { deleteSameDateRecord: deleteSameDateRecord } );
       break; }
+  } /* switch */
+  return true;
+});
+
+
+// Обработка состояния объектов управления по onchange на Div-"вкладке" параметров провайдеров
+providersPage.addEventListener( 'change', async function(evnt) {
+//        -----------------
+  switch ( evnt.target.id ) {
     case 'chooseProvider': { // Выбор набора параметров провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       drawProvider();

@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Страница настроек расширения MobileBalance
- * Редакция:  2025.02.16
+ * Редакция:  2025.02.22
  *
 -->
 
@@ -47,6 +47,11 @@
           <path d='M3 18C3 17.4477 3.44772 17 4 17H13C13.5523 17 14 17.4477 14 18C14 18.5523 13.5523 19 13 19H4C3.44771 19 3 18.5523 3 18Z' fill='#333333'/>
           <path d='M16 18C16 17.4477 16.4477 17 17 17H20C20.5523 17 21 17.4477 21 18C21 18.5523 20.5523 19 20 19H17C16.4477 19 16 18.5523 16 18Z' fill='#333333'/>
         </svg>Учётные данные для опроса</a>
+      <a class='tabs__link' href='#providersPage'>
+         <svg width='24' height='24' style='padding-right:6px; vertical-align:middle; transform:rotate(90deg);' viewBox='0 0 24 24' fill='#333333' xmlns='http://www.w3.org/2000/svg' >
+         <path d="M9.75 10C8.23122 10 7 11.2312 7 12.75V16.25C7 17.7688 8.23122 19 9.75 19H14.25C15.7688 19 17 17.7688 17 16.25V12.75C17 11.2312 15.7688 10 14.25 10H9.75ZM8.5 12.75C8.5 12.0596 9.05964 11.5 9.75 11.5H12V14H8.5V12.75ZM8.5 15.5H12V17.5H9.75C9.05964 17.5 8.5 16.9404 8.5 16.25V15.5ZM13.5 17.5V11.5H14.25C14.9404 11.5 15.5 12.0596 15.5 12.75V16.25C15.5 16.9404 14.9404 17.5 14.25 17.5H13.5Z"/>
+         <path d="M7.25 2C5.45507 2 4 3.45507 4 5.25V18.75C4 20.5449 5.45507 22 7.25 22H16.75C18.5449 22 20 20.5449 20 18.75V9.28553C20 8.42358 19.6576 7.59693 19.0481 6.98744L15.0126 2.9519C14.4031 2.34241 13.5764 2 12.7145 2H7.25ZM5.5 5.25C5.5 4.2835 6.2835 3.5 7.25 3.5H12.7145C13.1786 3.5 13.6237 3.68437 13.9519 4.01256L17.9874 8.0481C18.3156 8.37629 18.5 8.82141 18.5 9.28553V18.75C18.5 19.7165 17.7165 20.5 16.75 20.5H7.25C6.2835 20.5 5.5 19.7165 5.5 18.75V5.25Z"/>
+        </svg>Настройки провайдеров</a>
       <a class='tabs__link' href='#aboutPage'>
         <svg width='24' height='24' style='padding-right:6px; vertical-align:middle;' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
           <path d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z' fill='#333333'/>
@@ -56,14 +61,11 @@
 <!--  Вкладка общих настроек -->
       <div class='tabs__pane tabs__pane_show' id='optionsPage' style='cursor:default'>
         <!-- Скрываем инициализацию органов управления, в конце процесса делаем div видимым -->
-        <div id='optionsBlock' class='expandable' style='display:flex; justify-content:space-around; overflow-y:scroll; background-color:inherit; max-height:71vh'>
+        <div id='optionsBlock' class='expandable' style='display:flex; justify-content:space-around; background-color:inherit; max-height:72.5vh'>
           <table style='color:#333333;  width:80%'>
             <tbody>
               <tr>
-                <td rowspan='7' style='vertical-align:top'>
-                  <p style='font-size:x-large; color:#DDDDDD; line-height:2vh; margin-block:0'>Общие<br>настройки</p>
-                </td>
-                <td style='text-align:right; width:35%'>
+                <td style='text-align:right; width:50%'>
                   <label for='cycleOrder_sequence' style='margin-right:6px'>Порядок опроса</label>
                 </td>
                 <td style='display:flex; text-align:left; align-items:center'>
@@ -250,165 +252,6 @@
                 <td colspan='3' style='background:#EFEFEF'></td> <!-- Линия разделетель между блоками настроек -->
               </tr>
               <tr>
-                <td rowspan='7' style='vertical-align:top'>
-                  <p style='font-size:x-large; color:#DDDDDD; line-height:2vh; margin-block:0'>Настройки<br>провайдеров</p>
-                </td>
-                <td style='text-align:right'>
-                  <label for='chooseProvider' style='margin-right:6px'>Между запросами к провайдеру</label>
-                </td>
-                <td style='text-align:left'>
-                  <div style='display:flex; align-items:center'>
-                    <select id='chooseProvider'></select>
-                    <div class='toolTip' style='margin-left:0.3em'>
-                      <svg width='20' height='20' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-                          <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
-                        </svg>
-                      <div id='providerInfo' class='toolTipText' style='text-align:left'></div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td style='text-align:right'>
-                <label for='requestDelay' style='margin-right:6px; display:inline-flex; align-items:center'>
-                    <img id='providerIcon' alt='icon' height='24' style='margin-right:12px'>...делать паузу (сек)</label>
-                </td>
-                <td style='display:flex; text-align:left'>
-                  <div>
-                    <input type='checkbox' class='chkbox' id='requestDelay'>
-                    <div class='chkbox_pseudo'></div>
-                  </div>
-                  <input type='number' id='requestDelayValue' min='0' pattern='[^0-9]' placeholder='секунд'>
-                </td>
-              </tr>
-              <tr>
-                <td style='text-align:right'>
-                  <label for='onUpdateDelay' style='margin-right:6px; display:inline-flex; align-items:center'>Пауза после обновления / смены страницы провайдера (сек)</label>
-                </td>
-                <td style='display:flex; text-align:left'>
-                  <div>
-                    <input type='checkbox' class='chkbox' id='onUpdateDelay'>
-                    <div class='chkbox_pseudo'></div>
-                  </div>
-                  <input type='number' id='onUpdateDelayValue' min='0' pattern='[^0-9]' placeholder='секунд'>
-                </td>
-              </tr>
-              <tr>
-                <td style='text-align:right'>
-                  <label for='respondTimeout' style='margin-right:6px; display:inline-flex; align-items:center'>Ожидать от провайдера ответ на запрос не более (сек)</label>
-                </td>
-                <td style='display:flex; text-align:left'>
-                  <div>
-                    <input type='checkbox' class='chkbox' id='respondTimeout'>
-                    <div class='chkbox_pseudo'></div>
-                  </div>
-                  <input type='number' id='respondTimeoutValue' min='0' pattern='[^0-9]' placeholder='секунд'>
-                </td>
-              </tr>
-              <tr>
-                <td style='text-align:right'>
-                  <label for='providerInetUnits' style='margin-right:6px'>Отображать интернет-трафик в</label>
-                </td>
-                <td style='display:flex; text-align:left'>
-                  <label for='providerInetGb' style='display:flex; align-items:center; margin-right:6px'>
-                    <div style='margin-right:6px'>
-                      <input type='radio' class='radiobtn' id='providerInetGb' name='providerInetUnits' value='G'>
-                      <div class='radiobtn_pseudo'></div>
-                    </div>
-                    <span>гигибайтах</span>
-                  </label>
-                  <label for='providerInetMb' style='display:flex; align-items:center; margin-right:6px'>
-                    <div style='margin-right:6px'>
-                      <input type='radio' class='radiobtn' id='providerInetMb' name='providerInetUnits' value='M'>
-                      <div class='radiobtn_pseudo'></div>
-                    </div>
-                    <span>мегабайтах</span>
-                  </label>
-                </td>
-              </tr>
-              <tr>
-                <td style='text-align:right'>
-                  <label for='providerIgnoreFractional' style='margin-right:6px'>Отбрасывать дробную часть баланса при оценке его изменения</label>
-                </td>
-                <td style='display:flex; align-items:center; justify-content:space-between;'>
-                  <div>
-                    <input type='checkbox' class='chkbox' id='providerIgnoreFractional'>
-                    <div class='chkbox_pseudo'></div>
-                  </div>
-                  <div>
-                  <div>
-                    <label for="providerClearCookies" style="display:flex; align-items:center; margin-right:12px; margin-bottom:2px">
-                      <div>
-                        <input type="checkbox" class="chkbox" id="providerClearCookies">
-                        <div class="chkbox_pseudo"></div>
-                      </div>
-                      <span>Удалять для страницы cookies перед запросом</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label for="providerBypassCache" style="display:flex; align-items:center; margin-right:12px; margin-top:2px">
-                      <div>
-                        <input type="checkbox" class="chkbox" id="providerBypassCache">
-                        <div class="chkbox_pseudo"></div>
-                      </div>
-                      <span>Сбрасывать кэш страницы перед запросом</span>
-                      <div class='toolTip'>
-                        <svg width='20' height='20' style='vertical-align:middle; padding-inline:0.3em;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-                            <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
-                          </svg>
-                        <span class='toolTipText'>Аналог обновления страницы браузера по нажатию клавиш <b>Ctrl+F5</b>.<br>Предпринимается попытка загрузки стартовой страницы запроса с сервера провайдера.<br>При этом сохранённый браузером кэш страницы не используется. Данные в нём могут быть устаревшими и не давать странице правильно работать</span>
-                      </div>
-                    </label>
-                  </div>
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td style='text-align:right'></td>
-                <td style='text-align:left'>
-                  <div style='text-align:right; padding-bottom:12px'>
-                    <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em;' id='providerDelete'>
-                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-                        <path fill='var(--imgColor)' d='M12 1.75C13.733 1.75 15.1492 3.10645 15.2449 4.81558L15.25 5H20.5C20.9142 5 21.25 5.33579 21.25 5.75C21.25 6.1297 20.9678 6.44349 20.6018 6.49315L20.5 6.5H19.704L18.4239 19.5192C18.2912 20.8683 17.1984 21.91 15.8626 21.9945L15.6871 22H8.31293C6.95734 22 5.81365 21.0145 5.59883 19.6934L5.57614 19.5192L4.295 6.5H3.5C3.1203 6.5 2.80651 6.21785 2.75685 5.85177L2.75 5.75C2.75 5.3703 3.03215 5.05651 3.39823 5.00685L3.5 5H8.75C8.75 3.20507 10.2051 1.75 12 1.75ZM18.197 6.5H5.802L7.06893 19.3724C7.12768 19.9696 7.60033 20.4343 8.18585 20.4936L8.31293 20.5H15.6871C16.2872 20.5 16.7959 20.0751 16.9123 19.4982L16.9311 19.3724L18.197 6.5ZM13.75 9.25C14.1297 9.25 14.4435 9.53215 14.4932 9.89823L14.5 10V17C14.5 17.4142 14.1642 17.75 13.75 17.75C13.3703 17.75 13.0565 17.4678 13.0068 17.1018L13 17V10C13 9.58579 13.3358 9.25 13.75 9.25ZM10.25 9.25C10.6297 9.25 10.9435 9.53215 10.9932 9.89823L11 10V17C11 17.4142 10.6642 17.75 10.25 17.75C9.8703 17.75 9.55651 17.4678 9.50685 17.1018L9.5 17V10C9.5 9.58579 9.83579 9.25 10.25 9.25ZM12 3.25C11.0818 3.25 10.3288 3.95711 10.2558 4.85647L10.25 5H13.75C13.75 4.0335 12.9665 3.25 12 3.25Z'/> \
-                      </svg>Удалить</button>
-                    <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em;' id='providerSave'>
-                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-                        <path fill='var(--imgColor)' d='M3 5.75C3 4.23122 4.23122 3 5.75 3H15.7145C16.5764 3 17.4031 3.34241 18.0126 3.9519L20.0481 5.98744C20.6576 6.59693 21 7.42358 21 8.28553V18.25C21 19.7688 19.7688 21 18.25 21H5.75C4.23122 21 3 19.7688 3 18.25V5.75ZM5.75 4.5C5.05964 4.5 4.5 5.05964 4.5 5.75V18.25C4.5 18.9404 5.05964 19.5 5.75 19.5H6V14.25C6 13.0074 7.00736 12 8.25 12H15.75C16.9926 12 18 13.0074 18 14.25V19.5H18.25C18.9404 19.5 19.5 18.9404 19.5 18.25V8.28553C19.5 7.8214 19.3156 7.37629 18.9874 7.0481L16.9519 5.01256C16.6918 4.75246 16.3582 4.58269 16 4.52344V7.25C16 8.49264 14.9926 9.5 13.75 9.5H9.25C8.00736 9.5 7 8.49264 7 7.25V4.5H5.75ZM16.5 19.5V14.25C16.5 13.8358 16.1642 13.5 15.75 13.5H8.25C7.83579 13.5 7.5 13.8358 7.5 14.25V19.5H16.5ZM8.5 4.5V7.25C8.5 7.66421 8.83579 8 9.25 8H13.75C14.1642 8 14.5 7.66421 14.5 7.25V4.5H8.5Z'/> \
-                    </svg>Сохранить</button>
-                    <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em;' id='providerLoad'>
-                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-                        <path fill='var(--imgColor)' d='M8.20693 4C8.66749 4 9.1153 4.14129 9.49094 4.40235L9.64734 4.5215L12.022 6.5H19.75C20.8867 6.5 21.8266 7.34297 21.9785 8.43788L21.9948 8.59595L22 8.75V17.75C22 18.9409 21.0748 19.9156 19.904 19.9948L19.75 20H4.25C3.05914 20 2.08436 19.0748 2.00519 17.904L2 17.75V6.25C2 5.05914 2.92516 4.08436 4.09595 4.00519L4.25 4H8.20693ZM9.64734 9.9785C9.29353 10.2733 8.85906 10.4515 8.40335 10.4914L8.20693 10.5L3.5 10.499V17.75C3.5 18.1297 3.78215 18.4435 4.14823 18.4932L4.25 18.5H19.75C20.1297 18.5 20.4435 18.2178 20.4932 17.8518L20.5 17.75V8.75C20.5 8.3703 20.2178 8.05651 19.8518 8.00685L19.75 8H12.021L9.64734 9.9785ZM8.20693 5.5H4.25C3.8703 5.5 3.55651 5.78215 3.50685 6.14823L3.5 6.25V8.999L8.20693 9C8.34729 9 8.4841 8.96063 8.60221 8.88738L8.68706 8.82617L10.578 7.249L8.68706 5.67383C8.57923 5.58398 8.44893 5.52664 8.31129 5.5073L8.20693 5.5Z'/> \
-                    </svg>Загрузить</button>
-                      <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em; padding-right:inherit;' id='providerNote' title='О плагинах для провайдеров'>
-                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-                        <path fill='var(--imgColor)' d='M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C10.3817 22 8.81782 21.6146 7.41286 20.888L3.58704 21.9553C2.92212 22.141 2.23258 21.7525 2.04691 21.0876C1.98546 20.8676 1.98549 20.6349 2.04695 20.4151L3.11461 16.5922C2.38637 15.186 2 13.6203 2 12C2 6.47715 6.47715 2 12 2ZM12 3.5C7.30558 3.5 3.5 7.30558 3.5 12C3.5 13.4696 3.87277 14.8834 4.57303 16.1375L4.72368 16.4072L3.61096 20.3914L7.59755 19.2792L7.86709 19.4295C9.12006 20.1281 10.5322 20.5 12 20.5C16.6944 20.5 20.5 16.6944 20.5 12C20.5 7.30558 16.6944 3.5 12 3.5ZM12 15.5C12.5523 15.5 13 15.9477 13 16.5C13 17.0523 12.5523 17.5 12 17.5C11.4477 17.5 11 17.0523 11 16.5C11 15.9477 11.4477 15.5 12 15.5ZM12 6.75C13.5188 6.75 14.75 7.98122 14.75 9.5C14.75 10.5108 14.4525 11.074 13.6989 11.8586L13.5303 12.0303C12.9084 12.6522 12.75 12.9163 12.75 13.5C12.75 13.9142 12.4142 14.25 12 14.25C11.5858 14.25 11.25 13.9142 11.25 13.5C11.25 12.4892 11.5475 11.926 12.3011 11.1414L12.4697 10.9697C13.0916 10.3478 13.25 10.0837 13.25 9.5C13.25 8.80964 12.6904 8.25 12 8.25C11.3528 8.25 10.8205 8.74187 10.7565 9.37219L10.75 9.5C10.75 9.91421 10.4142 10.25 10 10.25C9.58579 10.25 9.25 9.91421 9.25 9.5C9.25 7.98122 10.4812 6.75 12 6.75Z'/> \
-                    </svg></button>
-                  </div>
-                </td>
-              </tr>
-              <!-- Заметка о плагинах для запросов к личным кабинетам провайдеров -->
-              <tr>
-                <td colspan=3 style='text-align:right'>
-                  <div id='providerNoteText' class='expandable' style='padding:0'>
-                    <ul style='margin: 0.5em 0.5em 0 0'>
-                      <li>Операции <i>загрузки / сохранения / удаления</i> относятся только к параметрам провайдера (не к его скриптам).</li>
-                      <li>Операции <i>сохранения и удаления</i> выполняются в отношении записи, указанной в списке выбора провайдера.</li>
-                      <li>Воздержитесь от операций с параметрами провайдеров во время выполнения очередного опроса. Это может вызвать конфликт работы расширения с хранилищем. Дождитесь завершения текущего опроса.</li>
-                    </ul>
-                    <div style='margin: 0 0.5em 0.5em 0; padding: 0 0 0 1.5em'>
-                      <a href='MB_provider.txt' tabIndex=-1 download>Загрузить</a> описание структуры параметров провайдера (JSON-файлов).<br>
-                      <a href='MB_scripts.txt' tabIndex=-1 download >Загрузить</a> более детальные сведения о порядке работы расширения со скриптами (JavaScript файлами).
-                    </div>
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td colspan='3' style='background:#EFEFEF'></td> <!-- Линия разделетель между блоками настроек -->
-              </tr>
-              <tr>
-                <td rowspan='2' style='vertical-align:top'>
-                  <p style='font-size:x-large; color:#DDDDDD; line-height:2vh; margin-block:0'>База<br>данных</p>
-                </td>
                 <td style='text-align:right'>
                   <label for='sameDateRecord' style='margin-right:6px'>Удалять предыдущие запросы текущей даты за период</label>
                 </td>
@@ -631,6 +474,165 @@
             </div>
             <div id='modalBottom' tabIndex='0'></div>
           </div>
+        </div>
+      </div>
+<!--  Вкладка настроек провайдеров -->
+      <div class='tabs__pane' id='providersPage' style='cursor:default'>
+        <div style='display:flex; justify-content:space-around; background-color:inherit; max-height:72vh'>
+          <table style='color:#333333;  width:80%'>
+            <tbody>
+              <tr>
+                <td style='text-align:right; width:50%'>
+                  <label for='chooseProvider' style='margin-right:6px'>Между запросами к провайдеру</label>
+                </td>
+                <td style='text-align:left'>
+                  <div style='display:flex; align-items:center'>
+                    <select id='chooseProvider'></select>
+                    <div class='toolTip' style='margin-left:0.3em'>
+                      <svg width='20' height='20' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                          <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
+                        </svg>
+                      <div id='providerInfo' class='toolTipText' style='text-align:left'></div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style='text-align:right'>
+                <label for='requestDelay' style='margin-right:6px; display:inline-flex; align-items:center'>
+                    <img id='providerIcon' alt='icon' height='24' style='margin-right:12px'>...делать паузу (сек)</label>
+                </td>
+                <td style='display:flex; text-align:left'>
+                  <div>
+                    <input type='checkbox' class='chkbox' id='requestDelay'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <input type='number' id='requestDelayValue' min='0' pattern='[^0-9]' placeholder='секунд'>
+                </td>
+              </tr>
+              <tr>
+                <td style='text-align:right'>
+                  <label for='onUpdateDelay' style='margin-right:6px; display:inline-flex; align-items:center'>Пауза после обновления / смены страницы провайдера (сек)</label>
+                </td>
+                <td style='display:flex; text-align:left'>
+                  <div>
+                    <input type='checkbox' class='chkbox' id='onUpdateDelay'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <input type='number' id='onUpdateDelayValue' min='0' pattern='[^0-9]' placeholder='секунд'>
+                </td>
+              </tr>
+              <tr>
+                <td style='text-align:right'>
+                  <label for='respondTimeout' style='margin-right:6px; display:inline-flex; align-items:center'>Ожидать от провайдера ответ на запрос не более (сек)</label>
+                </td>
+                <td style='display:flex; text-align:left'>
+                  <div>
+                    <input type='checkbox' class='chkbox' id='respondTimeout'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <input type='number' id='respondTimeoutValue' min='0' pattern='[^0-9]' placeholder='секунд'>
+                </td>
+              </tr>
+              <tr>
+                <td style='text-align:right'>
+                  <label for='providerInetUnits' style='margin-right:6px'>Отображать интернет-трафик в</label>
+                </td>
+                <td style='display:flex; text-align:left'>
+                  <label for='providerInetGb' style='display:flex; align-items:center; margin-right:6px'>
+                    <div style='margin-right:6px'>
+                      <input type='radio' class='radiobtn' id='providerInetGb' name='providerInetUnits' value='G'>
+                      <div class='radiobtn_pseudo'></div>
+                    </div>
+                    <span>гигибайтах</span>
+                  </label>
+                  <label for='providerInetMb' style='display:flex; align-items:center; margin-right:6px'>
+                    <div style='margin-right:6px'>
+                      <input type='radio' class='radiobtn' id='providerInetMb' name='providerInetUnits' value='M'>
+                      <div class='radiobtn_pseudo'></div>
+                    </div>
+                    <span>мегабайтах</span>
+                  </label>
+                </td>
+              </tr>
+              <tr>
+                <td style='text-align:right'>
+                  <label for='providerIgnoreFractional' style='margin-right:6px'>Отбрасывать дробную часть баланса при оценке его изменения</label>
+                </td>
+                <td style='display:flex; align-items:center; justify-content:space-between;'>
+                  <div>
+                    <input type='checkbox' class='chkbox' id='providerIgnoreFractional'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <div>
+                  <div>
+                    <label for="providerClearCookies" style="display:flex; align-items:center; margin-right:12px; margin-bottom:2px">
+                      <div>
+                        <input type="checkbox" class="chkbox" id="providerClearCookies">
+                        <div class="chkbox_pseudo"></div>
+                      </div>
+                      <span>Удалять для страницы cookies перед запросом</span>
+                    </label>
+                  </div>
+                  <div>
+                    <label for="providerBypassCache" style="display:flex; align-items:center; margin-right:12px; margin-top:2px">
+                      <div>
+                        <input type="checkbox" class="chkbox" id="providerBypassCache">
+                        <div class="chkbox_pseudo"></div>
+                      </div>
+                      <span>Сбрасывать кэш страницы перед запросом</span>
+                      <div class='toolTip'>
+                        <svg width='20' height='20' style='vertical-align:middle; padding-inline:0.3em;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                            <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
+                          </svg>
+                        <span class='toolTipText'>Аналог обновления страницы браузера по нажатию клавиш <b>Ctrl+F5</b>.<br>Предпринимается попытка загрузки стартовой страницы запроса с сервера провайдера.<br>При этом сохранённый браузером кэш страницы не используется. Данные в нём могут быть устаревшими и не давать странице правильно работать</span>
+                      </div>
+                    </label>
+                  </div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style='text-align:right'></td>
+                <td style='text-align:left'>
+                  <div style='text-align:right; padding-bottom:12px'>
+                    <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em;' id='providerDelete'>
+                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                        <path fill='var(--imgColor)' d='M12 1.75C13.733 1.75 15.1492 3.10645 15.2449 4.81558L15.25 5H20.5C20.9142 5 21.25 5.33579 21.25 5.75C21.25 6.1297 20.9678 6.44349 20.6018 6.49315L20.5 6.5H19.704L18.4239 19.5192C18.2912 20.8683 17.1984 21.91 15.8626 21.9945L15.6871 22H8.31293C6.95734 22 5.81365 21.0145 5.59883 19.6934L5.57614 19.5192L4.295 6.5H3.5C3.1203 6.5 2.80651 6.21785 2.75685 5.85177L2.75 5.75C2.75 5.3703 3.03215 5.05651 3.39823 5.00685L3.5 5H8.75C8.75 3.20507 10.2051 1.75 12 1.75ZM18.197 6.5H5.802L7.06893 19.3724C7.12768 19.9696 7.60033 20.4343 8.18585 20.4936L8.31293 20.5H15.6871C16.2872 20.5 16.7959 20.0751 16.9123 19.4982L16.9311 19.3724L18.197 6.5ZM13.75 9.25C14.1297 9.25 14.4435 9.53215 14.4932 9.89823L14.5 10V17C14.5 17.4142 14.1642 17.75 13.75 17.75C13.3703 17.75 13.0565 17.4678 13.0068 17.1018L13 17V10C13 9.58579 13.3358 9.25 13.75 9.25ZM10.25 9.25C10.6297 9.25 10.9435 9.53215 10.9932 9.89823L11 10V17C11 17.4142 10.6642 17.75 10.25 17.75C9.8703 17.75 9.55651 17.4678 9.50685 17.1018L9.5 17V10C9.5 9.58579 9.83579 9.25 10.25 9.25ZM12 3.25C11.0818 3.25 10.3288 3.95711 10.2558 4.85647L10.25 5H13.75C13.75 4.0335 12.9665 3.25 12 3.25Z'/> \
+                      </svg>Удалить</button>
+                    <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em;' id='providerSave'>
+                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                        <path fill='var(--imgColor)' d='M3 5.75C3 4.23122 4.23122 3 5.75 3H15.7145C16.5764 3 17.4031 3.34241 18.0126 3.9519L20.0481 5.98744C20.6576 6.59693 21 7.42358 21 8.28553V18.25C21 19.7688 19.7688 21 18.25 21H5.75C4.23122 21 3 19.7688 3 18.25V5.75ZM5.75 4.5C5.05964 4.5 4.5 5.05964 4.5 5.75V18.25C4.5 18.9404 5.05964 19.5 5.75 19.5H6V14.25C6 13.0074 7.00736 12 8.25 12H15.75C16.9926 12 18 13.0074 18 14.25V19.5H18.25C18.9404 19.5 19.5 18.9404 19.5 18.25V8.28553C19.5 7.8214 19.3156 7.37629 18.9874 7.0481L16.9519 5.01256C16.6918 4.75246 16.3582 4.58269 16 4.52344V7.25C16 8.49264 14.9926 9.5 13.75 9.5H9.25C8.00736 9.5 7 8.49264 7 7.25V4.5H5.75ZM16.5 19.5V14.25C16.5 13.8358 16.1642 13.5 15.75 13.5H8.25C7.83579 13.5 7.5 13.8358 7.5 14.25V19.5H16.5ZM8.5 4.5V7.25C8.5 7.66421 8.83579 8 9.25 8H13.75C14.1642 8 14.5 7.66421 14.5 7.25V4.5H8.5Z'/> \
+                    </svg>Сохранить</button>
+                    <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em;' id='providerLoad'>
+                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                        <path fill='var(--imgColor)' d='M8.20693 4C8.66749 4 9.1153 4.14129 9.49094 4.40235L9.64734 4.5215L12.022 6.5H19.75C20.8867 6.5 21.8266 7.34297 21.9785 8.43788L21.9948 8.59595L22 8.75V17.75C22 18.9409 21.0748 19.9156 19.904 19.9948L19.75 20H4.25C3.05914 20 2.08436 19.0748 2.00519 17.904L2 17.75V6.25C2 5.05914 2.92516 4.08436 4.09595 4.00519L4.25 4H8.20693ZM9.64734 9.9785C9.29353 10.2733 8.85906 10.4515 8.40335 10.4914L8.20693 10.5L3.5 10.499V17.75C3.5 18.1297 3.78215 18.4435 4.14823 18.4932L4.25 18.5H19.75C20.1297 18.5 20.4435 18.2178 20.4932 17.8518L20.5 17.75V8.75C20.5 8.3703 20.2178 8.05651 19.8518 8.00685L19.75 8H12.021L9.64734 9.9785ZM8.20693 5.5H4.25C3.8703 5.5 3.55651 5.78215 3.50685 6.14823L3.5 6.25V8.999L8.20693 9C8.34729 9 8.4841 8.96063 8.60221 8.88738L8.68706 8.82617L10.578 7.249L8.68706 5.67383C8.57923 5.58398 8.44893 5.52664 8.31129 5.5073L8.20693 5.5Z'/> \
+                    </svg>Загрузить</button>
+                      <button type='button' class='panelButton' style='width:auto; margin-inline: 0 0.4em; padding-right:inherit;' id='providerNote' title='О плагинах для провайдеров'>
+                      <svg width='24' height='24' style='padding-right:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                        <path fill='var(--imgColor)' d='M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C10.3817 22 8.81782 21.6146 7.41286 20.888L3.58704 21.9553C2.92212 22.141 2.23258 21.7525 2.04691 21.0876C1.98546 20.8676 1.98549 20.6349 2.04695 20.4151L3.11461 16.5922C2.38637 15.186 2 13.6203 2 12C2 6.47715 6.47715 2 12 2ZM12 3.5C7.30558 3.5 3.5 7.30558 3.5 12C3.5 13.4696 3.87277 14.8834 4.57303 16.1375L4.72368 16.4072L3.61096 20.3914L7.59755 19.2792L7.86709 19.4295C9.12006 20.1281 10.5322 20.5 12 20.5C16.6944 20.5 20.5 16.6944 20.5 12C20.5 7.30558 16.6944 3.5 12 3.5ZM12 15.5C12.5523 15.5 13 15.9477 13 16.5C13 17.0523 12.5523 17.5 12 17.5C11.4477 17.5 11 17.0523 11 16.5C11 15.9477 11.4477 15.5 12 15.5ZM12 6.75C13.5188 6.75 14.75 7.98122 14.75 9.5C14.75 10.5108 14.4525 11.074 13.6989 11.8586L13.5303 12.0303C12.9084 12.6522 12.75 12.9163 12.75 13.5C12.75 13.9142 12.4142 14.25 12 14.25C11.5858 14.25 11.25 13.9142 11.25 13.5C11.25 12.4892 11.5475 11.926 12.3011 11.1414L12.4697 10.9697C13.0916 10.3478 13.25 10.0837 13.25 9.5C13.25 8.80964 12.6904 8.25 12 8.25C11.3528 8.25 10.8205 8.74187 10.7565 9.37219L10.75 9.5C10.75 9.91421 10.4142 10.25 10 10.25C9.58579 10.25 9.25 9.91421 9.25 9.5C9.25 7.98122 10.4812 6.75 12 6.75Z'/> \
+                    </svg></button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Заметка о плагинах для запросов к личным кабинетам провайдеров -->
+              <tr>
+                <td colspan=3 style='text-align:right'>
+                  <div id='providerNoteText' class='expandable' style='padding:0'>
+                    <ul style='margin: 0.5em 0.5em 0 0'>
+                      <li>Операции <i>загрузки / сохранения / удаления</i> относятся только к параметрам провайдера (не к его скриптам).</li>
+                      <li>Операции <i>сохранения и удаления</i> выполняются в отношении записи, указанной в списке выбора провайдера.</li>
+                      <li>Воздержитесь от операций с параметрами провайдеров во время выполнения очередного опроса. Это может вызвать конфликт работы расширения с хранилищем. Дождитесь завершения текущего опроса.</li>
+                    </ul>
+                    <div style='margin: 0 0.5em 0.5em 0; padding: 0 0 0 1.5em'>
+                      <a href='MB_provider.txt' tabIndex=-1 download>Загрузить</a> описание структуры параметров провайдера (JSON-файлов).<br>
+                      <a href='MB_scripts.txt' tabIndex=-1 download >Загрузить</a> более детальные сведения о порядке работы расширения со скриптами (JavaScript файлами).
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>	
         </div>
       </div>
 <!--  Вкладка сведений о расширении -->
