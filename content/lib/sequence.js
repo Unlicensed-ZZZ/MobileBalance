@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2025.02.20
+ * Редакция:  2025.02.24
  *
 */
 
@@ -479,56 +479,43 @@ async function pollingEnd( force = false ) {  // 'force' = 'true' - вкладк
     //   исходных значений ("ремонта") расширения в окне options (если эти окна открыты)
     chrome.runtime.sendMessage( { message: 'MB_actualizeControls' } ) // Если эти окна не открыты, то не будет и кода обработки
     .catch( function() {} );                                          // приёма сообщений от них - снимаем ошибку канала связи
-    if ( !userIntrusion ) {                                     // Если пользователь не вмешивался в ход опроса, то ...
+    if ( force || !userIntrusion ) {      // Если пользователь закрывает вкладку результатов опроса / всё окно или пользователь
+                                          //   не вмешивался в ход опроса ...
       pFinish = drawPollingTime( 'pollingFinish' );             // ... вычисляем и отображаем время завершения опроса
       drawPollingDuration( pStart, pFinish, 'pollingFinish' );  // ... вычисляем и отображаем продолжительность опроса
-    }
-    if ( force || !poolingWinAlive ) {  // Если пользователь закрывает вкладку результатов опроса / всё окно или в настройках указано
-                                        //   не оставлять его открытым после завершения опроса ('poolingWinAlive' = 'false') ...
-      window.removeEventListener( 'beforeunload', beforeunloadListener ); // ... снимаем контроль закрытия вкладки результатов опроса ...
-      console.log( `[MB] Finising pooling prosess...` );
-      dbMB.close();                                                       // ... закрываем базу ('BalanceHistory') ...
-      console.log( `[MB] IndexedDB '${dbMB.name}' closed` );
+      if ( force || !poolingWinAlive ) {  // Если пользователь закрывает вкладку результатов опроса / всё окно или в настройках указано
+                                          //   не оставлять его открытым после завершения опроса ('poolingWinAlive' = 'false') ...
+        window.removeEventListener( 'beforeunload', beforeunloadListener ); // ... снимаем контроль закрытия вкладки результатов опроса ...
+        console.log( `[MB] Finising pooling prosess...` );
+        dbMB.close();                                                       // ... закрываем базу ('BalanceHistory') ...
+        console.log( `[MB] IndexedDB '${dbMB.name}' closed` );
 
-      let promiseArr = await closingTabs();   // Собираем в массив все promise закрытия рабочих вкладок провайдеров
-      Promise.allSettled( promiseArr )        // Контролируем завершение исполнения всех этих promise и только после этого ...
+        let promiseArr = await closingTabs();   // Собираем в массив все promise закрытия рабочих вкладок провайдеров
+        Promise.allSettled( promiseArr )        // Контролируем завершение исполнения всех этих promise и только после этого ...
   /* ---- Код .then() ниже выполнится только для закрытия вкладки результатов опроса по опции настроек 'poolingWinAlive' = 'false'.
           Вызов 'pollingEnd' из обработчика 'beforeunload' происходит при уже инициированной браузером процедуре закрытия рабочей вкладки
           опроса. При этом при закрытии всего окна инициируются и вызовы закрытия для всех ещё активных рабочих вкладок провайдеров.
           При закрытии рабочей вкладки опроса дождаться перехода promise закрытия рабочих вкладок провайдеров в статус 'fulfilled'
           возможно. Но далее для обоих случаев (закрытие вкладки или окна) дополнительные действия, в частности сохранение лога,
           реализовать не получается. Процесс закрытия для рабочей вкладки завершается до попыток сохранения лога.
-  */  .then( async function() {
-        if ( poolingLogSave )                 // Если в настройках указано сохранение лога при закрытии окна опроса, то сохраняем его
-          await savePollingLog();
-        await chrome.tabs.remove( workTab )                             // ... закрываем вкладку результатов опроса
-        .catch( async ( err ) => {            // Обрабатываем ошибку 'Tabs cannot be edited right now (user may be dragging a tab).'
-          if ( err.message.includes( '(user may be dragging a tab)' ) ) {
-            await sleep( 100 );               // После паузы повторяем закрытие вкладки результатов опроса
-            await chrome.tabs.remove( workTab )
-            .catch( function( err ) {} );     // Ошибки (если будут) в этот раз снимаем, чтобы они не остановили работу скрипта
-          }
-        })
-      });
+  */    .then( async function() {
+          if ( poolingLogSave )                 // Если в настройках указано сохранение лога при закрытии окна опроса, то сохраняем его
+            await savePollingLog();
+          await chrome.tabs.remove( workTab )                             // ... закрываем вкладку результатов опроса
+          .catch( async ( err ) => {            // Обрабатываем ошибку 'Tabs cannot be edited right now (user may be dragging a tab).'
+            if ( err.message.includes( '(user may be dragging a tab)' ) ) {
+              await sleep( 100 );               // После паузы повторяем закрытие вкладки результатов опроса
+              await chrome.tabs.remove( workTab )
+              .catch( function( err ) {} );     // Ошибки (если будут) в этот раз снимаем, чтобы они не остановили работу скрипта
+            }
+          })
+        });
+      }
     }
   }
   else { // Если обнаружены записи с незавершёнными запросами - возвращаемся их опрашивать
     await chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_new' }, { tab: null, id: self.location.origin } );
   }
-}
-
-
-async function promiseState( inpPromise ) {
-//             --------------------------
-  const pendingState = { status: 'pending' };
-  return Promise.race( [ inpPromise, pendingState ] )
-         .then( value =>  ( value === pendingState
-                            ? value
-                            : { status: 'fulfilled', value }
-                          ),
-                reason => ( { status: 'rejected', reason }
-                          )
-         );
 }
 
 
