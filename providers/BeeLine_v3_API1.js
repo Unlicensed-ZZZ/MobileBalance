@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2025.01.08
+ * Редакция:  2025.04.17
  *
 */
 
@@ -25,6 +25,7 @@ let cbl = undefined;
 Новый (с 03.04.2024)       'https://authentication.beeline.ru', на нём форма авторизации не имеет постоянного тэга.
                            Проверяем открытие страницы авторизации по тэгу 'title'
                            Значение тэга 'title' = 'Авторизация Beeline'
+                           С 17.04.2025 тэг изменён на 'title' = 'Аутентификация билайн'
 Старый                     'https://moskva.beeline.ru/login/', на нём форма авторизации имеет тэг с классом 'initial-form'.
                            Значение тэга 'title' = 'Вход в приложение билайн - личный кабинет для мобильной связи и домашнего интернета'
 */
@@ -52,13 +53,13 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
           // Проверяем наличие форм ввода учётных данных в предположении, что загружена страница авторизации
           let loginForm = null;
           loginForm = document.getElementById( 'loginFormB2B:loginForm' );      // Проверяем открытие страницы авторизаци для ЮЛ
-          if ( ( loginForm !== null ) && ( loginForm.length > 0 ) ) loginForm = 'UL'
+          if ( ( loginForm !== null ) && ( loginForm.length > 0 ) )   loginForm = 'UL'
           else {
             loginForm = document.getElementsByClassName( 'initial-form' );      // Проверяем открытие старой (до 03.04.2024) страницы авторизаци
             if ( ( loginForm !== null ) && ( loginForm.length > 0 ) ) loginForm = 'Old'
             else {
-              loginForm = document.title.includes( 'Авторизация' );             // Проверяем открытие новой (с 03.04.2024) страницы авторизации
-              if ( loginForm ) loginForm = 'New'
+              if ( document.title.includes( 'Авторизация' ) ||                  // Проверяем открытие новой (с 03.04.2024) страницы авторизации
+                   document.title.includes( 'Аутентификация' ) )      loginForm = 'New'
               else loginForm = null;
             }
           }

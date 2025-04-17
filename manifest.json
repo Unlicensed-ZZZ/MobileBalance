@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MobileBalance",
   "description": "Получение данных баланса у провайдера",
-  "version": "1.0.71",
+  "version": "1.0.72",
   "author": "ZZZ (aka Unlicensed)",
   "action": {
     "default_icon": {
