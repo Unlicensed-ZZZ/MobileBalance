@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи T2 (ранее Tele2) через API
- * Редакция:  2024.09.05
+ * Редакция:  2025.05.18
  *
 */
 
@@ -23,59 +23,6 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       MBLogin = request.login;
       switch ( request.action ) {
         case 'log&pass': {
-// --- До обновления сайта Tele2 04.09.2024 ('tele2.ru') ---
-          //  При входе на 'tele2.ru' (включая перенаправления) получаем страницу, на которой есть элемент со ссылкой для входа с классом 'gtm-new-navigation-login'. 
-          //  Если предыдущая сессия не завершена, то класс у этой ссылки 'gtm-new-navigation-lk' и она открывает личный кабинет по предыдущим учётным данным
-          if ( window.location.origin.includes( 'tele2.ru' ) ) {                                // Если стартовая страница сайта открылась ...
-            if ( document.getElementsByClassName( 'gtm-new-navigation-login' ).length > 0 ) {   // ... и в её меню есть ссылка для входа в личный кабинет
-              if ( ( request.detail !== undefined ) &&                                          // Если в дополнительных параметрах переданы ранее сохранённые токены
-                   ( request.detail.access_token !== undefined ) &&                             // и они имеют значение (это не пустые строки), то вносим их в cookie,
-                   ( request.detail.access_token !== '' ) ) {                                   // восстанавливая сессию ранее открытую для учётных данных
-                console.log( `[MB] Attempting to authorize as '${MBLogin}' ...` );
-                request.detail.access_token.domain = 'tele2.ru';                                // Прописываем в cookie домен 'tele2.ru' на случай, если там что-то другое
-                request.detail.refresh_token.domain = 'tele2.ru';
-                await cookieStore.set( request.detail.access_token );
-                await cookieStore.set( request.detail.refresh_token );
-                window.location.replace( window.location.origin + '/lk' );                      // Переходим на страницу личного кабинета, этот экземпляр скрипта будет утрачен
-                return;
-              }
-              else { // Инициируем загрузку формы ввода учётных данных и ожидаем их ввода пользователем (включая код из SMS или письма на эл. почту)
-                document.getElementsByClassName( 'gtm-new-navigation-login' )[ 0 ].click();
-                do { await sleep( 100 ); // Дожидаемся завершения загрузки формы авторизации. По умолчанию на ней активна 'вкладка' входа по SMS
-                } while ( ( !document.getElementsByTagName( 'html' )[ 0 ].classList.contains( 'modal-dialog-opened' ) ) &&
-                          ( document.getElementsByClassName( 'keycloak-login-form' ).length === 0 ) );
-                await sleep( 200 );                                                             // Задержка, чтобы дать время на инициализацию структур формы
-                let phoneNumber = document.getElementsByName( 'phoneNumber' );                  // Находим в форме поле ввода номера
-                phoneNumber[ 0 ].setAttribute( 'value', MBLogin );                              // Вносим в него значение номера из учётных данных
-                phoneNumber[ 0 ].dispatchEvent( new Event( 'change', { bubbles: true } ) );     // Инициируем приём и обработку значения формой
-                return;
-                // После успешной авторизации должна быть открыта страница личного кабинета (то есть страница обновится и этот экземпляр скрипта будет утрачен)
-              } // При отсутствии действий пользователя, ошибках авторизаци = превышении времени ожидания авторизации, расширение прекратит опрос по этим учётным данным
-            }
-            else { // На странице нет элемента с классом 'gtm-new-navigation-login' ...
-              if ( document.getElementsByClassName( 'gtm-new-navigation-lk' ).length > 0 ) {    // ... но есть элемент для входа в личный кабинет по активной сессии
-                // В ссылке для входа учётные данные показаны в формате '+7 111 222 33 44'. Приводим их к виду '1112223344', пригодному для сравнения
-                let prevAccount = document.getElementsByClassName( 'gtm-new-navigation-lk' )[ 0 ].getElementsByClassName( 'br' )[ 0 ].textContent.replaceAll( ' ', '' ).slice( 2 );
-                if ( prevAccount === MBLogin ) {                                                // Сессия открыта для нужных нам учётных данных
-                  window.location.replace( window.location.origin + '/lk' );                    // Переходим на страницу личного кабинета, этот экземпляр скрипта будет утрачен
-                  return;
-                }
-                else { // Закрываем текущую сессию удалением токенов в cookie
-                  fetchError( `Рrevious session for '${prevAccount}' was not closed. Closing it now...` );
-                  await cookieStore.delete( { name: 'access_token', domain: 'tele2.ru', path: '/' } );
-                  await cookieStore.delete( { name: 'refresh_token', domain: 'tele2.ru', path: '/' } );
-                  // При завершении этапа расширение выполнит переход на страницу входа 'finishUrl' и страница загрузится без прежней сессии
-                }
-              }
-              else { // Если нет элементов с этими классами, то вероятно страница прогрузилась с ошибками или не загрузилась совсем
-                fetchError( 'Login page error or server not responding' );
-              }
-              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
-              return;
-            }
-          }
-// --- До обновления сайта Tele2 04.09.2024 ('tele2.ru') ---
-// --- После обновления сайта Tele2 04.09.2024 ('t2.ru') ---
           //  При входе на 't2.ru' (включая перенаправления) получаем страницу, на которой есть элемент кнопки со вложенным элементом 'span' с innerText = 'ВОЙТИ'.
           //  Если предыдущая сессия не завершена, то на странце появляется элемент со ссылкой, имеющей класс 't2-header__profile'. В ней находится элемент 'span'
           //  с классом 't2-header__phone-number', содержащий номер текущих учётных данных. При нажатии на эту ссылку открывается страница личного кабинета по
@@ -118,17 +65,19 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                 desktopMenu.click();
                 do { await sleep( 100 ); // Дожидаемся завершения загрузки формы авторизации. По умолчанию на ней активна 'вкладка' входа по SMS
                 } while ( ( !document.getElementsByTagName( 'html' )[ 0 ].classList.contains( 'modal-dialog-opened' ) ) &&
-                          ( document.getElementsByClassName( 'keycloak-login-form' ).length === 0 ) );
+                          ( document.getElementsByTagName( 'form' ).length > 0 ) );
                 await sleep( 200 );                                                             // Задержка, чтобы дать время на инициализацию структур формы
-                let phoneNumber = document.getElementsByName( 'phoneNumber' );                  // Находим в форме поле ввода номера
-                phoneNumber[ 0 ].setAttribute( 'value', MBLogin );                              // Вносим в него значение номера из учётных данных
-                phoneNumber[ 0 ].dispatchEvent( new Event( 'change', { bubbles: true } ) );     // Инициируем приём и обработку значения формой
+                let loginDigits = Array.from( MBLogin );                                        // Преобразовываем номер учётных данных в раздельные символы
+                let phoneNumDigits = document.getElementsByTagName( 'form' )[ 0 ].getElementsByTagName( 'input' );  // Получаем поля ввода с формы авторизации
+                for ( let i = 1; i <= 10; ++i ) {
+                  phoneNumDigits[ 'phoneNumber' + i ].setAttribute( 'value', loginDigits[ i - 1 ] );              // Вносим символы номера учётных данных в поля ввода
+                  phoneNumDigits[ 'phoneNumber' + i ].dispatchEvent( new Event( 'change', { bubbles: true } ) );  // Инициируем приём и обработку значения формой
+                }
                 return;
                 // После успешной авторизации должна быть открыта страница личного кабинета (то есть страница обновится и этот экземпляр скрипта будет утрачен)
               } // При отсутствии действий пользователя, ошибках авторизаци = превышении времени ожидания авторизации, расширение прекратит опрос по этим учётным данным
             }
           }
-// --- После обновления сайта Tele2 04.09.2024 ('t2.ru') ---
           // Если иы попали в эту точку, то предыдущие условия не отаботали и главная страница (страница авторизации) не открыта. Значит есть ошибки навигации или сервер не отвечает
           fetchError( 'Login page error or server not responding' );
           // Передаём результаты опроса расширению MobileBalance
