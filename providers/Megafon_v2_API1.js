@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2024.12.20
+ * Редакция:  2025.05.20
  *
 */
 
@@ -87,16 +87,24 @@ function sleep( ms ) {
 }
 
 
-function initLogout() {
+async function initLogout() {
 //       ----------
-  // На странице личного кабинета должна быть кнопка выхода с аттрибутом 'data-testid="MenuDropdown-logoutButton"'
-  let exitButton = document.querySelectorAll( '[data-testid="MenuDropdown-logoutButton"]' );
-  setTimeout( function() { // Задержка, чтобы успели отработать вызовы завершения сессии
-    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', // Передаём результаты опроса расширению MobileBalance
+  // На странице личного кабинета сразу есть позиция меню выхода с классом 'menu-dropdown__leave'
+  let exitButton = document.getElementsByClassName( 'menu-dropdown__leave' );
+  if ( exitButton.length > 0 )  exitButton[ 0 ].click();  // Если кнопка выхода нашлась, то 'нажимаем' её
+  // С 20.05.2025 при выборе этого пункта меню появляется 'модальное окно' подтверждения выхода
+  // 'Модальное окно' формируется в 'div' с классом 'mfui-modal-desktop'
+  await sleep( 200 );                                     // Задержка для инициализации структур 'модального окна' подтверждения выхода
+  let exitConfirm = document.getElementsByClassName( 'mfui-modal-desktop' );
+  // В 'модальном окне' две кнопки с классом 'mfui-button' (подтверждение и отмена)? определяем их
+  exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-button' );
+  // Передаём результаты опроса расширению MobileBalance с задержкой, чтобы успели отработать вызовы завершения сессии
+  setTimeout( function() {
+    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
                                                  status: requestStatus, error: requestError,
                                                  data: (MBResult === undefined) ? undefined : MBResult }, null );
   }, 500);
-  if ( exitButton.length > 0 )  exitButton[ 0 ].click(); // Если кнопка выхода нашлась, то 'нажимаем' её
+  if ( exitConfirm.length > 0 )  exitConfirm[ 0 ].click();  // Если кнопка выхода нашлась, то 'нажимаем' её
 /*
   Вызов для завершения сессии теперь требует использования токена, полученного при авторизации
   Получить и передать его возможно, но после вызова выхода нужна отправка события для завершения сессии
@@ -104,7 +112,7 @@ function initLogout() {
 
   // Инициируем завершение сеанса работы с личным кабинетом
   fetch( window.location.origin + '/api/logout',
-    { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-Cabinet-Capabilities': 'web-2020' }
+    { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' }
     // Расширение дополнительно выполнит переход на страницу входа переходом по 'finishUrl' = 'https://lk.megafon.ru' 
   })
   .finally( function( result ) {
