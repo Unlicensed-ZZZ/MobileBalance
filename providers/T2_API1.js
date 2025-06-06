@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи T2 (ранее Tele2) через API
- * Редакция:  2025.05.18
+ * Редакция:  2025.06.06
  *
 */
 
@@ -154,8 +154,13 @@ async function getData() {
     initLogout(); // Выходим из личного кабинета
     return;
   }
-  else
+  else {
+    // Токены сохраним уже на этом этапе. Если дальше в запросах будут ошибки, то расширение сохранит токены для последующей авторизации
+    currentTokens.access_token = accessTkn;
+    currentTokens.refresh_token = await cookieStore.get( 'refresh_token' );
+    currentTokens.renew = true; // Запрос должен записать / обновить в учётных данных значения токенов
     accessTkn = accessTkn.value;
+  }
   let siteId = undefined;
   let freeCounter = 0, paidCounter = 0, paidAmmount = 0;
   // Значение для 'x-request-id' находится в переменной 'requestId' объекта 'window'
@@ -192,44 +197,50 @@ async function getData() {
                 MBResult.BlockStatus = 'Blocked'                            // Проставляем статус блокировки. Абонент активен, но остатки по этим учётным данным заблокированы
               else {
                 if ( response.data.rests && ( response.data.rests.length > 0 ) ) { // Если есть остатки пакетов, то получаем их
+                  let Internet = 0, Minutes = 0, SMS = 0;
                   for ( let i = 0; i < response.data.rests.length; i++  ) {
-                    if ( ( MBResult.TurnOffStr === undefined ) || ( MBResult.TurnOffStr === '' ) ) {  // Забираем дату следующего платежа в формате 'DD.MM.YYYY',
-                      let endDayStr = response.data.rests[ i ].endDay.split( 'T' )[ 0 ].split( '-' ); // если это ещё не сделано в предыдущих циклах
+                    if ( ( ( MBResult.TurnOffStr === undefined ) || ( MBResult.TurnOffStr === '' ) ) &&   // Забираем дату следующего платежа в формате 'DD.MM.YYYY',
+                         ( response.data.rests[ i ].endDay !== undefined ) ) {                            // если это ещё не сделано в предыдущих циклах и дата вообще есть
+                      let endDayStr = response.data.rests[ i ].endDay.split( 'T' )[ 0 ].split( '-' );
                       MBResult.TurnOffStr = `${endDayStr[ 2 ]}.${endDayStr[ 1 ]}.${endDayStr[ 0 ]}`;
                     }
                     switch ( response.data.rests[ i ].uom.toUpperCase() ) {
                       case 'MB': { // Остатки пакета интернет. Исходное значение для расширения - мегабайты, оставляем значение
-                        if ( response.data.rests[ i ].status.toUpperCase() !== 'BLOCKED' ) {        // Если пакет не заблокирован...
-                          if ( response.data.rests[ i ].unlimited )  MBResult.Internet = -1         // Если опция безлимитная, то возвращаем значение -1
+                        if ( response.data.rests[ i ].status.toUpperCase() !== 'BLOCKED' ) {              // Если пакет не заблокирован...
+                          if ( response.data.rests[ i ].unlimited )  MBResult.Internet = -1               // Если опция безлимитная, то возвращаем значение -1
                           else {
-                            if ( ( response.data.rests[ i ].type.toUpperCase() === 'TARIFF' ) &&    // Если это блок данных тарифной, а не сервисной опции
-                                 ( !response.data.rests[ i ].rollover ) )                           // ...и это пакет текущего (а не перенесённого) остатка
-                              MBResult.Internet = parseFloat( ( response.data.rests[ i ].remain ).toFixed(3) )
+                            if ( !response.data.rests[ i ].roamingPackage )                               // Добавляем значение, если пакет не является роуминговым остатком
+                              Internet += parseFloat( ( response.data.rests[ i ].remain ).toFixed(3) )
                           }
                         }
                         break; }
                       case 'MIN': { // Остатки пакета минут
-                        if ( response.data.rests[ i ].status.toUpperCase() !== 'BLOCKED' ) {        // Если пакет не заблокирован...
-                          if ( response.data.rests[ i ].unlimited )  MBResult.Minutes = -1          // Если опция безлимитная, то возвращаем значение -1
+                        if ( response.data.rests[ i ].status.toUpperCase() !== 'BLOCKED' ) {              // Если пакет не заблокирован...
+                          if ( response.data.rests[ i ].unlimited )  MBResult.Minutes = -1                // Если опция безлимитная, то возвращаем значение -1
                           else {
-                            if ( ( response.data.rests[ i ].type.toUpperCase() === 'TARIFF' ) &&    // Если это блок данных тарифной, а не сервисной опции
-                                 ( !response.data.rests[ i ].rollover ) )                           // ...и это пакет текущего (а не перенесённого) остатка
-                              MBResult.Minutes = response.data.rests[ i ].remain
+                            if ( !response.data.rests[ i ].roamingPackage )                               // Добавляем значение, если пакет не является роуминговым остатком
+                              Minutes += response.data.rests[ i ].remain
                           }
                         }
                         break; }
                       case 'PCS': { // Остатки пакета SMS
-                        if ( response.data.rests[ i ].status.toUpperCase() !== 'BLOCKED' ) {        // Если пакет не заблокирован...
-                          if ( response.data.rests[ i ].unlimited )  MBResult.SMS = -1              // Если опция безлимитная, то возвращаем значение -1
+                        if ( response.data.rests[ i ].status.toUpperCase() !== 'BLOCKED' ) {              // Если пакет не заблокирован...
+                          if ( response.data.rests[ i ].unlimited )  MBResult.SMS = -1                    // Если опция безлимитная, то возвращаем значение -1
                           else {
-                            if ( ( response.data.rests[ i ].type.toUpperCase() === 'TARIFF' ) &&    // Если это блок данных тарифной, а не сервисной опции
-                                 ( !response.data.rests[ i ].rollover ) )                           // ...и это пакет текущего (а не перенесённого) остатка
-                              MBResult.SMS = response.data.rests[ i ].remain
+                            if ( !response.data.rests[ i ].roamingPackage )                               // Добавляем значение, если пакет не является роуминговым остатком
+                              SMS += response.data.rests[ i ].remain
                           }
                         }
                         break; }
                     } // switch
                   }
+                  // Заносим значения остатков в ответ для расширения
+                  if ( Internet > 0 ) MBResult.Internet = parseFloat( ( Internet ).toFixed(3) );
+                  if ( Minutes > 0 )  MBResult.Minutes  = Minutes;
+                  if ( SMS > 0 )      MBResult.SMS      = SMS;
+                  // Если есть стоимость тарифа, то добавляем её. Если среди сервисов и подписок есть платные, то эта стоимость далее будет дополнена
+                  if ( ( response.data.tariffCost !== undefined ) && ( response.data.tariffCost.amount !== undefined ) )
+                    paidAmmount = parseFloat( ( response.data.tariffCost.amount ).toFixed(2) );
                 }
               }
 
