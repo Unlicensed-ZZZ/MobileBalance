@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Yota через API
- * Редакция:  2025.06.06
+ * Редакция:  2025.06.15
  *
 */
 
@@ -139,10 +139,6 @@ async function getData() {
   // Получаем базовый URL для API-запросов
   let apiUrl = ( await ( await fetch( window.location.origin + `/settings.json`, { method: 'GET', mode: 'cors', credentials: 'omit' } ) ).json() ).api_url;
 
-
-//  Рабочий вызов
-// await fetch( `https://mapi.yota.ru` + `/customer/carrierProductsProfile`, { method: 'GET', mode: 'cors', credentials: 'omit', headers: { Accept: 'application/json, text/plain, */*', Build: '1.0', Platform: '4', OSVersion: 'chromium-137', 'X-Secure-Authorization': 'Basic ' + (await cookieStore.get( 'token' )).value, 'X-Transactionid': '3ef78beb-3cc2-4cf1-bde8-ab27ae5a1c9e' } })
-
   fetch( apiUrl + `/customer/profile`,
          { method: 'GET', mode: 'cors', credentials: 'omit',
            headers: { Accept: 'application/json, text/plain, */*', Build: '1.0', Platform: '4', OSVersion: 'chromium-137',
@@ -216,7 +212,7 @@ async function getData() {
  /* --- !!! В тестируемом тарифе блока SMS не было, не проверено !!! --- */
                   case 'UNIT': { // Остатки пакета SMS
                     item1.characteristicsList.forEach( function( item1_3 ) {
-                      if ( item1_3.fixedValue.accumulator.isUnlim )  MBResult.Minutes = -1      // Если опция безлимитная, то возвращаем значение -1
+                      if ( item1_3.fixedValue.accumulator.isUnlim )  MBResult.SMS = -1          // Если опция безлимитная, то возвращаем значение -1
                       else
                         MBResult.SMS = item1_3.fixedValue.accumulator.value;
                     })
