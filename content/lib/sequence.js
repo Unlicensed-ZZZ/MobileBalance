@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2025.02.24
+ * Редакция:  2025.06.29
  *
 */
 
@@ -872,6 +872,11 @@ chrome.runtime.onMessage.addListener(
           return true; // Заканчиваем работу функции
           break;
         }
+        // Если значение текущей части запроса больше их общего количества, то ...
+        if ( pollingCycle[ currentNumber ].requestStage >= ( provider[ idx ].scriptActions.length ) ) {
+          await getNextNumber(); // ... получаем учётные данные для следующего запроса ...
+          return true;           // ... и заканчиваем работу функции
+        }
         // Если для провайдера запрошено удаление cookies на стратовой странице (перед авторизацией), то инициируем их очистку
         if ( [ 'login', 'log&pass' ].indexOf( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] ) >= 0 ) {
           if ( provider[ idx ].startUrlClearCookies == true ) {
@@ -926,6 +931,7 @@ chrome.runtime.onMessage.addListener(
               chrome.runtime.onMessage.dispatch( { message: 'MB_workTab_repeatCurrentPhase', error: `Script for "${pollingCycle[ currentNumber ].description}"` +
                                                    ` was lost, injecting it again to perform request stage ${pollingCycle[ currentNumber ].requestStage}` },
                                                  { tab: await chrome.tabs.get( provider[ idx ].pullingTab ), id: self.location.origin } );
+              ++pollingCycle[ currentNumber ].requestStage; // Увеличиваем счётчик частей запроса - он будет уменьшен на 1 в 'MB_workTab_repeatCurrentPhase'
             }
             else
               throw err; // Пробрасываем ошибки, отличные от 'Could not establish connection. Receiving end does not exist.'
@@ -935,8 +941,8 @@ chrome.runtime.onMessage.addListener(
           console.log( `[MB] Message "${provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ]}"` +
                        ` sent to "${pollingCycle[ currentNumber ].description}", request stage ${pollingCycle[ currentNumber ].requestStage}`);
           if ( provider[ idx ].respondTimeout ) addTimeoutControl( currentNumber ); // Запускаем таймер таймаута по ответу
-          // Если это не последняя часть запроса, то для следующего шага берём скрипт следующей его части
-          if ( pollingCycle[ currentNumber ].requestStage < ( provider[ idx ].scriptActions.length - 1 ) )
+          // Для следующего шага запроса будем использовать скрипт следующей его части
+          if ( pollingCycle[ currentNumber ].requestStage < ( provider[ idx ].scriptActions.length ) )
             ++pollingCycle[ currentNumber ].requestStage; // Увеличиваем счётчик частей запроса
         })
         .catch( async function( err ) { // Отражаем статус запроса и оставшиеся попытки
@@ -1008,6 +1014,8 @@ chrome.runtime.onMessage.addListener(
           console.log( `[MB] Plugin requested to repeat current phase: ${request.error}` );
           if ( provider[ idx ].onUpdateDelay )
             await sleep ( Delay * provider[ idx ].onUpdateDelayValue ); // Задержка для догрузки контента рабочей вкладки
+          if ( pollingCycle[ currentNumber ].requestStage !== 0 )       // Если текущая часть запроса не первая, то ...
+            --pollingCycle[ currentNumber ].requestStage;               // ... уменьшаем счётчик частей запроса
           // Инициируем повторное выполнение текущего шага опроса
           chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_ready' }, { tab: null, id: self.location.origin } );
           return true; // Заканчиваем работу функции

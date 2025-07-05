@@ -2,7 +2,7 @@
  * ------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для 'АКАДО Телеком' через API
- * Редакция:  2023.04.20
+ * Редакция:  2025.06.17
 */
 
 let MBextentionId = undefined;
@@ -55,9 +55,14 @@ function authInput( login, passw ) {
   fetch( window.location.origin + '/user/login.xml', { method: 'POST', mode: 'cors', body: frmData })
   .then( function( response ) { // Авторизация выполнена, при обновлении страницы сервер откроет страницу личного кабинета
     // Обновляем страницу. Этого ждёт расширение для запуска следующего этапа работы плагина. Данный экземпляр скрипта при этом будет утрачен
-    window.location.assign( window.location.origin );
+    window.location.replace( window.location.origin );
   })
-  .catch( function( err ) { fetchError( '[MB] Error fetching Login form: ' + err.message ) });
+  .catch( function( err ) {
+      requestStatus = false;
+      requestError = 'Error fetching Login form: ' + err.message;
+      console.log( '[MB]' + requestError );
+      initLogout();
+    });
 }
 
 

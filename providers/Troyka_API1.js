@@ -3,11 +3,12 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для кошелька карты 'Тройка' в 'mosmetro.ru' через API
  *            Логин - номер карты, пароль не используется
- * Редакция:  2024.11.20
+ * Редакция:  2025.07.01
  *
 */
 
 let MBextentionId = undefined;
+let requestStatus = true;
 let requestError = '';
 let MBResult = undefined;
 let MBLogin = undefined;
@@ -38,9 +39,27 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
         // Устанвливаем контроль обновления страницы с 'passive = true' - не отменять поведение события по умолчанию
         // Отменять поведение события по умолчанию для 'beforeunload' нельзя - появится 'alert'-запрос подтверждения ухода со страницы
         window.addEventListener( 'beforeunload', beforeunloadListener, { passive: true } );
-        return;   // Ждём обновления страницы при переходе в личный кабинет после авторизации. Авторизацию предполагаем выполненной при нажатии
-                  //   кнопки на форме. В этом случае запросим у расширения повтор текущего этапа запроса перед обновлением страницы.
-                  // Если пользователь не авторизуется за отведённое время, то расширение завершит запрос по таймауту.
+
+        // В предположении, что предыдущая авторизация проводилась с использованием 'yandex.ru' / 'mos.ru' / 'vk.ru' ищем кнопку, содержащую
+        // значение логина в 'textContent'. Значение может быть записано в ней в формате номера телефона или e-mail с которыми проводилась
+        // авторизация. Если такая кнопка нашлась, то пробуем её "нажать" для выполнения повторной авторизации. Если нет, то ждём действий
+        // пользователя
+        // Ищем форму выбора аккаунта и получаем с неё все кнопки
+        let formButtons = document.getElementsByClassName( 'chooser_container' );
+        if ( formButtons.length > 0 ) {                         // Если форма выбора аккаунта нашлась ...
+          formButtons = formButtons[ 0 ].getElementsByTagName( 'button' );
+          if ( formButtons.length > 0 ) {                       // ... и на ней есть кнопки выбора предыдущей авторизации ...
+            formButtons = Array.from( formButtons );            // ... ищем кнопку содержащую логин
+            let i = formButtons.findIndex( function( item ) { return !item.textContent.includes( 'Использовать другой аккаунт' ) } );
+            if ( i >= 0 )                                       // Если такая кнопка обнаружилась, то "нажимаем" её
+              formButtons[ i ].click()
+          }
+        }
+        // Если попали сюда, значит предыдущие условия не сработали. Выходим из функции и ждём обновления страницы при переходе в личный
+        // кабинет после авторизации. Авторизацию предполагаем выполненной при нажатии кнопки на форме. Неважно было ли это нажатие выполнено
+        // пользователем или эмулировано скриптом. В этом случае запросим у расширения повтор текущего этапа запроса перед обновлением страницы.
+        // Если пользователь не авторизуется за отведённое время, то расширение завершит запрос по таймауту.
+        return;
       }
 
       function clickListener( evnt ) {
@@ -52,7 +71,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
 //             --------------------
         window.removeEventListener( 'beforeunload', beforeunloadListener );         // Снимаем контроль обновления страницы
         if ( authKeyPressed ) {                                                     // Если на странице была нажата кнопка,
-          console.log( requestError = `[MB] Trying to check authtorization` );      // то запрашиваем у расширения повтор этапа запроса
+          console.log( requestError = `Trying to check authtorization` );           // то запрашиваем у расширения повтор этапа запроса
           chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
         }
       };
@@ -78,7 +97,12 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
               else { // Открываем страницу авторизации, расширение инициирует следующий этап - приём данных
                 console.log( `[MB] Active authtorization was not detected on '${request.action}' stage` );
                 // Переходим на страницу авторизации, этот экземпляр плагина будет утрачен
-                window.location.replace( await window.localStorage.getItem( 'passenger_authorize_url' ) );
+                let AuthButton = document.getElementsByClassName( 'sign-in-buttons' )[ 0 ];
+                if ( AuthButton !== undefined ) {
+                  AuthButton = AuthButton.getElementsByTagName( 'button' )[ 0 ];
+                  AuthButton.dispatchEvent( new Event( 'click' ) );
+                  break;
+                }
               }
             }
             else { // Если есть активная авторизация, то переходим к приёму данных
@@ -86,9 +110,8 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
             }
           }
           else { // Это не личный кабинет, видимо ошибка загрузки страницы
-            console.log( requestError = `[MB] Page loading error or server not responding` );
-            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: false, error: requestError,
-                                                         data: undefined, detail: undefined, }, null );
+            fetchError( `Page loading error or server not responding'` );
+            initLogout(); // Выходим из личного кабинета
           }
           break;
         }
@@ -97,30 +120,51 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
           //   или ожидалась авторизация в личном кабинете, но она не была выполнена за отведённое время
           // Удаляем в расширении ранее сохранённые (неактуальные) токены и заканчиваем запрос. При следующем запросе будет запрошена
           //   авторизация и в случае успеха в расширении будут сохранены актуальные токены
+          await new Promise( resolve => setTimeout( resolve, 300 ) )  // Задержка, чтобы успела догрузиться и сформироваться страница
           if ( ( !window.location.origin.includes( 'lk.mosmetro.ru' ) ) ||
                ( document.getElementsByTagName( 'header' )[ 0 ].classList.contains( 'no_auth' ) ) ) {
-            console.log( requestError = `[MB] Active authtorization was not detected on '${request.action}' stage` );
+            fetchError( `Active authtorization was not detected on '${request.action}' stage or it was expired` );
             currentTokens.renew = true; // Расширение должно будет удалить в учётных данных неактуальные значения токенов
-            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: false, error: requestError,
-                                                         data: undefined, detail: currentTokens, }, null );
+            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError,
+                                                         data: (MBResult === undefined) ? undefined : MBResult,
+                                                         detail: ( currentTokens.renew ) ? currentTokens : undefined,
+                                                       }, null );
             break;
           }
           // Считываем текущие значения токенов из localStorage. Ранее сохранённые токены здесь не используем - если есть авторизация,
           //   то в localStorage они и записаны, а если сохранённых токенов нет, то исходно их можно получить только из localStorage
-          currentTokens.access_token  = await window.localStorage.getItem( 'passenger_access_token' );
-          currentTokens.refresh_token = await window.localStorage.getItem( 'passenger_refresh_token' );
           let result = '';
-          // Обновляем значения токенов для гарантии их актуальности - они могли быть изменены в ходе работы личного кабинета
-          result = await (await fetch( window.location.origin + '/api/authorization/v1.0/refresh',
-                                       { method: 'POST', mode: 'cors', credentials: 'include',
-                                         body: `{ "refreshToken": "${currentTokens.refresh_token}" }`,
-                                         headers: { 'authorization': `Bearer ${currentTokens.access_token}`,
-                                                    'content-type': 'application/json' }
-                                       })).json()
-          // Сохраняем обновлённые значения токенов в localStorage и для передачи расширению на хранение для следующего запроса
-          await window.localStorage.setItem( 'passenger_access_token',  currentTokens.access_token  = result.data.accessToken );
-          await window.localStorage.setItem( 'passenger_refresh_token', currentTokens.refresh_token = result.data.refreshToken );
-          currentTokens.renew = true; // Расширение должно будет записать / обновить в учётных данных обновлённые значения токенов
+          currentTokens.renew = true; // Расширение должно будет записать / обновить в учётных данных значения токенов
+
+          result  = await window.localStorage.getItem( 'passenger_access_token' );
+          if ( ( result !== null ) && ( result !== 'undefined' ) && ( result !== '' ) )
+            currentTokens.access_token  = result;
+          result  = await window.localStorage.getItem( 'passenger_refresh_token' );
+          if ( ( result !== null ) && ( result !== '' ) )
+            currentTokens.refresh_token = result;
+
+          // Пробуем обновить значения токенов для авторизации через 'mosmetro.ru' (для гарантии их актуальности)
+          if ( ( currentTokens.refresh_token !== undefined ) && ( currentTokens.refresh_token !== 'undefined' ) &&
+               ( currentTokens.access_token !== undefined ) ) {
+            result = await fetch( window.location.origin + '/api/authorization/v1.0/refresh',
+                                  { method: 'POST', mode: 'cors', credentials: 'include',
+                                    body: `{ "refreshToken": "${currentTokens.refresh_token}" }`,
+                                    headers: { 'authorization': `Bearer ${currentTokens.access_token}`, 'content-type': 'application/json' }
+                                  }
+            )
+            .catch( function( err ) { fetchError( `Fetch error getting '/api/authorization/v1.0/refresh': ${response.message}` );
+                                      initLogout(); // Выходим из личного кабинета
+                                      return;
+                                    } );
+            result = await result.json()
+            .catch( function( err ) { fetchError( `Error getting JSON for '/api/authorization/v1.0/refresh': ${response.message}` );
+                                      initLogout(); // Выходим из личного кабинета
+                                      return;
+                                    } );
+            // Сохраняем обновлённые значения токенов в localStorage и для передачи расширению на хранение для следующего запроса
+            await window.localStorage.setItem( 'passenger_access_token',  currentTokens.access_token  = result.data.accessToken );
+            await window.localStorage.setItem( 'passenger_refresh_token', currentTokens.refresh_token = result.data.refreshToken );
+          }
 
           // Получаем значения для карт, привязанных в личном кабинете
           result = await (await fetch( window.location.origin + '/api/carriers/v1.0/linked',
@@ -173,16 +217,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
           }
 
           // Выходим из личного кабинета, токены в localStorage (за исключением хранящих данные для последующего повторного входа) будут удалены
-          document.getElementsByClassName( 'exit' )[ 0 ].click();     // Вызываем 'модальное окно' подтверждения выхода
-          await new Promise( resolve => setTimeout( resolve, 100 ) )  // Задержка, чтобы успело сформироваться 'модальное окно'
-          // 'Нажимаем' кнопку выхода в 'модальном окне'
-          Array.from( document.getElementsByClassName( 'alert_button' ) ).find( item => item.textContent.toUpperCase() === 'ВЫЙТИ' ).click();
-          // Передаём результаты зароса расширению
-          setTimeout( function() {                                    // Задержка, чтобы успели отработать вызовы выхода из личного кабинета
-            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: true, error: requestError,
-                                                         data: (MBResult === undefined) ? undefined : MBResult,
-                                                         detail: ( currentTokens.renew ) ? currentTokens : undefined }, null );
-          }, 300);
+          initLogout();
           break;
         }
       } // switch //
@@ -190,6 +225,33 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
     else return;
   }
   catch( err ) {
-    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: false, error: err.toString(), data: undefined }, null );
+    fetchError( `Error: ${err.toString()}` );
+    initLogout(); // Выходим из личного кабинета
   }
 })
+
+async function initLogout() {
+//       ----------
+  let exitButton = document.getElementsByClassName( 'exit' )[ 0 ];
+  if ( exitButton !== undefined ) {
+    // Выходим из личного кабинета, токены в localStorage (за исключением хранящих данные для последующего повторного входа) будут удалены сайтом
+    exitButton.click();                                         // Вызываем 'модальное окно' подтверждения выхода
+    await new Promise( resolve => setTimeout( resolve, 100 ) )  // Задержка, чтобы успело сформироваться 'модальное окно'
+    // 'Нажимаем' кнопку выхода в 'модальном окне'
+    Array.from( document.getElementsByClassName( 'alert_button' ) ).find( item => item.textContent.toUpperCase() === 'ВЫЙТИ' ).click();
+  }
+  // Передаём результаты зароса расширению
+  setTimeout( function() {                                    // Задержка, чтобы успели отработать вызовы выхода из личного кабинета
+    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError,
+                                                 data: (MBResult === undefined) ? undefined : MBResult,
+                                                 detail: ( currentTokens.renew ) ? currentTokens : undefined,
+                                               }, null );
+  }, 300);
+}
+
+function fetchError( err ) {
+//       ----------
+  requestStatus = false;
+  requestError = err;
+  console.log( `[MB] ${requestError}` );
+}
