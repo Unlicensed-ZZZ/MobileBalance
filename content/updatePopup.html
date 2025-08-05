@@ -1,0 +1,37 @@
+<!--
+ * update.html
+ * --------------------------------
+ * Проект:    MobileBalance
+ * Описание:  Страница окна сообщения об обновлении версии расширения
+ * Редакция:  2025.08.04
+ *
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <title>[MB] Обновление</title>
+    <style>
+      .makeBlind {    /* Аналог скрытия display:'none' */
+        opacity: 0;   /* Устанавливаем полную прозрачность содержимого */
+      }
+
+      .makeVisible { /* Это аналог демонстрации display:'block' */
+        opacity: 1;  /* Устанавливаем полную непрозрачность содержимого */
+        -moz-transition: opacity 0.5s 0.2s;
+        -ms-transition: opacity 0.5s 0.2s;
+        transition: opacity 0.5s 0.2s;  /* Плавно повышаем непрозрачность от 0 до 1 */
+      }
+    </style>
+    <script defer src='lib/updatePopup.js'></script>
+  </head>
+  <body style='background: #FFFFE6; overflow: hidden'> 
+    <div id='contentDiv' class='makeBlind' style='width:97.7vw; cursor:default; overflow:hidden; display:flex; flex-wrap:wrap; flex-direction:column; align-items:center'> 
+      <div id='updateVersion' style='font-size: medium'></div>
+      <div style='font-size: small'>полная история изменений - в настройках, на вкладке "О расширении"</div>
+      <pre id='updateMessage' style='font-size:small; margin-bottom:4vh; height:75vh; white-space:pre-line; overflow-x:hidden; overflow-y:auto;'></pre>
+      <button id='closeButton' style='font-size: medium; cursor: pointer'>Закрыть</button>
+    </div>
+  </body>
+</html>

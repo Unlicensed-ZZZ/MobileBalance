@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна истории запросов расширения MobileBalance по датам
- * Редакция:  2025.01.13
+ * Редакция:  2025.08.04
  *
 */
 
@@ -585,3 +585,9 @@ async function drawPollingItems() {
     parentTag.insertAdjacentElement( 'beforeend', newTag );
   }
 }
+
+
+changeMode.addEventListener( 'click', function( evnt ) {
+//         ----------------
+  window.location.replace( './history.html' );
+})

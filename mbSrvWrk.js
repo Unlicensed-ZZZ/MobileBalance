@@ -2,14 +2,12 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Сервисный (фоновый) обработчик расширения MobileBalance (Service Worker)
- * Редакция:  2024.08.11
+ * Редакция:  2025.08.03
  *
 */
 
 'use strict';
 import { Delay, dbVersion } from './vars.mjs'; // Глобальные переменные расширения (из модуля vars.mjs)
-
-let provider = undefined;                      // Набор параметров для провайдеров (plugin-ов)
 
 // Указываем в подписи к иконке расширения его наименование и версию
 chrome.action.setTitle( { title: `${chrome.runtime.getManifest().name}  ${chrome.runtime.getManifest().version}` } );
@@ -58,7 +56,7 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
     case 'update': {
       try {
         console.log( `[MB] Extention updated from version '${details.previousVersion}' ` +
-                     `to version '${chrome.runtime.getManifest().version}'`);
+                     `to version '${chrome.runtime.getManifest().version}'` );
         // Замещаем коллекцию провайдеров (плагинов) и их параметры на полученные в обновлении
         let providerNew = (await (await fetch( `.\\providers\\providers.json` )).json()).provider;
         let providerSet = (await chrome.storage.local.get( 'provider' )).provider;
@@ -104,6 +102,10 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
           }
         }
 // ------- */
+        // Установливаем popup-окно сообщения о составе обновления расширения
+        // Значение будет возвращено на popup-окно по умолчанию при показе окна сообщения
+        chrome.action.setPopup( { popup: 'content/updatePopup.html' } );
+        chrome.action.setBadgeText( { text: 'new' } ); // Показываем надпись об обновлении расширения
       }
       catch( err ) { console.log( `[MB] ${err}` ); }
       break;
@@ -120,7 +122,7 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
 
 // Инициализация таймера ежедневного опроса при запуске браузера
 chrome.runtime.onStartup.addListener( async ( evnt ) => {
-  console.log( `[MB] Exeption 'runtime.onStartup' fired` );
+  console.log( `[MB] Exeption "runtime.onStartup" fired` );
   await activateTimer();
 });
 
@@ -131,7 +133,7 @@ function getParamFromStorage( param ) {
   let fromStorage = new Promise( (resolve, reject) => {
     chrome.storage.local.get( param, (result) => {
       if (Object.entries( result ).length > 0) {
-         resolve(Object.values( result )[ 0 ])
+         resolve( Object.values( result )[ 0 ] )
       }
       else
         resolve( undefined );
@@ -174,23 +176,24 @@ chrome.alarms.onAlarm.addListener( async (alarm) => {
 // Основной цикл работы по сообщениям
 chrome.runtime.onMessage.addListener(
   async function( request, sender, sendResponse ) {
-    console.log( `[MB] Message in Service Worker: "${request.message}"` );
     switch ( request.message ) {
       case 'MB_poolingTimerReset': { // Устанавливаем обновлённые значения таймера запуска опроса по расписанию
         if ( sendResponse ) sendResponse( 'done' ); // Ответ окну результатов опроса для поддержания канала связи
         activateTimer( request.daylyMntn, request.mntnTime );
+        return true;
         break; }
       case 'MB_showNotification': {  // Показать уведомление (оповещение)
         if ( sendResponse ) sendResponse( 'done' ); // Ответ окну результатов опроса для поддержания канала связи
         await self.registration.showNotification( request.title, request.options );
+        return true;
         break; }
       case 'MB_startPooling': {      // Запустить опрос в новом окне
-        if ( sendResponse ) sendResponse( 'done' );  // Ответ в popup для завершения им требуемых действий
-        if ( !await getParamFromStorage( 'inProgress' ) ) {
+        if ( sendResponse ) sendResponse( 'done' ); // Ответ в popup для для поддержания канала связи
+        if ( !await getParamFromStorage( 'inProgress' ) ) { // Если нет текущего, то запускаем опрос
           try { // Открываем в новом окне страницу для проведения опроса и передаём ей параметром тип опроса
             let cycleOrder, workWin, workTab;
-            getParamFromStorage( 'cycleOrder' )                      // Выясняем порядок опроса
-            .then( function( result ) {                              // Открываем новое окно для выполнения опроса
+            getParamFromStorage( 'cycleOrder' ) // Выясняем порядок опроса
+            .then( function( result ) { // Открываем новое окно для выполнения опроса
               cycleOrder = result;
               // По кнопке из popup открываем окно активным в нормальном режиме, по таймеру - минимизированным
               let createData = { type: 'normal' };
@@ -210,8 +213,8 @@ chrome.runtime.onMessage.addListener(
                   .then( function() {                                // Устанавливаем статус опроса - он запущен
                     chrome.storage.local.set( { inProgress: true } )
                     .then( function() {                              // Открываем в окне страницу опроса
-                      chrome.tabs.update( workWin.tabs[ 0 ].id,
-                                          { url: chrome.runtime.getURL( `content/poolingCycle.html?co=${cycleOrder}` ) } )
+                      chrome.tabs.update( workWin.tabs[ 0 ].id, { autoDiscardable: false,
+                                          url: chrome.runtime.getURL( `content/poolingCycle.html?co=${cycleOrder}` ) } )
                       .then( function() {
                         // Актуализируем (если окна открыты) доступность кнопок запуска опроса в popup-окне и
                         //   восстановления исходных значений расширения в окне options
@@ -251,8 +254,11 @@ chrome.runtime.onMessage.addListener(
             console.log( `[MB] ${err}` );
           }
         }
+        return true;
         break; }
     } /* switch */
+    // Для сообщений, которые не обрабатываются в Service Worker, выводим в консоль уведомление об их появлении
+    console.log( `[MB] Message in Service Worker: "${request.message}"` );
     return true;
   }
 );
@@ -293,7 +299,7 @@ chrome.tabs.onRemoved.addListener(
       };
       // Если закрытие рабочей вкладки опроса выполнено скриптом или пользователем, то она считается закрытой
       //   не по причине закрытия содержащего её окна. Если это окно всё ещё открыто, то закрываем его
-      if ( !removeInfo.isWindowClosing ) {          // Если рабочая вкладка закрыта не из-за закрытии её окна...
+      if ( !removeInfo.isWindowClosing ) {          // Если рабочая вкладка закрыта не из-за закрытия её окна...
         chrome.windows.get( removeInfo.windowId )
         .then( async function( Wnd ) {
           if ( workWin === Wnd.id )                 // ...и окно всё ещё открыто...
@@ -307,7 +313,7 @@ chrome.tabs.onRemoved.addListener(
       // Актуализируем (если окна открыты) доступность кнопок запуска опроса в popup-окне и
       //   восстановления исходных значений расширения в окне options
       chrome.runtime.sendMessage( { message: 'MB_actualizeControls' } ) // Если открытых окон нет,
-      .catch( function() {} ); // то нет и кода обработки приёма сообщений - снимаем ошибку канала связи
+      .catch( function() {} ); // то не нужна и обработка приёма сообщений - снимаем ошибку канала связи
     }
     return true;
   }

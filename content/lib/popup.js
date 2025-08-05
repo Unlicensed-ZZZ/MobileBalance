@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2025.01.13
+ * Редакция:  2025.08.04
  *
 */
 
@@ -64,30 +64,78 @@ chrome.runtime.onMessage.addListener(
 
 // Открыть страницу истори запросов
 btnHistory.addEventListener( 'click', async () => {
-  let historyUrl = chrome.runtime.getURL( `content/history.html` );
-  chrome.tabs.query( { url: historyUrl } )               // Ищем вкладку с адресом страницы истории запросов
+  let historyUrl        = chrome.runtime.getURL( `content/history.html` );
+  let historyPerDateUrl = chrome.runtime.getURL( `content/historyPerDate.html` );
+  // Ищем вкладку с адресом страницы истории запросов в текущем окне ...
+  chrome.tabs.query( { currentWindow: true, url: historyUrl } )
   .then( function( result ) {
-    if (result.length > 0)                               // Если нашлась - переходим к ней
-      return chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } )
-    else                                                 // Если страницы настроек расширения нет - открываем её
-      return chrome.tabs.create( { url: historyUrl } );
+    if ( result.length > 0 ) {                            // Если нашлась в текущем окне - переходим к ней
+      chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+      self.close();                                       // popup-окно закрываем
+    }
+    else {
+      chrome.tabs.query( { currentWindow: false, url: historyUrl } )
+      .then( function( result ) {
+        if ( result.length > 0 ) {                        // Если нашлась в другом окне - переходим к ней
+          chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+          chrome.windows.update( result[ 0 ].windowId, { focused: true } );
+          self.close();                                   // popup-окно закрываем
+        }
+        else {                                            //
+          chrome.tabs.query( { currentWindow: true, url: historyPerDateUrl } )
+          .then( function( result ) {
+            if ( result.length > 0 ) {                    // Если нашлась в текущем окне - переходим к ней
+              chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+              self.close();                               // popup-окно закрываем
+            }
+            else {
+              chrome.tabs.query( { currentWindow: false, url: historyPerDateUrl } )
+              .then( function( result ) {
+                if ( result.length > 0 ) {                        // Если нашлась в другом окне - переходим к ней
+                  chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+                  chrome.windows.update( result[ 0 ].windowId, { focused: true } );
+                  self.close();                                   // popup-окно закрываем
+                }
+                else {                                            // Если страницы истории запросов нет - открываем её
+                  chrome.tabs.create( { url: historyUrl } );
+                  self.close();                                   // popup-окно закрываем
+                }
+              })
+            }
+          })
+        }
+      })
+    }
   })
-  self.close();                                          // popup-окно закрываем
 });
 
 
 // Открыть страницу настроек
 btnOptions.addEventListener( 'click', async () => {
   chrome.management.getSelf()                            // Получаем параметры расширения
-  .then( function( extnData ) {
-    chrome.tabs.query( { url: extnData.optionsUrl } )    // Ищем вкладку с адресом страницы настроек расширения
+  .then( function( extnData ) {                          // Ищем вкладку с адресом страницы настроек расширения
+  // Ищем вкладку с адресом страницы истории запросов в текущем окне ...
+    chrome.tabs.query( { currentWindow: true, url: extnData.optionsUrl } )
     .then( function( result ) {
-      if (result.length > 0)                             // Если нашлась - переходим к ней
-        return chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } )
-      else                                               // Если страницы настроек расширения нет - открываем её
-        return chrome.tabs.create( { url: extnData.optionsUrl } );
+      if ( result.length > 0 ) {                           // Если нашлась в текущем окне - переходим к ней
+        chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+        self.close();                                      // popup-окно закрываем
+      }
+      else {
+        chrome.tabs.query( { currentWindow: false, url: extnData.optionsUrl } )
+        .then( function( result ) {
+          if ( result.length > 0 ) {                       // Если нашлась в другом окне - переходим к ней
+            chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+            chrome.windows.update( result[ 0 ].windowId, { focused: true } );
+            self.close();                                  // popup-окно закрываем
+          }
+          else {                                           // Если страницы настроек расширения нет - открываем её
+            chrome.tabs.create( { url: extnData.optionsUrl } );
+            self.close();                                  // popup-окно закрываем
+          }
+        })
+      }
     })
-    self.close();                                        // popup-окно закрываем
   })
 });
 

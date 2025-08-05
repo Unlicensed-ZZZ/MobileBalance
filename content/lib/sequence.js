@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2025.06.29
+ * Редакция:  2025.08.03
  *
 */
 
@@ -21,8 +21,10 @@ async function importAwait() {  // Ожидание завершения имп�
   } while ( sleep === undefined );
 }
 
-let workTab = 0;                // Идентификатор окна и рабочей вкладки результатов опроса
-chrome.tabs.getCurrent().then( result => { workTab = result.id; });
+let workWin = 0;                // Объект окна результатов опроса
+chrome.windows.getCurrent().then( result => { workWin = result; });
+let workTab = 0;                // Объект рабочей вкладки результатов опроса в текущем окне
+chrome.tabs.getCurrent().then( result => { workTab = result; });
 let inProgress;                 // Статус активности опроса (true = идёт, false = не начат / прерван)
                                 // При старте этого скрипта Service Worker должен устанановить его в 'true'
 chrome.storage.local.get( 'inProgress' ).then( result => { inProgress = result.inProgress; } ); // Считываем из хранилища
@@ -105,7 +107,7 @@ function dbAddRecord( item ) {
         .then( function( result ) {  // Если страница нашлась - обновляем в ней количество записей в хранилище
           if ( result.length > 0 ) chrome.runtime.sendMessage( { message: 'MB_updateRecordsCount' } );
         })
-        .catch( function ( err ) { console.log( `[MB] Error occured: ${err}` ) } ) 
+        .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) } ) 
       })
       resolve( evnt.target.result );
     };
@@ -238,6 +240,7 @@ async function initCommonParams() {
 // Подготовка структуры для проведения опроса
 async function prepareCycle() {
 //             --------------
+  let d;
   for (let i = 0; i < accounts.length; i++) {              // Формируем наборы параметров учётных данных в порядке,
     if ( accounts[ i ].maintain )                          //   указанном в настройках (последовательный опрос)
       pollingCycle.push( accounts[ i ] );                  //   Копируем только записи, включённые в опрос
@@ -266,12 +269,45 @@ async function prepareCycle() {
     pollingCycle[ i ].htmlTableRowId = '';                 //   идентификатор строки в таблице для отображения
   }
 
-  provider.forEach( function( item ) {                     // Добавляем рабочие параметры в наборы настроек провайдера
+  provider.forEach( async function( item ) {               // Добавляем рабочие параметры в наборы настроек провайдера
     item.pullingTab = -1;                                  //   идентификатор рабочей вкладки для запросов
     item.requestDelayTimer = null;                         //   экземпляр таймера задержки между запросами
+    if ( item.helperFile === undefined )                   //   Имя вспомогательного модуля, если не объявлен - создаём
+      item.helperFile = ''                                 //     со значением пустой строки
+    else {                                                 //   Если вспомогательный модуль для провайдера указан, то
+      if ( item.helperFile !== '' ) {
+        await fetch( `/providers/${item.helperFile}`, { method: 'HEAD' } )
+                                                           //   если файл модуля обнаружен - создаём элемент 'helperFunc'
+        .then( () => {                                     //     со значением 'null', в него будет занесена ссылка на
+          item.helperFunc = null;                          //     импортированную из модуля функцию
+        })
+        .catch( ( err ) => {                               //   если файл с таким именем или по такому пути не найден,
+          console.log( `[MB] Helper-file "/providers/${item.helperFile}" for provider "${item.description}" error: ${err}` );
+          item.helperFile = '';                            //     то создаём позицию 'helperFile' со значением = ''
+        });
+      }
+    }
+    // Если определён список внешних модулей-библиотек, то замещаем элементы массива этого списка объектами в формате
+    //   { 'имя_фала_1': { moduleFile: 'имя_фала_1', moduleFunc: null, }, ...
+    //     'имя_фала_N': { moduleFile: 'имя_фала_N', moduleFunc: null, } }
+    // Модули библиотек должны находиться в папке расширения '/providers/modules'
+    // В moduleFile элементов объекта - имена файлов модулей-библиотек, в moduleFunc будут занесены ссылки
+    //   на функции, экспортируемые этими модулями
+    d = {};
+    if ( item.modules !== undefined ) {
+      for( let i of item.modules ) {
+        d[ i ] = { moduleFile: i, moduleFunc: null };
+        await fetch( `/providers/modules/${i}`, { method: 'HEAD' } )
+        .catch( ( err ) => {                               //     если файл с таким именем или по такому пути не найден,
+          console.log( `[MB] Module-file "/providers/modules/${i}" for provider "${item.description}" error: ${err}` );
+          d[ i ].moduleFile = '';                          //     то замещаем значение 'moduleFile' значением = ''
+        });
+      }
+      item.modules = d;
+    }
   });
 
-  let d = new Date();
+  d = new Date();
   document.getElementById( 'poolingPageTitle' ).textContent += // Проставляем дату выполнения опроса
             `    ${(d.getDate() < 10) ? '0' + String(d.getDate()) : String(d.getDate())}.` +
             `${(d.getMonth() < 9) ? '0' + String(d.getMonth() + 1) : String(d.getMonth() + 1)}.` +
@@ -501,11 +537,11 @@ async function pollingEnd( force = false ) {  // 'force' = 'true' - вкладк
   */    .then( async function() {
           if ( poolingLogSave )                 // Если в настройках указано сохранение лога при закрытии окна опроса, то сохраняем его
             await savePollingLog();
-          await chrome.tabs.remove( workTab )                             // ... закрываем вкладку результатов опроса
+          await chrome.tabs.remove( workTab.id )                            // ... закрываем вкладку результатов опроса
           .catch( async ( err ) => {            // Обрабатываем ошибку 'Tabs cannot be edited right now (user may be dragging a tab).'
             if ( err.message.includes( '(user may be dragging a tab)' ) ) {
               await sleep( 100 );               // После паузы повторяем закрытие вкладки результатов опроса
-              await chrome.tabs.remove( workTab )
+              await chrome.tabs.remove( workTab.id )
               .catch( function( err ) {} );     // Ошибки (если будут) в этот раз снимаем, чтобы они не остановили работу скрипта
             }
           })
@@ -623,7 +659,7 @@ async function setRequestDelay( pIdx ) {
       }, Delay * provider[ pIdx ].requestDelayValue );
   try {
     await chrome.scripting.insertCSS( { target: { tabId: provider[ pIdx ].pullingTab },
-                                        files: [`./options/lib/modal.css`] });
+                                        files: [ `./options/lib/modal.css` ] });
   } catch( err ) {
     console.log( `[MB] Couldn't inject CSS (for delay banner)\n${err}`);
     pollingCycle.findIndex( function( item, index ) {            // Снимаем признак активности задержки между запросами
@@ -637,7 +673,7 @@ async function setRequestDelay( pIdx ) {
   }
   try {
     await chrome.scripting.executeScript( { target: { tabId: provider[ pIdx ].pullingTab },
-                                            files: [`./content/lib/delayBanner.js`] });
+                                            files: [ `./content/lib/delayBanner.js` ] });
   } catch( err ) {
     console.log( `[MB] Couldn't inject script (for delay banner)\n${err}`);
     pollingCycle.findIndex( function( item, index ) {            // Снимаем признак активности задержки между запросами
@@ -700,7 +736,7 @@ async function removeTimeoutControl( item ) {
 async function waitPullingTabLoading( details ) {
 //             --------------------------------
   // Если это событие пришло 1) при открытии вкладки (url = 'chrome://newtab/'), а не при инициализации запроса
-  //                         2) от от фрейма в основной странице вкладки, а не от самой основной страницы (frameId = 0)
+  //                         2) не от самой основной страницы (frameId = 0), а от фрейма в ней (frameId > 0)
   if ( details.url.includes( 'newtab' ) || ( details.frameId > 0 ) )
     return false;            // ...то выходим, это событие нам не нужно
   let idx = provider.findIndex( function( item ) { // Определяем рабочую вкладку провайдера-инициатора
@@ -720,7 +756,7 @@ async function waitPullingTabLoading( details ) {
 }
 
 
-chrome.tabs.onActivated.addListener( async function ( activeInfo ) { // Ловля ошибки 'Tabs cannot be edited right now (user may be dragging a tab).'
+chrome.tabs.onActivated.addListener( async function( activeInfo ) { // Ловля ошибки 'Tabs cannot be edited right now (user may be dragging a tab).'
 //---------------------------------
 // При активации вкладки симулируем её перемещение (перемещаем её в ту же позицию, где она и была)
 // Если событие было вызвано активацией вкладки, уже вызвавшей ошибку, то она будет зафиксирована и не пойдёт дальше
@@ -738,7 +774,7 @@ chrome.runtime.onMessage.addListener(
   async function( request, sender, sendResponse ) {
     switch( request.message ) {
       case 'MB_pullingTab_new': { // Открыть на рабочей вкладке страницу провайдера для обработки
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         if ( pauseRequested ) { // Пользователем запрошена остановка опроса, запрос не запускаем
           return true; // Заканчиваем работу функции
           break;
@@ -752,7 +788,7 @@ chrome.runtime.onMessage.addListener(
         pollingCycle[ currentNumber ].requestStage = 0;       // Сброс счётчика частей запроса
         pollingCycle[ currentNumber ].success = false;        // Сброс статуса опроса для запрашиваемых учётных данных
         let idx = provider.findIndex( function( item ) {      // Определяем провайдера для текущих учётных данных
-          return ( pollingCycle[ currentNumber ].provider === item.name ) ? true : false
+          return ( pollingCycle[ currentNumber ].provider === item.name )
         });
         if ( idx < 0 ) { // Если указанного провайдера нет (он был удалён, а в учётных данных не изменён), то pIdx = -1
           pollingCycle[ currentNumber ].lastState = 'Fail';   // Устанавливаем для учётных данных статус ошибки запроса
@@ -765,8 +801,10 @@ chrome.runtime.onMessage.addListener(
         }
         if ( provider[ idx ].pullingTab < 0 ) {               // Открываем новую рабочую вкладку для запросов к провайдеру
           await chrome.tabs.create( { active: false } )
-          .then( result => provider[ idx ].pullingTab = result.id )
-          .catch( async ( err ) => {
+          .then( function( result ) {
+            provider[ idx ].pullingTab = result.id;           // Сохраняем 'id' вкладки провайдера в объекте его параметров
+          })
+          .catch( async function( err ) {
             if ( err.message.includes( '(user may be dragging a tab)' ) ) {
               errTabsAPI = true;
               await sleep( 100 ); // После паузы повторяем действие с учётными данными
@@ -774,11 +812,11 @@ chrome.runtime.onMessage.addListener(
             }
             else throw err; // Пробрасываем ошибки, отличные от 'Tabs cannot be edited right now (user may be dragging a tab).'
           });
-          if ( errTabsAPI ) return false; // При ошибках chrome.tabs заканчиваем работу функции
+          if ( errTabsAPI ) return true; // При ошибках chrome.tabs заканчиваем работу функции
         }                                                     // ...пропускаем её создание, если вкладка уже есть
         try { // Открываем на рабочей вкладке для запросов к провайдеру его стартовую страницу
           await chrome.tabs.update( provider[ idx ].pullingTab, { url: provider[ idx ].startUrl, autoDiscardable: false } )
-          .catch( async ( err ) => {
+          .catch( async function( err ) {
             if ( err.message.includes( '(user may be dragging a tab)' ) ) {
               errTabsAPI = true;
               await sleep( 100 ); // После паузы повторяем действие с учётными данными
@@ -786,7 +824,7 @@ chrome.runtime.onMessage.addListener(
             }
             else throw err; // Пробрасываем ошибки, отличные от 'Tabs cannot be edited right now (user may be dragging a tab).'
           });
-          if ( errTabsAPI ) return false; // При ошибках chrome.tabs заканчиваем работу функции
+          if ( errTabsAPI ) return true; // При ошибках chrome.tabs заканчиваем работу функции
           // Если для провайдера запрошено обновление страницы с сервера (сброс кэша), то выполняем обновление страницы с сервера (bypassCache=true)
           if ( provider[ idx ].startUrlBypassCache ) { 
             if ( provider[ idx ].respondTimeout ) addTimeoutControl( currentNumber ); // Запускаем таймер таймаута по ответу
@@ -803,7 +841,7 @@ chrome.runtime.onMessage.addListener(
             if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber );     // Снимаем таймер таймаута по ответу
             // Обновление с параметром 'bypassCache' = 'true' должно инициировать загрузку страницы с сервера (как нажатие Ctrl+F5)
             await chrome.tabs.reload( provider[ idx ].pullingTab, { bypassCache: true } )
-            .catch( async ( err ) => {
+            .catch( async function( err ) {
               if ( err.message.includes( '(user may be dragging a tab)' ) ) {
                 errTabsAPI = true;
                 await sleep( 100 );
@@ -811,7 +849,7 @@ chrome.runtime.onMessage.addListener(
               }
               else throw err; // Пробрасываем ошибки, отличные от 'Tabs cannot be edited right now (user may be dragging a tab).'
             });
-            if ( errTabsAPI ) return false; // При ошибках chrome.tabs заканчиваем работу функции
+            if ( errTabsAPI ) return true; // При ошибках chrome.tabs заканчиваем работу функции
             console.log( `[MB] Starting page for "${(( provider[ idx ].custom ) ? '\u2605 ' : '') + // Провайдеров добавленных пользователем выделяем '★' в начале наименования
                           provider[ idx ].description}" reloaded from server bypassing cache (due to provider option)` );
           }
@@ -827,7 +865,7 @@ chrome.runtime.onMessage.addListener(
             console.log( `[MB] (catch) ${err}` );
             await sleep( 100 );
             await chrome.runtime.onMessage.dispatch( { message: request.message }, { tab: null, id: self.location.origin } );
-            return false; // Заканчиваем работу функции
+            return true; // Заканчиваем работу функции
           }
           else {
             console.log( `[MB] Problem with the tab for "${provider[ idx ].description}", probably it was closed` );
@@ -836,16 +874,16 @@ chrome.runtime.onMessage.addListener(
             pollingCycle[ currentNumber ].lastState = ( pollingCycle[ currentNumber ].repeatAttempts > 0 ) ? 'Error' : 'Fail';
             drawPoolingState( currentNumber, pollingCycle[ currentNumber ].lastState, ra );
             await getNextNumber(); // Получаем учётные данные для следующего запроса
-            return false;          // Заканчиваем работу функции
+            return true;          // Заканчиваем работу функции
           }
         }
         return true; // Заканчиваем работу функции
         break;
       }
       case 'MB_pauseRequested': { // Пользователем запрошена остановка опроса
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         let idx = provider.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
-          return ( pollingCycle[ currentNumber ].provider === item.name ) ? true : false
+          return ( pollingCycle[ currentNumber ].provider === item.name )
         });
         chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );    // Снимаем контроль обновления вкладки (если он был)
         if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber ); // Снимаем таймер таймаута по ответу (если он был)
@@ -853,9 +891,9 @@ chrome.runtime.onMessage.addListener(
         break;
       }
       case 'MB_pullingTab_ready': { // Провести запрос по учётным данным на рабочей вкладке провайдера
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         let idx = provider.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
-          return ( pollingCycle[ currentNumber ].provider === item.name ) ? true : false
+          return ( pollingCycle[ currentNumber ].provider === item.name )
         });
         if ( idx < 0 ) { // Если указанного провайдера нет (он был удалён, а в учётных данных не изменён), то pIdx = -1
           pollingCycle[ currentNumber ].lastState = 'Fail';   // Устанавливаем для учётных данных статус ошибки запроса
@@ -881,7 +919,7 @@ chrome.runtime.onMessage.addListener(
         if ( [ 'login', 'log&pass' ].indexOf( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] ) >= 0 ) {
           if ( provider[ idx ].startUrlClearCookies == true ) {
             await chrome.scripting.executeScript( { target: { tabId: provider[ idx ].pullingTab }, files: [ `./content/lib/clearCookies.js` ] } )
-            .catch( async function ( err ) {
+            .catch( async function( err ) {
               let ra = ( pollingCycle[ currentNumber ].repeatAttempts > 0 ) ?
                          String(pollingCycle[ currentNumber ].repeatAttempts) : '';
               pollingCycle[ currentNumber ].lastState = ( pollingCycle[ currentNumber ].repeatAttempts > 0 ) ? 'Error' : 'Fail';
@@ -889,9 +927,9 @@ chrome.runtime.onMessage.addListener(
               console.log( `[MB] Couldn't inject deleting cookies script for "${(( provider[ idx ].custom ) ? '\u2605 ' : '') +
                            provider[ idx ].description}" + \n${err}` );
               await getNextNumber(); // Получаем учётные данные для следующего запроса
-              return false;          // Заканчиваем работу функции
+              return true;           // Заканчиваем работу функции
             });
-            await sleep ( 300 );  // Пауза для завершения загрузки и выполнения скрипта
+            await sleep ( 300 );     // Пауза для завершения загрузки и выполнения скрипта
             console.log( `[MB] Starting page cookies for "${(( provider[ idx ].custom ) ? '\u2605 ' : '') + // Провайдеров добавленных пользователем выделяем '★' в начале наименования
                           provider[ idx ].description}" deleted (due to provider option)` );
           }
@@ -899,7 +937,7 @@ chrome.runtime.onMessage.addListener(
         await drawPoolingState( currentNumber, 'Pooling', String(pollingCycle[ currentNumber ].requestStage) );
         debugger;     // Вставляем на страницу провайдера скрипт текущего этапа запроса
         await chrome.scripting.executeScript( { target: { tabId: provider[ idx ].pullingTab },
-              files: [`./providers/${provider[ idx ].scriptFiles[ pollingCycle[ currentNumber ].requestStage ]}`] })
+              files: [ `/providers/${provider[ idx ].scriptFiles[ pollingCycle[ currentNumber ].requestStage ]}` ] })
         .then( async () => {
           let scriptLost = false;
           console.log( `[MB] Script "${provider[ idx ].scriptFiles[ pollingCycle[ currentNumber ].requestStage ]}" injected` );
@@ -924,7 +962,7 @@ chrome.runtime.onMessage.addListener(
             if ( provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ] !== 'polling' )  // Для всех этапов, кроме непосредственно запроса,
               chrome.webNavigation.onCompleted.addListener( waitPullingTabLoading );                          // запускаем контроль обновления рабочей вкладки
           })
-          .catch( async function ( err ) {
+          .catch( async function( err ) {
             // Обработка ошибки из-за утраты скрипта текущей части запроса, вставленного на страницу провайдера (нет отклика на сообщение)
             if ( err.message.includes( 'Receiving end does not exist' ) ) {
               scriptLost = true;
@@ -957,13 +995,13 @@ chrome.runtime.onMessage.addListener(
             setRequestDelay( idx )            // Она по завершению запросит следующие учётные данные сообщением 'MB_requestDelayComplete'
           else
             await getNextNumber(); // Получаем учётные данные для следующего запроса
-          return false;            // Заканчиваем работу функции
+          return true;             // Заканчиваем работу функции
         });
         return true; // Заканчиваем работу функции
         break;
       }
       case 'MB_workTab_respondTimeout': { // Наступил таймаут по ответу с рабочей вкладки запроса
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading ); // Снимаем контроль обновления вкладки (если он был)
         let idx = provider.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
           return ( pollingCycle[ request.idx ].provider === item.name ) ? true : false
@@ -974,10 +1012,10 @@ chrome.runtime.onMessage.addListener(
         pollingCycle[ request.idx ].success = false;   // Сброс статуса опроса для запрашиваемых учётных данных
         // Заканчиваем работу с провайдером по текущим учётным данным (выходим из кабинета, заканчиваем запрос)
         await chrome.tabs.update( provider[ idx ].pullingTab, { url: provider[ idx ].finishUrl, autoDiscardable: false } )
-        .catch( async function ( err ) {
+        .catch( async function( err ) {
           console.log( `[MB] Problem with the tab for "${provider[ idx ].description}", probably it was closed` );
           await getNextNumber(); // Получаем учётные данные для следующего запроса
-          return false;          // Заканчиваем работу функции
+          return true;          // Заканчиваем работу функции
         });
         if ( provider[ idx ].onUpdateDelay )
           await sleep ( Delay * provider[ idx ].onUpdateDelayValue ); // Задержка для догрузки контента рабочей вкладки
@@ -989,16 +1027,16 @@ chrome.runtime.onMessage.addListener(
         return true; // Заканчиваем работу функции
         break; }
       case 'MB_workTab_skipNextPhase': { // Плагин запросил пропуск следующего шага своего запроса
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         let idx = provider.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
-          return (pollingCycle[ currentNumber ].provider === item.name) ? true : false
+          return (pollingCycle[ currentNumber ].provider === item.name)
         });
         if ( pollingCycle[ currentNumber ].requestStage < ( provider[ idx ].scriptActions.length - 1 ) )
           ++pollingCycle[ currentNumber ].requestStage; // Увеличиваем счётчик частей запроса
         return true; // Заканчиваем работу функции
         break; }
       case 'MB_workTab_repeatCurrentPhase': { // Плагин запросил повтор текущего шага своего запроса
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         let idx = -1;
         if ( currentNumber >= 0 ) { // Если текущий экземпляр опроса ещё не завершён, то
           idx = provider.findIndex( function( item ) {         // ...определяем провайдера для текущих учётных данных
@@ -1012,6 +1050,16 @@ chrome.runtime.onMessage.addListener(
           if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber );   // Снимаем таймер таймаута по ответу
           chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );      // Снимаем контроль обновления вкладки (если он был)
           console.log( `[MB] Plugin requested to repeat current phase: ${request.error}` );
+          try {
+            let tabInfo;
+            do {
+              tabInfo = await chrome.tabs.get( provider[ idx ].pullingTab );
+              await sleep ( Delay );
+            } while ( tabInfo.status !== 'complete' ); // Дождидаемся завершения загрузки страницы на вкладке запроса
+          }
+          catch( err ) {
+            console.log( `[MB] Error geting tab info for "${provider[ idx ].description}", probably it was closed` );
+          }
           if ( provider[ idx ].onUpdateDelay )
             await sleep ( Delay * provider[ idx ].onUpdateDelayValue ); // Задержка для догрузки контента рабочей вкладки
           if ( pollingCycle[ currentNumber ].requestStage !== 0 )       // Если текущая часть запроса не первая, то ...
@@ -1021,10 +1069,10 @@ chrome.runtime.onMessage.addListener(
           return true; // Заканчиваем работу функции
         }
         else
-          return false; // Заканчиваем работу функции
+          return true; // Заканчиваем работу функции
         break; }
       case 'MB_workTab_takeData': { // Принять результаты запроса от рабочей вкладки запроса
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         let sameRecordsFound = false; // Признак проведения операций удаления в хранилище записей запросов от той же даты по настройкам расширения
         let idx = -1;
         if ( currentNumber >= 0 ) { // Если текущий экземпляр опроса ещё не завершён, то
@@ -1240,10 +1288,10 @@ chrome.runtime.onMessage.addListener(
           if ( provider[ idx ].requestDelay ) // ...указана задержка между запросами - запускаем её
             setRequestDelay( idx )            // Она по завершению запросит следующие учётные данные сообщением 'MB_requestDelayComplete'
           else
-            await getNextNumber(); // Получаем учётные данные для следующего запроса
+            await getNextNumber();            // Получаем учётные данные для следующего запроса
           return true; // Заканчиваем работу функции
         }
-        else return false; // Заканчиваем работу функции
+        else return true; // Заканчиваем работу функции
 
         async function renewDetail( detail ) { // Обновление значений 'detail' в структурах данных по значениям 'detail' из ответа на запрос
         //    ---------------------
@@ -1306,13 +1354,93 @@ chrome.runtime.onMessage.addListener(
         break;
       }
       case 'MB_requestDelayComplete': { // Закончилась задержка между запросами для провайдера
-        if ( sendResponse ) sendResponse( 'Got it' );
+        if ( sendResponse ) sendResponse( 'done' );
         await getNextNumber(); // Получаем учётные данные для следующего запроса
         return true; // Заканчиваем работу функции
         break;
       }
+      case 'MB_helperClaim': { // Запрошен вызов вспомогательного модуля для провайдера
+        if ( sendResponse ) sendResponse( 'done' );
+        let idx = provider.findIndex( function( item ) {           // Определяем провайдера для текущих учётных данных
+            if ( ( pollingCycle[ currentNumber ].provider === item.name ) &&  // Если запрос пришёл от рабочей вкладки
+                 ( sender.tab.id === item.pullingTab ) )                      // провайдера, открытой в этом экземпляре
+              return true                                                     // окна опроса (могут быть ещё окна опроса)
+            else return false; // Если запрос от "чужой" вкладки, то будет возвращено значение -1
+          });
+        // Направляем вкладке вспомогательных модулей запрос на выполнение действий
+        if ( idx >= 0 ) { // Если это запрос от вкладки, открытой в этом экземпляре опроса
+          console.log( `[MB] Plugin "${provider[ idx ].description}" calaimed helper for "${pollingCycle[ currentNumber ].description}"` );
+          // В минимизированном окне или на неактивной вкладке результатов окна опроса браузер определяет загруженные вспомогательные
+          //   модули и вызываемые ими модули-библиотекм как 'iframe' и останавливает в них работу скриптов
+          // Для отработки этих скриптов если окно опроса минимизировано, то временно изменяем для него статус 'minimized' на 'normal',
+          //   задаём минимально возможный размер (1x1) и помещаем в видимой области экрана (на 35 пикселей выше нижней границы экрана
+          //   (меньше не срабатывает), отступ слева - на четверть от ширины экрана). Вкладку результатов опроса делаем активной (чтобы
+          //   исключить ситуацию, когда в окне была выбрана активной вкладка, отличная от вкладки результатов опроса, а потом
+          //   пользователь окно свернул)
+          // Вызов вспомогательного модуля проводится из файла, указанного для провайдера в 'helperFile'
+          // Если модуль не импортирован при предыдущих вызовах, то делаем это
+          if ( provider[ idx ].helperFunc === null ) {
+            provider[ idx ].helperFunc = await import( `/providers/${provider[ idx ].helperFile}` );
+            provider[ idx ].helperFunc = provider[ idx ].helperFunc.default;
+          }
+          // Выполняем вызов default-функции модуля. Передаваемые аргумены:
+          //   provider - объект данных провайдера, для которого нужно импортировать модули библиотек
+          //   args     - объект с параметрами, переданными плагином-родителем для выполнения действий
+          //              вспомогательным модулем или функциями импортированных библиотек
+          console.log( `[MB] "${provider[ idx ].name}_helper" performing  actions for "${pollingCycle[ currentNumber ].description}"...` );
+
+          let tmpWin = await chrome.windows.get( workWin.id, { populate: true } );
+          let showWorkWin = false;
+          // Если работа проходит в свёрнутом (минимизированном) окне, то 
+          if ( tmpWin.state === 'minimized' ) {
+            await chrome.tabs.update( workTab.id, { active: true } ); // Активируем вкладку результатов опроса
+            // Восстанавливаем окно результатов опроса и позиционируем его в минимально видимой области экрана
+            await chrome.windows.update( workWin.id, { state: 'normal', focused: false, height: 1, width: 1,
+                                                       top: ( window.screen.height - 35 ), left: ( window.screen.width / 4 ) } );
+            showWorkWin = true;
+          }
+          await provider[ idx ].helperFunc( provider[ idx ], request.args )
+          .then( async function( result ) {
+            if ( result !== undefined ) {   // Если нет ошибок в работе вспомогательного модуля ...
+              if ( result.respond ) {       // ... и есть необходимость направления данных плагину-родителю
+                console.log( `[MB] Sending "${provider[ idx ].name}_helper" result to "${pollingCycle[ currentNumber ].description}"...` );
+                await chrome.tabs.sendMessage( provider[ idx ].pullingTab, 
+                                               { message: 'MB_takeData', action: 'helperResult', helper: result } )
+                .catch( async function( err ) { // При ошибках направляем родителю статус 'false', данные = 'undefined'
+                  console.log( `[MB] Error sending result from "${provider[ idx ].description}" helper: ${err}` );
+                })
+              }
+            }
+          })
+          .catch( async function( err ) { // При ошибках направляем родителю статус 'false', данные = 'undefined'
+            console.log( `[MB] Error in helper "${provider[ idx ].helperFile}": ${err}` );
+            await chrome.tabs.sendMessage( provider[ idx ].pullingTab, 
+                                           { message: 'MB_takeData',  action: 'helperResult', helper: { data: undefined, respond: false } } )
+            .catch( async function( err ) { // При ошибках направляем родителю статус 'false', данные = 'undefined'
+              console.log( `[MB] Error sending result from "${provider[ idx ].description}" helper: ${err}` );
+            })
+          })
+
+          if ( showWorkWin === true ) { // Если окно результатов опроса было свёрнуто (минимизировано), то 
+            await chrome.windows.update( workWin.id, { height: tmpWin.height, width: tmpWin.width, top: tmpWin.top, left: tmpWin.left } )
+            .catch( async function( err ) {
+              console.log( `Error restoring window size: ${err}` );
+            })
+            await chrome.windows.update( workWin.id, { state: tmpWin.state, focused: tmpWin.focused } )
+            .catch( async function( err ) {
+              console.log( `Error restoring window state: ${err}` );
+            })
+          }
+
+        }
+        break;
+      }
+      case 'MB_showInLog': { // Отображение переданного сообщения в логе опроса
+        console.log( request.text );
+        break;
+      }
       default: {
-        return false; // Заканчиваем работу функции
+        return true; // Заканчиваем работу функции
         break;
       }
     } /* switch */

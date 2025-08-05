@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Yota через API
- * Редакция:  2025.06.15
+ * Редакция:  2025.08.05
  *
 */
 
@@ -56,9 +56,10 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                   return;
                 }
                 else { // Вносим в поле ввода учётные данные, ожидаем их отправку и последующий ввод пароля (код из SMS) пользователем
-                  let phoneNumber = document.getElementsByTagName( 'form' )[ 0 ].getElementsByTagName( 'input' );  // Получаем поле ввода с формы авторизации
-  //                phoneNumber[ 0 ].value = '+7 (952) 500-27-27';
-  //                phoneNumber[ 0 ].dispatchEvent( new Event( 'change', { bubbles: true } ) );  // Инициируем приём и обработку значения формой
+                  let phoneNumber = document.getElementsByTagName( 'form' )[ 0 ].getElementsByTagName( 'input' )[ 0 ];  // Получаем поле ввода с формы авторизации
+                  phoneNumber.dispatchEvent( new Event( 'focusin', { bubbles: true } ) );
+                  phoneNumber.value = MBLogin;
+                  phoneNumber.dispatchEvent( new Event( 'input', { bubbles: true } ) );
                   return;
                   // После успешной авторизации должна быть открыта страница личного кабинета (то есть страница обновится и этот экземпляр скрипта будет утрачен)
                 } // При отсутствии действий пользователя, ошибках авторизаци = превышении времени ожидания авторизации, расширение прекратит опрос по этим учётным данным

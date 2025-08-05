@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи T2 (ранее Tele2) через API
- * Редакция:  2025.06.06
+ * Редакция:  2025.08.03
  *
 */
 
@@ -13,6 +13,7 @@ let requestError = '';
 let MBResult = undefined;
 let MBLogin = undefined;
 let currentTokens = { renew: false }; // Для обновления токенов через ответ раширению в 'detail'. По умолчанию их обновлять не нужно.
+let antiBotParam, challenge, solvingStart, tmp;
 
 chrome.runtime.onMessage.addListener( async function( request, sender, sendResponse ) {
 //----------------------------------
@@ -21,7 +22,139 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       if ( sendResponse ) sendResponse( 'done' );  // Ответ в окно опроса для поддержания канала связи
       MBextentionId = sender.id;
       MBLogin = request.login;
-      switch ( request.action ) {
+      // Проверяем не попали ли на страницу антибот-проверки, делаем это только на начальном этапе работы плагина
+      if ( ( window.location.origin.includes( 't2.ru' ) ) && ( request.action === 'log&pass' ) ) {
+        // Получаем html-текст страницы
+        antiBotParam = document.body.innerHTML;
+        // Ищем на ней объявление переменной 'window.ctx' в составе текста встроенного скрипта
+        antiBotParam = antiBotParam.split( `window.ctx='` )[ 1 ];
+        // Если переменная 'window.ctx' нашлась, значит точно находимся на странице антибот-проверки браузера
+        if ( antiBotParam !== undefined ) {
+/*
+          // Отбрасываем в строке параметров 'хвост' от записи из переменной ...
+          antiBotParam = antiBotParam.split( `';` )[ 0 ];
+          // ... декодируем результат через 'decodeURIComponent' и разобираем строку на единичные переменные ...
+          tmp = decodeURIComponent( antiBotParam ).split( '&' );
+          // ... собираем полученные переменные в объект
+          antiBotParam = {};
+          for ( let paramStr of tmp ) {
+            let param = paramStr.split( '=' );
+            antiBotParam[ param[ 0 ] ] = param.slice( 1 ).join( '=' );
+          }
+          solvingStart = Date.now();  // Фиксируем время начала проверки
+          // Запрашиваем у сервера параметры для выполнения расчёта контрольных значений
+          try {
+            tmp = await fetch( window.location.origin + antiBotParam.challenge_url,
+                               { method: 'GET', mode: 'cors', credentials: 'include',
+                                 headers: { [ antiBotParam.settings_header ]: antiBotParam.settings }
+                               });
+          }
+          catch( err ) {
+            fetchError( `Error fetching challenge parameters: ${err}, status-code: ${tmp.status}\r\nURL: ${window.location.origin + antiBotParam.challenge_url}\r\nheaders: '${antiBotParam.settings_header}': '${antiBotParam.settings}'` );
+            // Передаём результаты опроса расширению MobileBalance
+            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
+            return true;
+          }
+          // Сохраняем значение 'x-ngenix-bcd' из 'headers' ответа для использования как 'x-ngenix-bcc' в следующем вызове
+          try {
+            antiBotParam.settings = await tmp.headers.get( antiBotParam.state_header );
+          }
+          catch( err ) {
+            fetchError( `Error reading 'x-ngenix-bcd' header: ${err}` );
+            // Передаём результаты опроса расширению MobileBalance
+            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
+            return true;
+          }
+          challenge = await tmp.json()  // Считываем параметры для расчёта контрольных значений
+          .catch( function(err) {
+            fetchError( `Error reading challenge parameters result: ${err}` );
+            // Передаём результаты опроса расширению MobileBalance
+            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
+            return true;
+          });
+          // Запрашиваем у расширения вызов дочернего helper-модуля для выполнения расчёта контрольных значений
+          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: challenge }, null );
+          return true;
+*/
+
+          console.log( `[MB] Waiting for page reloading...` );
+          // Устанвливаем контроль обновления страницы с 'passive = true' - не отменять поведение события по умолчанию
+          // Отменять поведение события по умолчанию для 'beforeunload' нельзя - появится 'alert'-запрос подтверждения ухода со страницы
+          window.addEventListener( 'beforeunload', beforeunloadListener, { passive: true } );
+          // Запрашиваем у расширения вызов дочернего helper-модуля для эмуляции активности вкладки. Ответ не предполагается
+          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { activateTab: true } }, null );
+          return true;
+
+        }
+      }
+
+      switch( request.action ) {
+/*
+        case 'helperResult': {
+
+          // Формат структуры правильного ответа дочернего helper-модуля в 'request.helper': { data: <any data>, respond: <boolean> }
+          //  data = данные результата работы вспомогательного модуля, формат - необходимый для дальнейшей работы
+          //  respond = true. Не учитываем его, это флаг вспомогательного модуля 'направить ответ плагину-родителю'
+
+          // Если работа helper-модуля была успешной, то ожидаем завершения антибот-проверки и перезагрузки страницы
+          if ( request.helper !== undefined ) {
+            // Отправляем серверу объект с результатами расчёта контрольных значений
+            try {
+              tmp = await fetch( window.location.origin + antiBotParam.challenge_url,
+                                 { method: 'POST', mode: 'cors', credentials: 'include',
+                                   body: JSON.stringify( request.helper.data ),
+                                   headers: { [ antiBotParam.settings_header ]: antiBotParam.settings }
+                    })
+            }
+            catch( err ) {
+              fetchError( `Error sending challenge solution: ${err}` )
+              // Передаём результаты опроса расширению MobileBalance
+              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
+              return true;
+            }
+            if ( tmp.status === 205 ) {
+              // Вычисляем время, оставшееся после запросов и расчётов до минимально заданного (min_display = 1.5 сек) ...
+              let delayTime = antiBotParam.min_display - ( Date.now() - solvingStart );
+              if ( delayTime > 0 )  // ... если оно ещё не закончилось, то выполняем задержку до его полного истечения ...
+                await new Promise( resolve => setTimeout( resolve, delayTime ) );
+              // ... и добавляем дополнительную задержку 0.5 сек, чтобы сервер точно успел обработать результат проверки
+              await new Promise( resolve => setTimeout( resolve, 500 ) );
+
+              // Перезагружаем страницу, в предположении, что антибот-проверка пройдена и будет загружена страница сайта
+//              fetchError( `Bot-challenge detected, reloading page` ); // Запрашиваем у расширения повтор этапа запроса
+//              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+//              document.location.reload();
+//              return true;
+
+              // Конструируем новый URL, его присвоение 'document.location' вызовет перезагрузку страницы
+              let newURL = new URL( document.location.href );
+              let param = 'utm_referrer';
+              ( !document.referrer || newURL.searchParams.has( param ) || ( document.location == document.referrer ) ) ?
+                document.location.reload() :
+                ( newURL.searchParams.set( param, document.referrer ), document.location = newURL.href );
+
+            }
+
+
+//            console.log( `[MB] Waiting for page reloading...` );
+            // Устанвливаем контроль обновления страницы с 'passive = true' - не отменять поведение события по умолчанию
+            // Отменять поведение события по умолчанию для 'beforeunload' нельзя - появится 'alert'-запрос подтверждения ухода со страницы
+//            window.addEventListener( 'beforeunload', beforeunloadListener, { passive: true } );
+//            // Запрашиваем у расширения вызов дочернего helper-модуля для эмуляции активности вкладки. Ответ не предполагается
+//            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { activateTab: true } }, null );
+
+            return true;
+          }
+          else {  // При неуспешнном результате работы helper-модуля заканчиваем с ошибкой - антибот-проверка не пройдена ...
+            fetchError( `Helper result unsuccessful or 'undefined'` );            // ... и страница сайта не будет открыта
+            // Передаём результаты опроса расширению MobileBalance
+            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
+            return true;
+          }
+
+          break;
+        }
+*/
         case 'log&pass': {
           //  При входе на 't2.ru' (включая перенаправления) получаем страницу, на которой есть элемент кнопки со вложенным элементом 'span' с innerText = 'ВОЙТИ'.
           //  Если предыдущая сессия не завершена, то на странце появляется элемент со ссылкой, имеющей класс 't2-header__profile'. В ней находится элемент 'span'
@@ -35,7 +168,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
               prevAccount = prevAccount[0].firstChild.innerText.replaceAll( ' ', '' ).slice( 2 );
               if ( prevAccount === MBLogin ) {                                                  // Сессия открыта для нужных нам учётных данных
                 window.location.replace( window.location.origin + '/lk' );                      // Переходим на страницу личного кабинета, этот экземпляр скрипта будет утрачен
-                return;
+                return true;
               }
               else { // Закрываем текущую сессию удалением токенов в cookie
                 fetchError( `Рrevious session for '${prevAccount}' was not closed. Closing it now...` );
@@ -43,12 +176,13 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                 await cookieStore.delete( { name: 'refresh_token', domain: 't2.ru', path: '/' } );
                 // При завершении этапа расширение выполнит переход на страницу входа 'finishUrl' и страница загрузится без прежней сессии
                 chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
-                return;
+                return true;
               }
             }
             // Ищем на странице элемент с набором ссылок-пунктов меню, а в нём - элемент ссылки входа в личный кабинет
-            let desktopMenu = Array.from(document.getElementsByTagName( 'span' ));
-            desktopMenu = desktopMenu.find( function( item ) { return item.innerText.includes( 'ВОЙТИ' ) })
+            let desktopMenu = Array.from( document.getElementsByTagName( 'span' ) );
+            if ( desktopMenu.length > 0 )
+              desktopMenu = desktopMenu.find( function( item ) { return item.innerText.includes( 'ВОЙТИ' ) });
             if ( desktopMenu !== undefined ) {                                                  // Если есть ссылка для входа в личный кабинет, то ...
               if ( ( request.detail !== undefined ) &&                                          // Если в дополнительных параметрах переданы ранее сохранённые токены
                    ( request.detail.access_token !== undefined ) &&                             // и они имеют значение (это не пустые строки), то вносим их в cookie,
@@ -59,7 +193,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                 await cookieStore.set( request.detail.access_token );
                 await cookieStore.set( request.detail.refresh_token );
                 window.location.replace( window.location.origin + '/lk' );                      // Переходим на страницу личного кабинета, этот экземпляр скрипта будет утрачен
-                return;
+                return true;
               }
               else { // Инициируем загрузку формы ввода учётных данных и ожидаем их ввода пользователем (включая код из SMS или письма на эл. почту)
                 desktopMenu.click();
@@ -73,16 +207,16 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                   phoneNumDigits[ 'phoneNumber' + i ].setAttribute( 'value', loginDigits[ i - 1 ] );              // Вносим символы номера учётных данных в поля ввода
                   phoneNumDigits[ 'phoneNumber' + i ].dispatchEvent( new Event( 'change', { bubbles: true } ) );  // Инициируем приём и обработку значения формой
                 }
-                return;
+                return true;
                 // После успешной авторизации должна быть открыта страница личного кабинета (то есть страница обновится и этот экземпляр скрипта будет утрачен)
               } // При отсутствии действий пользователя, ошибках авторизаци = превышении времени ожидания авторизации, расширение прекратит опрос по этим учётным данным
             }
+            // Если иы попали в эту точку, то предыдущие условия не отаботали и главная страница (страница авторизации) не открыта. Значит есть ошибки навигации или сервер не отвечает
+            fetchError( 'Login page error or server not responding' );
+            // Передаём результаты опроса расширению MobileBalance
+            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
+            return true;
           }
-          // Если иы попали в эту точку, то предыдущие условия не отаботали и главная страница (страница авторизации) не открыта. Значит есть ошибки навигации или сервер не отвечает
-          fetchError( 'Login page error or server not responding' );
-          // Передаём результаты опроса расширению MobileBalance
-          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
-          return;
           break;
         }
         case 'polling': {
@@ -93,11 +227,9 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
         }
       } /* switch */
     }
-    else return;
+    else return true;
   }
-  catch( err ) { fetchError( err.toString() );
-                 chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
-               }
+  catch( err ) { fetchError( err.toString() ) }
 })
 
 
@@ -106,6 +238,14 @@ function fetchError( err ) {
   requestStatus = false;
   requestError = err;
   console.log( `[MB] ${requestError}` );
+}
+
+
+function beforeunloadListener( evnt ) {
+//       --------------------
+  window.removeEventListener( 'beforeunload', beforeunloadListener );                 // Снимаем контроль обновления страницы
+  console.log( requestError = `Bot-challenge seems to be passed, page reloading` );   // Запрашиваем у расширения повтор этапа запроса
+  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
 }
 
 

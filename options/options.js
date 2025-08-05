@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.02.22
+ * Редакция:  2025.07.22
  *
 */
 
@@ -559,6 +559,7 @@ optionsPage.addEventListener( 'click', async function(evnt) {
       break; }
     case 'optionsRepair': { // Восстановить исходные значения переменных в local storage
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      await chrome.storage.local.remove( 'workTab' ); // Удаляем запись об ID рабочей вкладки окна результатов опроса
       await chrome.storage.local.remove( 'workWin' ); // Удаляем запись об ID окна результатов опроса
       await chrome.storage.local.set( { inProgress: false } ); // Сбрасываем статус опроса - он не идёт
       optionsRepair.disabled = true; // Блокируем кнопку восстановления исходных значений

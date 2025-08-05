@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна истории запросов расширения MobileBalance по учётным данным
- * Редакция:  2025.01.13
+ * Редакция:  2025.08.04
  *
 */
 
@@ -137,7 +137,6 @@ function providerOpenSite ( event ) {
         }
       }
       return chrome.tabs.highlight( { windowId: winId, tabs: tabIndex } );  // Переходим на вкладку с сайтом провайдера
-      self.close();                                                         // popup-окно закрываем
     })
     .catch( function ( err ) { console.log( `[MB] Error occured: ${err}` ) } ) 
   })
@@ -625,3 +624,8 @@ historyItems.addEventListener( 'click', async function( evnt ) {
   }
 });
 
+
+changeMode.addEventListener( 'click', function( evnt ) {
+//         ----------------
+  window.location.replace( './historyPerDate.html' );
+})
