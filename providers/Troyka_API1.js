@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для кошелька карты 'Тройка' в 'mosmetro.ru' через API
  *            Логин - номер карты, пароль не используется
- * Редакция:  2025.07.01
+ * Редакция:  2025.08.07
  *
 */
 
@@ -12,6 +12,7 @@ let requestStatus = true;
 let requestError = '';
 let MBResult = undefined;
 let MBLogin = undefined;
+let MBcurrentNumber = undefined;  // Индекс позиции учётных данных в списке опроса
 let currentTokens = { renew: false }; // Для обновления токенов через ответ раширению в 'detail'. По умолчанию их обновлять не нужно
 let authKeyPressed = false;           // На форме авторизации нажата кнопка = запрошена авторизация в личном кабинете
 
@@ -23,6 +24,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       if ( sendResponse ) sendResponse( 'done' );  // Ответ в окно опроса для поддержания канала связи
       MBextentionId = sender.id;
       MBLogin = request.login;
+      MBcurrentNumber = request.accIdx;
       // Исходно проводится открытие страницы личного кабинета по startUrl = https://lk.mosmetro.ru/personal-cabinet
       // Если есть активная авторизация, то будет открыт личный кабинет с данными по ранее привязанным картам. Если
       //   авторизация не выполнена, то на странице присутствует кнопка для перехода на страницу авторизации.
@@ -72,7 +74,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
         window.removeEventListener( 'beforeunload', beforeunloadListener );         // Снимаем контроль обновления страницы
         if ( authKeyPressed ) {                                                     // Если на странице была нажата кнопка,
           console.log( requestError = `Trying to check authtorization` );           // то запрашиваем у расширения повтор этапа запроса
-          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
         }
       };
 

@@ -955,6 +955,7 @@ chrome.runtime.onMessage.addListener(
                                            action:  provider[ idx ].scriptActions[ pollingCycle[ currentNumber ].requestStage ],
                                            login:   pollingCycle[ currentNumber ].loginValue,
                                            passw:   ( passw === undefined ) ? undefined : passw, // Если этап запроса не требует пароля, то исключаем этот параметр
+                                           accIdx:  currentNumber,  // Индекс позиции учётных данных в списке опроса
                                            detail:  ( pollingCycle[ currentNumber ].detail === undefined ) ? // Если сохранённых данных нет, то исключаем этот параметр
                                                     undefined : pollingCycle[ currentNumber ].detail
                                          } )
@@ -967,8 +968,9 @@ chrome.runtime.onMessage.addListener(
             if ( err.message.includes( 'Receiving end does not exist' ) ) {
               scriptLost = true;
               chrome.runtime.onMessage.dispatch( { message: 'MB_workTab_repeatCurrentPhase', error: `Script for "${pollingCycle[ currentNumber ].description}"` +
-                                                   ` was lost, injecting it again to perform request stage ${pollingCycle[ currentNumber ].requestStage}` },
-                                                 { tab: await chrome.tabs.get( provider[ idx ].pullingTab ), id: self.location.origin } );
+                                                   ` was lost, injecting it again to perform request stage ${pollingCycle[ currentNumber ].requestStage}`,
+                                                   accIdx: currentNumber }, // Индекс позиции учётных данных в списке опроса
+                                                 { tab: await chrome.tabs.get( provider[ idx ].pullingTab ), id: 'MBpollingCycle' } );
               ++pollingCycle[ currentNumber ].requestStage; // Увеличиваем счётчик частей запроса - он будет уменьшен на 1 в 'MB_workTab_repeatCurrentPhase'
             }
             else
@@ -1028,48 +1030,73 @@ chrome.runtime.onMessage.addListener(
         break; }
       case 'MB_workTab_skipNextPhase': { // Плагин запросил пропуск следующего шага своего запроса
         if ( sendResponse ) sendResponse( 'done' );
-        let idx = provider.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
-          return (pollingCycle[ currentNumber ].provider === item.name)
-        });
-        if ( pollingCycle[ currentNumber ].requestStage < ( provider[ idx ].scriptActions.length - 1 ) )
-          ++pollingCycle[ currentNumber ].requestStage; // Увеличиваем счётчик частей запроса
+        let pIdx = -1;
+        if ( currentNumber >= 0 ) { // Если текущий экземпляр опроса ещё не завершён, то
+          pIdx = provider.findIndex( function( item ) {            // ...определяем провайдера для текущих учётных данных
+            if ( ( pollingCycle[ currentNumber ].provider === item.name ) &&    // Если запрос пришёл от вкладки результатов
+                 ( ( sender.id === 'MBpollingCycle' ) ||                        // опроса или от рабочей вкладки провайдера,
+                   ( sender.tab.id === item.pullingTab ) ) )                    // открытой в этом экземпляре окна опроса
+              return true                                                       // (могут быть ещё окна опроса)
+            else return false; // Если запрос от "чужой" вкладки, то будет возвращено значение -1
+          });
+          if ( pIdx >= 0 ) { // Если это запрос от вкладки, открытой в этом экземпляре опроса
+            // Выполняем запрос, если он пришёл от вкладки результатов в этом экземпляре опроса или от рабочей вкладки провайдера, для
+            //   учётных данных которого нет ожидания отклика плагина 'respondTimeout = false' или ожидание отклика указазано
+            //   'respondTimeout = true' и время этого ожидания 'respondTimeoutValue' ещё не закончилось (иначе этот запрос опоздал -
+            //   уже направлен запрос по другим учётным данным)
+            if ( ( sender.id === 'MBpollingCycle' ) || ( ( request.accIdx === currentNumber ) &&
+                 ( ( provider[ pIdx ].respondTimeout === false ) || ( pollingCycle[ currentNumber ].сontrolTimeout !== null ) ) )
+               ) {
+              console.log( `[MB] Plugin requested to skip next phase: ${request.error}` );
+              if ( pollingCycle[ currentNumber ].requestStage < ( provider[ pIdx ].scriptActions.length - 1 ) )
+                ++pollingCycle[ currentNumber ].requestStage; // Увеличиваем счётчик частей запроса
+            }
+          }
+        }
         return true; // Заканчиваем работу функции
         break; }
-      case 'MB_workTab_repeatCurrentPhase': { // Плагин запросил повтор текущего шага своего запроса
-        if ( sendResponse ) sendResponse( 'done' );
-        let idx = -1;
+      case 'MB_workTab_repeatCurrentPhase': { // Плагином или вкладкой результатов опроса запрошен повтор текущего шага запроса
+      if ( sendResponse ) sendResponse( 'done' );
+        let pIdx = -1;
         if ( currentNumber >= 0 ) { // Если текущий экземпляр опроса ещё не завершён, то
-          idx = provider.findIndex( function( item ) {         // ...определяем провайдера для текущих учётных данных
-            if ( (pollingCycle[ currentNumber ].provider === item.name) &&  // Если запрос пришёл от рабочей вкладки
-                 (sender.tab.id === item.pullingTab) )                      // провайдера, открытой в этом экземпляре
-              return true                                                   // окна опроса (могут быть ещё окна опроса)
+          pIdx = provider.findIndex( function( item ) {            // ...определяем провайдера для текущих учётных данных
+            if ( ( pollingCycle[ currentNumber ].provider === item.name ) &&    // Если запрос пришёл от вкладки результатов
+                 ( ( sender.id === 'MBpollingCycle' ) ||                        // опроса или от рабочей вкладки провайдера,
+                   ( sender.tab.id === item.pullingTab ) ) )                    // открытой в этом экземпляре окна опроса
+              return true                                                       // (могут быть ещё окна опроса)
             else return false; // Если запрос от "чужой" вкладки, то будет возвращено значение -1
           });
         }
-        if ( idx >= 0 ) { // Если это запрос от вкладки, открытой в этом экземпляре опроса
-          if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber );   // Снимаем таймер таймаута по ответу
-          chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );      // Снимаем контроль обновления вкладки (если он был)
-          console.log( `[MB] Plugin requested to repeat current phase: ${request.error}` );
-          try {
-            let tabInfo;
-            do {
-              tabInfo = await chrome.tabs.get( provider[ idx ].pullingTab );
-              await sleep ( Delay );
-            } while ( tabInfo.status !== 'complete' ); // Дождидаемся завершения загрузки страницы на вкладке запроса
+        if ( pIdx >= 0 ) { // Если это запрос от вкладки, открытой в этом экземпляре опроса
+          // Выполняем запрос, если он пришёл от вкладки результатов в этом экземпляре опроса или от рабочей вкладки провайдера, для
+          //   учётных данных которого нет ожидания отклика плагина 'respondTimeout = false' или ожидание отклика указазано
+          //   'respondTimeout = true' и время этого ожидания 'respondTimeoutValue' ещё не закончилось (иначе этот запрос опоздал -
+          //   уже направлен запрос по другим учётным данным)
+          if ( ( sender.id === 'MBpollingCycle' ) || ( ( request.accIdx === currentNumber ) &&
+               ( ( provider[ pIdx ].respondTimeout === false ) || ( pollingCycle[ currentNumber ].сontrolTimeout !== null ) ) )
+             ) {
+            if ( provider[ pIdx ].respondTimeout ) removeTimeoutControl( currentNumber );   // Снимаем таймер таймаута по ответу
+            chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );       // Снимаем контроль обновления вкладки (если он был)
+            console.log( `[MB] Plugin requested to repeat current phase: ${request.error}` );
+            try {
+              let tabInfo;
+              do {
+                tabInfo = await chrome.tabs.get( provider[ pIdx ].pullingTab );
+                await sleep ( Delay );
+              } while ( tabInfo.status !== 'complete' ); // Дождидаемся завершения загрузки страницы на вкладке запроса
+            }
+            catch( err ) {
+              console.log( `[MB] Error geting tab info for "${provider[ pIdx ].description}", probably it was closed` );
+            }
+            if ( provider[ pIdx ].onUpdateDelay )
+              await sleep ( Delay * provider[ pIdx ].onUpdateDelayValue );  // Задержка для догрузки контента рабочей вкладки
+            if ( pollingCycle[ currentNumber ].requestStage !== 0 )         // Если текущая часть запроса не первая, то ...
+              --pollingCycle[ currentNumber ].requestStage;                 // ... уменьшаем счётчик частей запроса
+            // Инициируем повторное выполнение текущего шага опроса
+            chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_ready' }, { tab: null, id: self.location.origin } );
           }
-          catch( err ) {
-            console.log( `[MB] Error geting tab info for "${provider[ idx ].description}", probably it was closed` );
-          }
-          if ( provider[ idx ].onUpdateDelay )
-            await sleep ( Delay * provider[ idx ].onUpdateDelayValue ); // Задержка для догрузки контента рабочей вкладки
-          if ( pollingCycle[ currentNumber ].requestStage !== 0 )       // Если текущая часть запроса не первая, то ...
-            --pollingCycle[ currentNumber ].requestStage;               // ... уменьшаем счётчик частей запроса
-          // Инициируем повторное выполнение текущего шага опроса
-          chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_ready' }, { tab: null, id: self.location.origin } );
-          return true; // Заканчиваем работу функции
         }
-        else
-          return true; // Заканчиваем работу функции
+        return true; // Заканчиваем работу функции
         break; }
       case 'MB_workTab_takeData': { // Принять результаты запроса от рабочей вкладки запроса
         if ( sendResponse ) sendResponse( 'done' );

@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2025.04.17
+ * Редакция:  2025.08.07
  *
 */
 
@@ -11,6 +11,7 @@ let MBextentionId = undefined;
 let requestStatus = true;
 let requestError = '';
 let MBResult = undefined;
+let MBcurrentNumber = undefined;  // Индекс позиции учётных данных в списке опроса
 let cbl = undefined;
 
 /*  Вместо 'moskva' во всех URL ниже используем 'www' - сервер подставит соответствующее значение региона
@@ -35,6 +36,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
     if ( request.message === 'MB_takeData' ) {
       if ( sendResponse ) sendResponse( 'done' );  // Ответ в окно опроса для поддержания канала связи
       MBextentionId = sender.id;
+      MBcurrentNumber = request.accIdx;
       switch ( request.action ) {
         case 'log&pass': {
 /*
@@ -100,7 +102,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
               // Пробуем открыть новый (с 26.09.2022) личный кабинет '.../customers/products/elk/'
               console.log( requestError = `[MB] Current personal profile page is not valid for plugin` );
               // Запрашиваем у расширения MobileBalance повтор этого этапа запроса
-              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
               // Переходим на страницу нового личного кабинета. Она должна открыться по учётным данным с которыми мы авторизовались
               window.location.replace( window.location.origin + '/customers/products/elk/' );
             }
@@ -113,7 +115,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                   // Если авторизация выполнена с учётными данными, по которым проводится запрос, то открываем страницу личного кабинета
                   if ( (await (await fetch( window.location.origin + '/api/profile/common/settings/', { method: 'GET' } )).json()).selectedLogin === request.login ) {
                     // Запрашиваем у расширения MobileBalance повтор этого этапа запроса
-                    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+                    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
                     // Переходим на страницу нового личного кабинета. Она должна открыться по учётным данным с которыми мы авторизовались
                     window.location.replace( window.location.origin + '/customers/products/elk/' );
                     return;

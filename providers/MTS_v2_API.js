@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных)
  *            Получение данных в интерфейсе и через обновлённый API личного кабинета
- * Редакция:  2025.08.05
+ * Редакция:  2025.08.07
  *
 */
 
@@ -12,6 +12,7 @@ let requestStatus = true;
 let requestError = '';
 let MBResult = undefined;
 let MBLogin = undefined;
+let MBcurrentNumber = undefined;  // Индекс позиции учётных данных в списке опроса
 let tZone = (new Date( Date.now() )).toString().split( 'GMT' )[ 1 ].split( ' ' )[ 0 ];    // Часовой пояс в
 tZone = tZone.slice( 0, -2 ) + ':' + tZone.slice( -2 );                                   // формате '+03:00'
 // Переменные для фильтров дат начала-окончания периода. Для использования в запросе расходов API ver2
@@ -57,6 +58,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       if ( sendResponse ) sendResponse( 'done' );  // Ответ в окно опроса для поддержания канала связи
       MBextentionId = sender.id;
       MBLogin = request.login;
+      MBcurrentNumber = request.accIdx;
       switch( request.action ) {
         case 'log&pass': {
           if ( !window.location.origin.includes( 'login.mts.ru' ) ) { // Если мы находимся не на странице входа, значит
@@ -113,7 +115,7 @@ function beforeunloadListener( evnt ) {
 //       --------------------
   window.removeEventListener( 'beforeunload', beforeunloadListener );                 // Снимаем контроль обновления страницы
   console.log( requestError = `Client session data refreshed, page is reloading` );  // Запрашиваем у расширения повтор этапа запроса
-  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
 }
 
 
@@ -313,7 +315,7 @@ async function getData() {
         .finally( async function( result ) {
           await sleep( 200 ); // Задержка чтобы успел отработать backend выхода из кабинета
           // Запрашиваем у расширения повтор этого этапа запроса
-          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
           // Перезагружаем страницу - она должна актуализироваться по учётным данным, с которыми мы авторизовались. Данный экземпляр скрипта при этом будет утрачен
           window.location.reload();
         })

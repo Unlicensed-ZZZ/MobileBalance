@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи T2 (ранее Tele2) через API
- * Редакция:  2025.08.03
+ * Редакция:  2025.08.07
  *
 */
 
@@ -12,6 +12,7 @@ let requestStatus = true;
 let requestError = '';
 let MBResult = undefined;
 let MBLogin = undefined;
+let MBcurrentNumber = undefined;  // Индекс позиции учётных данных в списке опроса
 let currentTokens = { renew: false }; // Для обновления токенов через ответ раширению в 'detail'. По умолчанию их обновлять не нужно.
 let antiBotParam, challenge, solvingStart, tmp;
 
@@ -22,6 +23,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       if ( sendResponse ) sendResponse( 'done' );  // Ответ в окно опроса для поддержания канала связи
       MBextentionId = sender.id;
       MBLogin = request.login;
+      MBcurrentNumber = request.accIdx;
       // Проверяем не попали ли на страницу антибот-проверки, делаем это только на начальном этапе работы плагина
       if ( ( window.location.origin.includes( 't2.ru' ) ) && ( request.action === 'log&pass' ) ) {
         // Получаем html-текст страницы
@@ -122,7 +124,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
 
               // Перезагружаем страницу, в предположении, что антибот-проверка пройдена и будет загружена страница сайта
 //              fetchError( `Bot-challenge detected, reloading page` ); // Запрашиваем у расширения повтор этапа запроса
-//              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+//              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
 //              document.location.reload();
 //              return true;
 
@@ -245,7 +247,7 @@ function beforeunloadListener( evnt ) {
 //       --------------------
   window.removeEventListener( 'beforeunload', beforeunloadListener );                 // Снимаем контроль обновления страницы
   console.log( requestError = `Bot-challenge seems to be passed, page reloading` );   // Запрашиваем у расширения повтор этапа запроса
-  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError }, null );
+  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
 }
 
 
