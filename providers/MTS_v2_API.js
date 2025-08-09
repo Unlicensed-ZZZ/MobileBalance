@@ -1,9 +1,9 @@
-/* MTS_API.js
- * ----------
+/* MTS_v2_API.js
+ * -------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных)
- *            Получение данных в интерфейсе и через обновлённый API личного кабинета
- * Редакция:  2025.08.07
+ *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
+ * Редакция:  2025.08.09
  *
 */
 
@@ -63,7 +63,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
         case 'log&pass': {
           if ( !window.location.origin.includes( 'login.mts.ru' ) ) { // Если мы находимся не на странице входа, значит
             // либо не был выполнен выход по предыдущим учётным данным и мы попали в личный кабинет по ним, либо ошибки на сервере
-            // Проверяем соответствие учётных данных запрашиваемым, вызов проходит как со страницы личного кабинета, так и со страницы профиля
+            // Проверяем соответствие учётных данных запрашиваемым. Вызов проходит как со страницы личного кабинета, так и со страницы профиля
             fetch( 'https://login.mts.ru/amserver/rest/widget', { method: 'GET', mode: 'cors', credentials: 'include' } )
             .then( function( response ) {
               response.json()
@@ -114,7 +114,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
 function beforeunloadListener( evnt ) {
 //       --------------------
   window.removeEventListener( 'beforeunload', beforeunloadListener );                 // Снимаем контроль обновления страницы
-  console.log( requestError = `Client session data refreshed, page is reloading` );  // Запрашиваем у расширения повтор этапа запроса
+  console.log( requestError = `Client session data refreshed, page is reloading` );   // Запрашиваем у расширения повтор этапа запроса
   chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
 }
 
@@ -529,40 +529,36 @@ async function getData() {
                 break;
               }
               case 2: {
-                if ( MBResult.TurnOffStr !== undefined ) {
-                  if ( dateFrom === '' ) { // Если дата начала периода для запроса ещё не была сформирована, то делаем это
-                    // Формируем дату начала периода в формате вида: '2025-07-03T00:00:00+03:00'
-                    let fromDate;
-                    if ( tarifPrice === 0 ) {                         // Для тарифов с абонентской платой берём дату начала оплаченного периода
-                      fromDate = ( new Date( Date.now() ) ).toJSON().split( 'T' )[ 0 ];
-                    }
-                    else {                                            // Для тарифов с абонентской платой берём дату начала оплаченного периода
-                      fromDate = MBResult.TurnOffStr.split( '.' );
-                      fromDate = new Date( `${fromDate[ 2 ]}-${fromDate[ 1 ]}-${fromDate[ 0 ]}T00:00:00${tZone}` );
-                      fromDate.setMonth( fromDate.getMonth() - 1 );
-                      fromDate = fromDate.toJSON().split( 'T' )[ 0 ];
-                    }
-                    dateFrom = `${fromDate}T00:00:00${tZone}`;
-                    // Заносим полученную дату в переменную фильтра 'dateFrom' объекта запроса
-                    requestParam.expensesInfo.api2Part.variables.filter.dateFrom = dateFrom;
+                if ( dateFrom === '' ) { // Если дата начала периода для запроса ещё не была сформирована, то делаем это
+                  // Формируем дату начала периода в формате вида: '2025-07-03T00:00:00+03:00'
+                  let fromDate;
+                  if ( ( MBResult.TurnOffStr === undefined ) ||                         // Если дата следующего платежа не определена ...
+                       ( tarifPrice === 0 ) ) {                                         // ... или тариф без абонентской платы ...
+                    fromDate = ( new Date( Date.now() ) ).toJSON().split( 'T' )[ 0 ];   // ... то берём для запроса текущую дату
                   }
-                  await getDataAction( requestParam.expensesInfo, 'expensesInfo' )
-                  .then( function( response ) {
-                    // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
-                    // то забираем расходы за период (для API ver2)
-                    if ( requestParam.expensesInfo.successRequests >= requestParam.expensesInfo.minSuccess ) {
-                      response.data.transactionsByFilter.categories.forEach( function( item ) {
-                        if ( item.alias !== 'abonent_charging' )
-                          paidAmmount += item.amount;
-                      })
-                      paidAmmount += tarifPrice; // В качестве значения абонентской платы принимаем значение из данных тарифа
-                    }
-                  })
-                  .catch( function( err ) { console.log( err ) })
+                  else {  // Для тарифов с абонентской платой берём дату начала оплаченного периода
+                    fromDate = MBResult.TurnOffStr.split( '.' );
+                    fromDate = new Date( `${fromDate[ 2 ]}-${fromDate[ 1 ]}-${fromDate[ 0 ]}T00:00:00${tZone}` );
+                    fromDate.setMonth( fromDate.getMonth() - 1 );
+                    fromDate = fromDate.toJSON().split( 'T' )[ 0 ];
+                  }
+                  dateFrom = `${fromDate}T00:00:00${tZone}`;
+                  // Заносим полученную дату в переменную фильтра 'dateFrom' объекта запроса
+                  requestParam.expensesInfo.api2Part.variables.filter.dateFrom = dateFrom;
                 }
-                else {
-                  console.log( `[MB] "TurnOffStr" is undefined, can't fetch expensesInfo` );
-                }
+                await getDataAction( requestParam.expensesInfo, 'expensesInfo' )
+                .then( function( response ) {
+                  // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
+                  // то забираем расходы за период (для API ver2)
+                  if ( requestParam.expensesInfo.successRequests >= requestParam.expensesInfo.minSuccess ) {
+                    response.data.transactionsByFilter.categories.forEach( function( item ) {
+                      if ( item.alias !== 'abonent_charging' )
+                        paidAmmount += item.amount;
+                    })
+                    paidAmmount += tarifPrice; // В качестве значения абонентской платы принимаем значение из данных тарифа
+                  }
+                })
+                .catch( function( err ) { console.log( err ) })
                 break;
               }
             }
@@ -584,21 +580,11 @@ async function getData() {
                       else
                         ++freeCounter;
                     });
-                    if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                      MBResult = { UslugiOn: `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})` }
-                    else                          // Если в объекте уже есть значения
-                      MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;
                     break;
                   }
                   case 2: {
                     freeCounter = response.data.myServicesProducts.freeCount;
                     paidCounter = response.data.myServicesProducts.paidCount;
-                    if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                      MBResult = { UslugiOn: `${freeCounter} / ${paidCounter} (` +
-                                             ( ( MBResult.TurnOffStr === undefined ) ? '???' : `${paidAmmount.toFixed(2)}` ) + ')' }
-                    else                          // Если в объекте уже есть значения
-                      MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (` +
-                                          ( ( MBResult.TurnOffStr === undefined ) ? '???' : `${paidAmmount.toFixed(2)}` ) + ')';
                     break;
                   }
                 }
@@ -644,24 +630,10 @@ async function getData() {
                 );
 
         // Формируем строку состава услуг в формате: 'количество бесплатных' / 'количество платных' / (сумма по платным)
-        switch( requestParam.activeServices.verAPI ) {
-          case 1: {
-            if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-              MBResult = { UslugiOn: `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})` }
-            else                          // Если в объекте уже есть значения
-              MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;
-            break;
-          }
-          case 2: {
-            if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-              MBResult = { UslugiOn: `${freeCounter} / ${paidCounter} (` +
-                                     ( ( MBResult.TurnOffStr === undefined ) ? '???' : `${paidAmmount.toFixed(2)}` ) + ')' }
-            else                          // Если в объекте уже есть значения
-              MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (` +
-                                  ( ( MBResult.TurnOffStr === undefined ) ? '???' : `${paidAmmount.toFixed(2)}` ) + ')';
-            break;
-          }
-        }
+        if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
+          MBResult = { UslugiOn: `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})` }
+        else                          // Если в объекте уже есть значения
+          MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;
 
         initLogout(); // Инициируем завершение сеанса работы с личным кабинетом и уходим с его страницы
       }
