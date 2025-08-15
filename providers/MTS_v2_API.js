@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных)
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2025.08.09
+ * Редакция:  2025.08.16
  *
 */
 
@@ -47,8 +47,6 @@ let requestParam = { dataBalance:    { verAPI: 2, api1Part: 'accountInfo/mscpBal
                                        longtaskCheck: false, retries: 4, minSuccess: 2, successRequests: 0, successContent: [] },
                      activeServices: { verAPI: 2, api1Part: 'services/list/active',
                                        api2Part: { operationName: 'GetConnectedProductsCountBaseQueryInput', variables: { productListType: 'PAID_AND_FREE_LIST', groupType: [ 'DIGITAL_SUBSCRIPTION', 'DIGITAL_PRODUCT', 'DIGITAL_SERVICE' ], timeZone: tZone }, query: 'query GetConnectedProductsCountBaseQueryInput( $productListType: MMProductsMyServicesListType!, $groupType: [ MMProductsMyServicesGroupType! ], $timeZone: String ) { myServicesProducts( input: { productListType: $productListType, groupType: $groupType, timeZone: $timeZone } ) { paidCount freeCount __typename } }' },
-                                       longtaskCheck: true,  retries: 4, minSuccess: 2, successRequests: 0, successContent: [] },
-                     cashBack:       { verAPI: 1, api1Part: 'cashback/account', api2Part: '',
                                        longtaskCheck: true,  retries: 4, minSuccess: 2, successRequests: 0, successContent: [] }
                    };
 
@@ -549,13 +547,24 @@ async function getData() {
                 await getDataAction( requestParam.expensesInfo, 'expensesInfo' )
                 .then( function( response ) {
                   // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
-                  // то забираем расходы за период (для API ver2)
+                  // то забираем расходы за период (для API ver2) ...
                   if ( requestParam.expensesInfo.successRequests >= requestParam.expensesInfo.minSuccess ) {
                     response.data.transactionsByFilter.categories.forEach( function( item ) {
                       if ( item.alias !== 'abonent_charging' )
                         paidAmmount += item.amount;
                     })
                     paidAmmount += tarifPrice; // В качестве значения абонентской платы принимаем значение из данных тарифа
+                  }
+                  // ... и значение кэшбака, если его значение ненулевое (для API ver2)
+                  if ( response.data.transactionsByFilter.totalInfo.cashback ) {
+                    let tmp = response.data.transactionsByFilter.totalInfo.cashback.incomeAmount - 
+                              response.data.transactionsByFilter.totalInfo.cashback.outcomeAmount;
+                    if ( tmp > 0 ) {
+                      if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
+                        MBResult = { Balance2: parseFloat( tmp.toFixed(2) ) }
+                      else                          // Если в объекте уже есть значения
+                        MBResult.Balance2 = parseFloat( tmp.toFixed(2) );
+                    }
                   }
                 })
                 .catch( function( err ) { console.log( err ) })
@@ -592,32 +601,6 @@ async function getData() {
             })
             .catch( function( err ) { console.log( err ) })
           }
-          if ( requestParam.cashBack.minSuccess > requestParam.cashBack.successRequests ) {
-            await getDataAction( requestParam.cashBack, 'cashBack' )
-            .then( function( response ) {
-              // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
-              // то забираем значение кэшбэка, если его значение ненулевое
-              if ( requestParam.cashBack.minSuccess >= requestParam.cashBack.successRequests ) {
-                switch( requestParam.cashBack.verAPI ) {
-                  case 1: {
-                    if ( response.data.balance && ( response.data.balance > 0 ) ) {
-                      if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                        MBResult = { Balance2: parseFloat( response.data.balance.toFixed(2) ) }
-                      else                          // Если в объекте уже есть значения
-                        MBResult.Balance2 = parseFloat( response.data.balance.toFixed(2) );
-                    }
-                    break;
-                  }
-                  case 2: {
-                    requestParam.cashBack.minSuccess = 0;
-                    console.log( `[MB] API ver2 undefined for cashBack` );
-                    break;
-                  }
-                }
-              }
-            }) // getCashBack //
-            .catch( function( err ) { console.log( err ) })
-          }
         } while ( ( requestParam.dataBalance.minSuccess    > requestParam.dataBalance.successRequests )    ||
                   ( requestParam.accountBlocker.minSuccess > requestParam.accountBlocker.successRequests ) ||
                   ( requestParam.creditLimit.minSuccess    > requestParam.creditLimit.successRequests )    ||
@@ -625,8 +608,7 @@ async function getData() {
                   ( requestParam.tarifInfo.minSuccess      > requestParam.tarifInfo.successRequests )      ||
                   ( requestParam.dataCounters.minSuccess   > requestParam.dataCounters.successRequests )   ||
                   ( requestParam.expensesInfo.minSuccess   > requestParam.expensesInfo.successRequests )   ||
-                  ( requestParam.activeServices.minSuccess > requestParam.activeServices.successRequests ) ||
-                  ( requestParam.cashBack.minSuccess       > requestParam.cashBack.successRequests )
+                  ( requestParam.activeServices.minSuccess > requestParam.activeServices.successRequests )
                 );
 
         // Формируем строку состава услуг в формате: 'количество бесплатных' / 'количество платных' / (сумма по платным)
