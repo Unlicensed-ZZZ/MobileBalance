@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2025.08.03
+ * Редакция:  2025.08.17
  *
 */
 
@@ -160,8 +160,7 @@ async function getData() {
 //             ---------
   let i = 1;                                              // Сведения о вызовах API взяты из новой версии личного кабинета
   let response, jsonResult;                               //   lk.megafon.ru/public/rwlk/app.18eacca0.js (23.11.2024)
-  let summary = 0, totalAmount = null,                    // Переменные для сбора стоимости месячных затрат
-      nextChargeTarif = 0, serviceAmount = 0;
+  let payment = null;                                     // Стоимость месячных затрат (тариф + платные услуги)
 
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем значение текущего баланса, кредитного лимита
@@ -213,13 +212,8 @@ async function getData() {
         MBResult.UslugiOn = ( ( jsonResult.free.length > 0 ) ? String(jsonResult.free.length) : '0' ) + ' / '
       else
         MBResult.UslugiOn = '0 / ';
-      if ( jsonResult.paid !== undefined ) {
-        jsonResult.paid.forEach( function( item ) {   // ДОПУЩЕНИЕ: считаем, что сумма оплаты услуги - за месяц
-          serviceAmount += ( item.previewImportantInformation !== undefined ) ?
-                             parseFloat( (item.previewImportantInformation[ 0 ].title).split( ' ' )[ 0 ] ) : 0;
-        });
+      if ( jsonResult.paid !== undefined )
         MBResult.UslugiOn += ( ( jsonResult.paid.length > 0 ) ? String(jsonResult.paid.length) : '0' )
-      }
       else
         MBResult.UslugiOn += '0';
       break;
@@ -250,8 +244,9 @@ async function getData() {
       if ( jsonResult.ratePlanCharges.nextCharge !== undefined ) {            // Получаем дату следующего платежа (если она есть)
         // Для даты в формате "дд.мм.гггг чч:мм" берём только информацию о дате
         MBResult.TurnOffStr = jsonResult.ratePlanCharges.nextCharge.chargeDate.split( ' ' )[ 0 ];
-        if ( jsonResult.ratePlanCharges.nextCharge.price !== undefined )      // Получаем сумму следующего платежа по тарифу (если она есть)
-          nextChargeTarif = parseFloat( jsonResult.ratePlanCharges.nextCharge.price.value.split( ' ' )[ 0 ] ); // Значение хранится как текст, переводим его в цифру
+        if ( jsonResult.ratePlanCharges.nextCharge.price !== undefined )      // Получаем сумму следующего платежа (если она есть)
+          // Значение хранится как текст, заменяем запятые точками и переводим его в цифру
+          payment = parseFloat( jsonResult.ratePlanCharges.nextCharge.price.value.replaceAll( ',', '.' ).split( ' ' )[ 0 ] );
       }
       break;
     }
@@ -265,35 +260,33 @@ async function getData() {
   else
     console.log( `[MB] Response for '/api/tariff/2019-3/current' API (total attempts = ${i}): ${JSON.stringify( jsonResult )}` );
 
-  for ( i = 1; i <= maxRetries; ++i ) { // Дополняем состав услуг стоимостью платных ( формат: 'бесплатные' / 'платные' / 'стоимость платных' )
-    response = await fetch( apiUrl + '/api/reports/expenses',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
-    if ( response.ok && ( response.status === 200 ) ) {
-      jsonResult = await response.json();
-      if ( jsonResult.expenseGroups !== undefined ) {                 // Если в ответе есть раздел 'expenseGroups', то собираем из его объектов ...
-        Object.values( jsonResult.expenseGroups ).forEach( function( item ) {                                   // ... значения полей 'totalAmount' 
-          if ( item.totalAmount !== undefined )
-            totalAmount += item.totalAmount;
-        });
+  if ( payment === null ) { // Если в данных о тарифе не было суммы следующего платежа, то пробуем собрать её из данных о расходах
+    for ( i = 1; i <= maxRetries; ++i ) {
+      response = await fetch( apiUrl + '/api/reports/expenses',
+                              { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+      if ( response.ok && ( response.status === 200 ) ) {
+        jsonResult = await response.json();
+        if ( jsonResult.expenseGroups !== undefined ) {                 // Если в ответе есть раздел 'expenseGroups', то собираем из его объектов ...
+          Object.values( jsonResult.expenseGroups ).forEach( function( item ) {                                   // ... значения полей 'totalAmount' 
+            if ( item.totalAmount !== undefined )
+              payment += item.totalAmount;
+          });
+        }
+        break;
       }
-      // Определяем месячные затраты
-      // Если значение 'totalAmount' отсутствует, то собираем затраты как сумму оплаты по тарифу 'nextChargeTarif' + стоимость платных услуг 'serviceAmount'
-      if ( totalAmount === null )
-        summary = nextChargeTarif + serviceAmount;
-      else  // Если есть значение 'totalAmount', то берём в качестве затрат эту сумму (предполагаем, что Мегафон уже всё здесь посчитал)
-        summary = totalAmount;
-      MBResult.UslugiOn += ` / (${summary.toFixed(2)})`;  // Дополняем состав услуг стоимостью платных ( + / 'стоимость платных' )
-      break;
+      else await sleep( 1000 ); // Если запрос неуспешен - повторяем его после паузы 1с (до заданного количества попыток)
     }
-    else await sleep( 1000 ); // Если запрос неуспешен - повторяем его после паузы 1с (до заданного количества попыток)
+    if ( i > maxRetries ) { // Выполнены все попытки запроса, все были неуспешны, выходим с ошибкой
+      fetchError( `Fatch failed within ${i} attempts. Status: '${response.statusText}'` ); // Fatching error
+      initLogout();
+      return;
+    }
+    else
+      console.log( `[MB] Response for '/api/reports/expenses' API (total attempts = ${i}): ${JSON.stringify( jsonResult )}` );
   }
-  if ( i > maxRetries ) { // Выполнены все попытки запроса, все были неуспешны, выходим с ошибкой
-    fetchError( `Fatch failed within ${i} attempts. Status: '${response.statusText}'` ); // Fatching error
-    initLogout();
-    return;
-  }
-  else
-    console.log( `[MB] Response for '/api/reports/expenses' API (total attempts = ${i}): ${JSON.stringify( jsonResult )}` );
+  // Дополняем состав услуг стоимостью платных ( формат: 'бесплатные' / 'платные' / 'стоимость платных' )
+  // Если сумма оплаты не сформирована, то принимем её равной нулю (вероятно тариф без абонентской платы и за период нет затрат)
+  MBResult.UslugiOn += ` / (${( payment === null ) ? '0.00' : payment.toFixed(2)})`;
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем остатки пакетов
     response = await fetch( apiUrl + '/api/options/v2/remainders/mini',
