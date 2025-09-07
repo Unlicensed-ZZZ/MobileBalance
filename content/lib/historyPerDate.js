@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна истории запросов расширения MobileBalance по датам
- * Редакция:  2025.08.04
+ * Редакция:  2025.09.07
  *
 */
 
@@ -447,20 +447,40 @@ async function drawPollingItems() {
           }
           break; }
         case 9: { // Поле интернета для учётных данных (пустое до завершения запроса)
+          tableCell.textContent = '';
           tableCell.style.textAlign = 'right';
           tableCell.id = item.htmlTableRowId + '-internet';
           if ( recIdx >= 0 ) {
-            if ( responseRecords[ recIdx ].Internet < 0 ) { // -1 = опция безлимитная, отображаем для неё символ бесконечности '∞'
-            tableCell.style.textAlign = 'center';
-            tableCell.textContent = '\u221E';
+            if ( responseRecords[ recIdx ].Internet < 0 ) {         // -1 = опция безлимитная, отображаем для неё символ бесконечности '∞'
+              tableCell.style.textAlign = 'center';
+              tableCell.textContent = '\u221E';
             }
-            else {
-              let pIdx = provider.findIndex( function( pItem ) { // Определяем провайдера для текущих учётных данных
+            if ( responseRecords[ recIdx ].Internet > 0 ) {         // Отображаем интернет-трафик в единицах, указанных в настройках для провайдера
+              let pIdx = provider.findIndex( function( pItem ) {    // Определяем провайдера для текущих учётных данных
                 if ( pItem.name === item.provider ) return true;
               });
-              let d = ( provider[ pIdx ].inetUnits === 'M' ) ? ( responseRecords[ recIdx ].Internet ).toFixed(2) + ' Мб' :
-                                                               ( responseRecords[ recIdx ].Internet / 1024 ).toFixed(2) + ' Гб';
-              tableCell.textContent = ( responseRecords[ recIdx ].Internet === 0 ) ? '' : d;
+              let tmpInetUnits = ( pIdx < 0 ) ? 'A': provider[ pIdx ].inetUnits;  // Если провайдер не найден, то отображанм остаток Интернет-трафика с автовыбором размерности
+              if ( tmpInetUnits === 'A' ) {                                       // При указании автовыбора определяем размерность отображения остатка Интернет-трафика
+                if ( responseRecords[ recIdx ].Internet < 1024 ) tmpInetUnits = 'M'
+                else
+                  if ( ( responseRecords[ recIdx ].Internet / 1024 ) < 1024 ) tmpInetUnits = 'G'
+                  else tmpInetUnits = 'T';
+              }
+              switch ( tmpInetUnits ) {
+                case 'T': {
+                  tableCell.textContent = ( responseRecords[ recIdx ].Internet / 1048576 ).toFixed(2) + ' Тб';
+                  break;
+                }
+                case 'G': {
+                  tableCell.textContent = ( responseRecords[ recIdx ].Internet / 1024 ).toFixed(2) + ' Гб';
+                  break;
+                }
+                case 'M': {
+                  tableCell.textContent = ( responseRecords[ recIdx ].Internet ).toFixed(2) + ' Мб';
+                  break;
+                }
+              }
+              tableCell.style.whiteSpace = 'nowrap';
             }
           }
           break; }

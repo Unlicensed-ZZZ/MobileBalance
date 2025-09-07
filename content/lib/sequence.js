@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2025.08.03
+ * Редакция:  2025.09.07
  *
 */
 
@@ -1223,15 +1223,34 @@ chrome.runtime.onMessage.addListener(
               document.getElementById( String(currentNumber) + '-minutes' ).textContent =
                 ( pollingCycle[ currentNumber ].result.Minutes === 0 ) ? '' : String(pollingCycle[ currentNumber ].result.Minutes );
 
-            // Отображаем остаток трафика (интернета)
+            // Отображаем остаток Интернет-трафика
             if ( !pollingCycle[ currentNumber ].result.Internet )  pollingCycle[ currentNumber ].result.Internet = 0;
             if ( pollingCycle[ currentNumber ].result.Internet < 0 ) { // -1 = опция безлимитная, отображаем для неё символ бесконечности '∞'
               document.getElementById( String(currentNumber) + '-internet' ).style.textAlign = 'center';
               document.getElementById( String(currentNumber) + '-internet' ).textContent = '\u221E';
             }
-            else { // Выставляем размерность (Мб или Гб) для интернета по настройкам для провайдера
-              d = ( provider[ idx ].inetUnits === 'M' ) ? ( pollingCycle[ currentNumber ].result.Internet ).toFixed(2) + ' Мб' :
-                                                          ( pollingCycle[ currentNumber ].result.Internet / 1024 ).toFixed(2) + ' Гб';
+            else { // Выставляем размерность отображения остатка Интернет-трафика (Тб, Гб или Мб) по настройкам для провайдера
+              let tmpInetUnits = provider[ idx ].inetUnits;
+              if ( tmpInetUnits === 'A' ) {   // При указании в настройках автовыбора определяем размерность отображения остатка Интернет-трафика
+                if ( pollingCycle[ currentNumber ].result.Internet < 1024 ) tmpInetUnits = 'M'
+                else
+                  if ( ( pollingCycle[ currentNumber ].result.Internet / 1024 ) < 1024 ) tmpInetUnits = 'G'
+                  else tmpInetUnits = 'T';
+              }
+              switch ( tmpInetUnits ) {
+                case 'T': {
+                  d = ( pollingCycle[ currentNumber ].result.Internet / 1048576 ).toFixed(2) + ' Тб';
+                  break;
+                }
+                case 'G': {
+                  d = ( pollingCycle[ currentNumber ].result.Internet / 1024 ).toFixed(2) + ' Гб';
+                  break;
+                }
+                case 'M': {
+                  d = ( pollingCycle[ currentNumber ].result.Internet ).toFixed(2) + ' Мб';
+                  break;
+                }
+              }
               document.getElementById( String(currentNumber) + '-internet' ).textContent =
                 ( pollingCycle[ currentNumber ].result.Internet === 0 ) ? '' : d;
             }

@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Страница настроек расширения MobileBalance
- * Редакция:  2025.05.22
+ * Редакция:  2025.09.07
  *
 -->
 
@@ -539,6 +539,13 @@
                   <label for='providerInetUnits' style='margin-right:6px'>Отображать интернет-трафик в</label>
                 </td>
                 <td style='display:flex; text-align:left'>
+                  <label for='providerInetTb' style='display:flex; align-items:center; margin-right:6px'>
+                    <div style='margin-right:6px'>
+                      <input type='radio' class='radiobtn' id='providerInetTb' name='providerInetUnits' value='T'>
+                      <div class='radiobtn_pseudo'></div>
+                    </div>
+                    <span>терабайтах</span>
+                  </label>
                   <label for='providerInetGb' style='display:flex; align-items:center; margin-right:6px'>
                     <div style='margin-right:6px'>
                       <input type='radio' class='radiobtn' id='providerInetGb' name='providerInetUnits' value='G'>
@@ -552,6 +559,13 @@
                       <div class='radiobtn_pseudo'></div>
                     </div>
                     <span>мегабайтах</span>
+                  </label>
+                  <label for='providerInetAuto' style='display:flex; align-items:center; margin-right:6px'>
+                    <div style='margin-right:6px'>
+                      <input type='radio' class='radiobtn' id='providerInetAuto' name='providerInetUnits' value='A'>
+                      <div class='radiobtn_pseudo'></div>
+                    </div>
+                    <span>автовыбор</span>
                   </label>
                 </td>
               </tr>

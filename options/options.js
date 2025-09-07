@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.07.22
+ * Редакция:  2025.09.07
  *
 */
 
@@ -1073,8 +1073,10 @@ providersPage.addEventListener( 'change', async function(evnt) {
         }
       }
       break; }
+    case 'providerInetTb':
     case 'providerInetGb':
-    case 'providerInetMb': {
+    case 'providerInetMb':
+    case 'providerInetAuto': {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       for ( let i = 0; i < providerRecords.length; ++i ) {
         if (chooseProvider.value === providerRecords[ i ].name) {
@@ -1300,7 +1302,7 @@ function getLoadedFile( btnId, fsHandle ) {
           newProvider.onUpdateDelayValue = ( jsonFile.onUpdateDelayValue ) ? Number(jsonFile.onUpdateDelayValue) : 0;
           newProvider.respondTimeout = ( jsonFile.respondTimeout === true );
           newProvider.respondTimeoutValue = ( jsonFile.respondTimeoutValue ) ? Number(jsonFile.respondTimeoutValue) : 0;
-          newProvider.inetUnits = ( jsonFile.inetUnits ) ? jsonFile.inetUnits : 'G';
+          newProvider.inetUnits = ( jsonFile.inetUnits ) ? jsonFile.inetUnits : 'A';
           newProvider.ignoreFractional = ( jsonFile.ignoreFractional === true );
           newProvider.startUrlClearCookies = ( jsonFile.startUrlClearCookies === true );
           newProvider.startUrlBypassCache = ( jsonFile.startUrlBypassCache === true );

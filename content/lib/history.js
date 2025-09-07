@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна истории запросов расширения MobileBalance по учётным данным
- * Редакция:  2025.08.04
+ * Редакция:  2025.09.07
  *
 */
 
@@ -442,22 +442,41 @@ async function makeHistoryRow( rowIdx, loginDecription, loginValue, curRec, prev
         else // Пакеты не подключены, оплата по условиям тарифа, отображать нечего
           tableCell.textContent = '';
         break; }
-      case 7:  { // Оставшийся интернет-трафик
+      case 7:  { // Оставшийся Интернет-трафик
+        tableCell.textContent = '';
         tableCell.style.textAlign = 'right';
-        if (curRec.value.Internet) {
-          if ( curRec.value.Internet >= 0 ) {
-            tableCell.textContent = // Отображаем интернет-трафик в единицах, указанных в настройках для провайдера
-              ((pIdx < 0) || provider[ pIdx ].inetUnits === 'G') ? (curRec.value.Internet / 1024).toFixed(2) + ' Гб' :
-                                                                   (curRec.value.Internet).toFixed(2) + ' Мб';
-            tableCell.style.whiteSpace = 'nowrap';
-          }
-          else { // -1 = опция безлимитная, отображаем для неё символ бесконечности '∞'
+        if ( curRec.value.Internet ) {
+          if ( curRec.value.Internet < 0 ) {    // -1 = опция безлимитная, отображаем для неё символ бесконечности '∞'
             tableCell.textContent = '\u221E'
             tableCell.style.textAlign = 'center';
           }
+          else {                                // Отображаем интернет-трафик в единицах, указанных в настройках для провайдера
+            if ( curRec.value.Internet > 0 ) {
+              let tmpInetUnits = ( pIdx < 0 ) ? 'A': provider[ pIdx ].inetUnits;  // Если провайдер не найден, то отображанм остаток Интернет-трафика с автовыбором размерности
+              if ( tmpInetUnits === 'A' ) {                                       // При указании автовыбора определяем размерность отображения остатка Интернет-трафика
+                if ( curRec.value.Internet < 1024 ) tmpInetUnits = 'M'
+                else
+                  if ( ( curRec.value.Internet / 1024 ) < 1024 ) tmpInetUnits = 'G'
+                  else tmpInetUnits = 'T';
+              }
+              switch ( tmpInetUnits ) {
+                case 'T': {
+                  tableCell.textContent = ( curRec.value.Internet / 1048576 ).toFixed(2) + ' Тб';
+                  break;
+                }
+                case 'G': {
+                  tableCell.textContent = ( curRec.value.Internet / 1024 ).toFixed(2) + ' Гб';
+                  break;
+                }
+                case 'M': {
+                  tableCell.textContent = ( curRec.value.Internet ).toFixed(2) + ' Мб';
+                  break;
+                }
+              }
+              tableCell.style.whiteSpace = 'nowrap';
+            }
+          }
         }
-        else // Пакеты не подключены, оплата по условиям тарифа, отображать нечего
-          tableCell.textContent = '';
         break; }
       case 8:  { // Дата следующего платежа = окончания текущего оплаченного периода услуг = дата отключения
         tableCell.style.textAlign = 'center';

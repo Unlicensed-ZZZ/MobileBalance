@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2025.08.04
+ * Редакция:  2025.09.07
  *
 */
 
@@ -227,24 +227,24 @@ dbRequest.onsuccess = async function( evnt ) {
                     `${(d.getMonth() < 9)    ? '0' + String(d.getMonth() + 1) : String(d.getMonth() + 1)}.` +
                     `${String(d.getFullYear())}`;
 
-  let accounts = await getItemList();                             // Получаем список учётных данных, включённых в опрос
+  let accounts = await getItemList();                                         // Получаем список учётных данных, включённых в опрос
   for ( let i = 0; i < accounts.length; ++i ) {
-    let pIdx = provider.findIndex( function( pItem ) {            // Определяем провайдера для учётных данных
-      return ( pItem.name === accounts[ i ].provider );           // Если провайдер не найден (был удалён), то pIdx = -1
+    let pIdx = provider.findIndex( function( pItem ) {                        // Определяем провайдера для учётных данных
+      return ( pItem.name === accounts[ i ].provider );                       // Если провайдер не найден (был удалён), то pIdx = -1
     });
-    let rec = await dbGetLastRecord( accounts[ i ].loginValue );  // Получаем запись последнего запроса по учётным данным
-    let outdatedValue = await checkOutdated( rec );               // Проверяем запрос на соответствие текущей дате
+    let rec = await dbGetLastRecord( accounts[ i ].loginValue );              // Получаем запись последнего запроса по учётным данным
+    let outdatedValue = await checkOutdated( rec );                           // Проверяем запрос на соответствие текущей дате
 
     let tableRow = document.createElement( 'tr' );
     tableRow.colspan = 10;
-    if ( outdatedValue !== undefined ) tableRow.style.color = '#A0A0A0';    // Для устаревших запросов меняем цвет строки
+    if ( outdatedValue !== undefined ) tableRow.style.color = '#A0A0A0';      // Для устаревших запросов меняем цвет строки
 
-    let tableCell = document.createElement( 'td' );                         // Вставляем наименование учётных данных
+    let tableCell = document.createElement( 'td' );                           // Вставляем наименование учётных данных
     tableCell.style.whiteSpace = 'nowrap';
     tableCell.textContent = accounts[ i ].description;
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
 
-    tableCell = document.createElement( 'td' );                             // Вставляем визуальный разделитель ':'
+    tableCell = document.createElement( 'td' );                               // Вставляем визуальный разделитель ':'
     tableCell.textContent = ':';
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
 
@@ -252,8 +252,8 @@ dbRequest.onsuccess = async function( evnt ) {
     tableCell.style.whiteSpace = 'nowrap';
     tableCell.style.textAlign = 'right';
     tableCell.style.fontWeight = 'bold';
-    tableCell.textContent = ( rec ) ? (rec.Balance).toFixed(2) : '-';       // Если запись по учётным данным есть, считываем баланс
-    if ( paintNegative && rec && ( rec.Balance < 0 ) ) {                    // Если значение баланса отрицательное и установлено выделение таких
+    tableCell.textContent = ( rec ) ? (rec.Balance).toFixed(2) : '-';         // Если запись по учётным данным есть, считываем баланс
+    if ( paintNegative && rec && ( rec.Balance < 0 ) ) {                      // Если значение баланса отрицательное и установлено выделение таких
       tableCell.style.color = ( outdatedValue !== undefined ) ? '#FF99FF' : '#FF00FF'; // значений цветом, то меняем цвет в ячейке значения баланса
     }
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
@@ -262,14 +262,14 @@ dbRequest.onsuccess = async function( evnt ) {
     tableCell.style.whiteSpace = 'nowrap';
     tableCell.style.textAlign = 'right';
     tableCell.classList.add( 'infoStateSensitive' );
-    tableCell.textContent = ( rec ) ? (rec.BalDelta).toFixed(2) : '-';      // Если запись по учётным данным есть, считываем расход
+    tableCell.textContent = ( rec ) ? (rec.BalDelta).toFixed(2) : '-';        // Если запись по учётным данным есть, считываем расход
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
 
     tableCell = document.createElement( 'td' );
     tableCell.style.whiteSpace = 'nowrap';
     tableCell.style.textAlign = 'right';
     tableCell.classList.add( 'infoStateSensitive' );
-    tableCell.textContent = ( rec ) ? `${rec.NoChangeDays} дн.` : '-';      // Если запись по учётным данным есть, считываем количество дней без изменения баланса
+    tableCell.textContent = ( rec ) ? `${rec.NoChangeDays} дн.` : '-';        // Если запись по учётным данным есть, считываем количество дней без изменения баланса
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
 
     tableCell = document.createElement( 'td' );
@@ -293,7 +293,7 @@ dbRequest.onsuccess = async function( evnt ) {
     if ( ( rec === undefined ) || ( rec.SMS === 0 ) )
       tableCell.textContent = '-'
     else
-      tableCell.textContent = ( rec.SMS > 0 ) ? rec.SMS : '\u221E';         // Если запись по учётным данным есть, считываем количество остатка SMS
+      tableCell.textContent = ( rec.SMS > 0 ) ? rec.SMS : '\u221E';           // Если запись по учётным данным есть, считываем количество остатка SMS
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
 
     tableCell = document.createElement( 'td' );
@@ -303,23 +303,40 @@ dbRequest.onsuccess = async function( evnt ) {
     if ( ( rec === undefined ) || ( rec.Minutes === 0 ) )
       tableCell.textContent = '-'
     else
-      tableCell.textContent = ( rec.Minutes > 0 ) ? rec.Minutes : '\u221E'; // Если запись по учётным данным есть, считываем количество остатка минут
+      tableCell.textContent = ( rec.Minutes > 0 ) ? rec.Minutes : '\u221E';   // Если запись по учётным данным есть, считываем количество остатка минут
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
 
     tableCell = document.createElement( 'td' );
     tableCell.style.whiteSpace = 'nowrap';
     tableCell.style.textAlign = 'center';
     tableCell.classList.add( 'infoStateSensitive' );
-    if ( ( rec === undefined ) || ( rec.Internet === 0 ) )
+    if ( ( rec === undefined ) || ( rec.Internet === 0 ) )                    // Если запись по учётным данным есть, считываем количество остатка Интернет-трафика
       tableCell.textContent = '-'
     else
-      if ( rec.Internet < 0 ) tableCell.textContent = '\u221E'              // Если запись по учётным данным есть, считываем количество остатка Интернет-трафика
+      if ( rec.Internet < 0 ) tableCell.textContent = '\u221E'                // Интернет-трафик безлимитный
       else {
         tableCell.style.textAlign = 'right';
-        if ( pIdx < 0 )
-          tableCell.textContent = ( rec.Internet / 1024 ).toFixed(2) + ' Гб' // Если провайдер не найден, то отображанм остаток Интернет-трафика в Гб
-        else
-          tableCell.textContent = ( provider[ pIdx ].inetUnits === 'M' ) ? ( rec.Internet ).toFixed(2) + ' Мб' : ( rec.Internet / 1024 ).toFixed(2) + ' Гб';
+        let tmpInetUnits = ( pIdx < 0 ) ? 'A': provider[ pIdx ].inetUnits;    // Если провайдер не найден, то отображанм остаток Интернет-трафика с автовыбором размерности
+        if ( tmpInetUnits === 'A' ) {                                         // При указании автовыбора определяем размерность отображения остатка Интернет-трафика
+          if ( rec.Internet < 1024 ) tmpInetUnits = 'M'
+          else
+            if ( ( rec.Internet / 1024 ) < 1024 ) tmpInetUnits = 'G'
+            else tmpInetUnits = 'T';
+        }
+        switch ( tmpInetUnits ) {
+          case 'T': {
+            tableCell.textContent = ( rec.Internet / 1048576 ).toFixed(2) + ' Тб';
+            break;
+          }
+          case 'G': {
+            tableCell.textContent = ( rec.Internet / 1024 ).toFixed(2) + ' Гб';
+            break;
+          }
+          case 'M': {
+            tableCell.textContent = ( rec.Internet ).toFixed(2) + ' Мб';
+            break;
+          }
+        }
       }
     tableRow.insertAdjacentElement( 'beforeend', tableCell );
 

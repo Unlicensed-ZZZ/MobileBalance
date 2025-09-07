@@ -20,7 +20,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -43,7 +43,7 @@
                   "onUpdateDelayValue":   5,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -66,7 +66,7 @@
                   "onUpdateDelayValue":   5,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  30,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -89,7 +89,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  30,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -112,7 +112,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -136,7 +136,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -159,7 +159,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  30,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -182,7 +182,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  30,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -205,7 +205,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -228,7 +228,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -251,7 +251,7 @@
                   "onUpdateDelayValue":   1,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  10,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -274,7 +274,7 @@
                   "onUpdateDelayValue":   1,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  30,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -297,7 +297,7 @@
                   "onUpdateDelayValue":   1,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  30,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 },
                 {
@@ -320,7 +320,7 @@
                   "onUpdateDelayValue":   2,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
-                  "inetUnits":            "G",
+                  "inetUnits":            "A",
                   "ignoreFractional":     false
                 }
               ]
