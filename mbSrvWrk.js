@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Сервисный (фоновый) обработчик расширения MobileBalance (Service Worker)
- * Редакция:  2025.08.03
+ * Редакция:  2025.10.20
  *
 */
 
@@ -27,7 +27,8 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
         // Инициализируем структуру параметров номеров для опроса (пустая, загружаем отдельно или формируем в интерфейсе)
         await chrome.storage.local.set( { accounts: [] } );
         // Инициализируем таймер ежедневного опроса
-        await activateTimer();
+        await calcNextPoollingTime()  // Получаем время следующего опроса по расписанию и обновляем таймер
+        .then( async function( alarmTime ) { updatePoollingTimer( alarmTime ) } )
         // Создаём исходные структуры indexedDB
         let dbRequest = indexedDB.open( 'BalanceHistory', dbVersion );
         dbRequest.onerror = function( evnt ) {
@@ -68,7 +69,8 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
         });
         await chrome.storage.local.set( { provider: providerNew } );
         // Реинициализируем таймер ежедневного опроса, если он используется
-        await activateTimer();
+        await calcNextPoollingTime()
+        .then( async function( alarmTime ) { updatePoollingTimer( alarmTime ) } )
         // Следующий код нужен только для перехода на версию v1.0.11, в которой в структуру записи хранилища IndexedDB 'Phones'
         // добавлено поле 'Warning'. Нужно добавить его со значением 0 во все существующие записи
 /* // -------
@@ -113,7 +115,8 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
     case 'chrome_update':     // Chrome, Yandex, Opera
     case 'browser_update': {  // Firefox, Chromium (?)
       // Реинициализируем таймер ежедневного опроса, если он используется
-      await activateTimer();
+      await calcNextPoollingTime()  // Получаем время следующего опроса по расписанию и обновляем таймер
+      .then( async function( alarmTime ) { updatePoollingTimer( alarmTime ) } )
       break;
     }
   } /* switch */
@@ -123,16 +126,17 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
 // Инициализация таймера ежедневного опроса при запуске браузера
 chrome.runtime.onStartup.addListener( async ( evnt ) => {
   console.log( `[MB] Exeption "runtime.onStartup" fired` );
-  await activateTimer();
+  await calcNextPoollingTime()  // Получаем время следующего опроса по расписанию и обновляем таймер
+  .then( async function( alarmTime ) { updatePoollingTimer( alarmTime ) } )
 });
 
 
 // Чтение значения единичного параметра из local storage
 function getParamFromStorage( param ) {
 //       ----------------------------
-  let fromStorage = new Promise( (resolve, reject) => {
-    chrome.storage.local.get( param, (result) => {
-      if (Object.entries( result ).length > 0) {
+  let fromStorage = new Promise( ( resolve, reject ) => {
+    chrome.storage.local.get( param, ( result ) => {
+      if ( Object.entries( result ).length > 0 ) {
          resolve( Object.values( result )[ 0 ] )
       }
       else
@@ -143,31 +147,107 @@ function getParamFromStorage( param ) {
 }
 
 
+// Инициализация таймера опроса по расписанию
+async function calcNextPoollingTime( inputAlarmTime = undefined ) {
+//             --------------------------------------------------
+  return new Promise( async function( resolve, reject ) {
+    let maintainPooling, maintainDays, maintainStartTime, maintainRepeat, maintainRepeatTime;
+    maintainPooling = await getParamFromStorage( 'maintainPooling' );
+    if ( maintainPooling === undefined ) {    // Если параметра 'maintainPooling' в localStorage нет, то создаём его
+                                              // Очевидно, что и других параметров опроса в localStorage нет, добавляем их тоже
+      await chrome.storage.local.set( { maintainPooling:    maintainPooling = true,                   // опрос разрешён
+                                        maintainDays:       maintainDays = [ 1, 1, 1, 1, 1, 1, 1 ],   // все дни включены
+                                        maintainStartTime:  maintainStartTime = '16:00',              // старт опроса в 16:00
+                                        maintainRepeat:     maintainRepeat = false,                   // повторы опросов выключены
+                                        maintainRepeatTime: maintainRepeatTime = 0                    // период повторных опросов 0 час
+                                      } );
+    }
+    else {  // Получаем из localStorage остальные параметры опроса
+      maintainDays       = await getParamFromStorage( 'maintainDays' );
+      maintainStartTime  = await getParamFromStorage( 'maintainStartTime' );
+      maintainRepeat     = await getParamFromStorage( 'maintainRepeat' );
+      maintainRepeatTime = await getParamFromStorage( 'maintainRepeatTime' );
+    }
+    // Если параметр выполнения опроса по расписанию установлен и указаны дни для проведения опросов, то определяем время следующего опроса
+    if ( ( maintainPooling === true ) && ( maintainDays.includes( 1 ) === true ) ) {
+      let alarmTime;
+      if ( inputAlarmTime === undefined ) // Если входного значения нет, то формируем его по значениям из хранилища
+        alarmTime = new Date().setHours( Number(maintainStartTime.slice(0, 2)),   // Получаем время таймера для текущей даты
+                                         Number(maintainStartTime.slice(3, 5)), 0, 0 )
+      else
+        alarmTime = inputAlarmTime;
+      // Если текущая дата вне дней недели, указанных для опросов, то получаем дату очередного допустимого дня
+      while ( maintainDays[ new Date( alarmTime ).getDay() ] === 0 ) {
+        alarmTime += 86400000;    // Устанавливаем следующую дату относительно заданной (+ сутки = 86400000 = 1000 * 60 * 60 * 24)
+      }
+      let nextDate = new Date( alarmTime + 86400000 ).setHours( 0, 0, 0, 0);      // Cледующая дата относительно заданной даты-времени
+                                                                                  //   (+ сутки = 86400000 = 1000 * 60 * 60 * 24)
+      if ( ( alarmTime < Date.now() ) ||          // Определяем новое время опроса, если заданное время в текущей дате прошло ...
+           ( inputAlarmTime !== undefined ) ) {   // ... или требуется провести расчёт относительно входного значения
+        // Если задано повторение опросов до конца суток, то определяем время очередного повторного опроса
+        if ( maintainRepeat === true ) {
+          // Переводим заданное время периода из часов в миллисекунды
+          let period = parseFloat( maintainRepeatTime ) * 60 * 60 * 1000;
+          if ( period > 0 ) {               // Если задано ненулевое значение значение периода повторного опроса
+            let periodAlarm = alarmTime;
+            for ( let i = 1; ; ++i ) {
+                                            // Если полученое время запуска опроса в пределах текущей даты ...
+              if ( new Date( alarmTime + ( period * i ) ).setHours( 0, 0, 0, 0 ) < nextDate ) {
+                if ( ( alarmTime + ( period * i ) ) > Date.now() ) {                // ... и ещё не прошло
+                  periodAlarm += period * i;
+                  break;
+                }
+              }
+              else {  // Вышли за пределы даты. Берём следующую дату и исходное время опроса, повторных запусков в текущей дате больше нет
+                periodAlarm = new Date( nextDate ).setHours( Number(maintainStartTime.slice(0, 2)), // Получаем время таймера в следующей дате
+                                                             Number(maintainStartTime.slice(3, 5)), 0, 0 );
+                while ( maintainDays[ new Date( periodAlarm ).getDay() ] === 0 ) {  // Если дата вне дней для опросов, то подбираем разрешённую
+                  periodAlarm += 86400000;
+                }
+                break;
+              }
+            }
+            if ( periodAlarm > alarmTime )  // Если полученое время запуска опроса позднее даты-времени ранее выбранного,
+              alarmTime = periodAlarm;      //   то принимаем его для установки таймера
+          }
+          else {  // При нулевом значении периода повторных запросов берём очередную дату из допустимых дней
+            alarmTime += 86400000;          // Устанавливаем следующую дату относительно заданной
+            while ( maintainDays[ new Date( alarmTime ).getDay() ] === 0 ) { // Если дата вне дней для опросов, то подбираем разрешённую
+              alarmTime += 86400000;
+            }
+          }
+        }
+        else {  // Если повторные опросы отключены, то определяем время очередного опроса по расписанию
+          alarmTime += 86400000;            // Устанавливаем следующую дату относительно заданной
+          while ( maintainDays[ new Date( alarmTime ).getDay() ] === 0 ) { // Если дата вне дней для опросов, то подбираем разрешённую
+            alarmTime += 86400000;
+          }
+        }
+      }
+      resolve( alarmTime );                 // Возвращием новое значение таймера
+    }
+    else
+      resolve( -1 );                        // Выполнение опроса по расписанию отключено
+  });
+}
+
+
 // Инициализация таймера ежедневного опроса
-async function activateTimer( daylyMntn = '', mntnTime = '' ) {
-//             ----------------------------------------------
-  let daylyMaintain =
-      ( daylyMntn === '' ) ? await getParamFromStorage( 'daylyMaintain' ) : daylyMntn;
-  // Если параметр ежедневного выполнения опроса установлен, то запускаем таймер
-  if ( daylyMaintain === true ) {
-    let daylyMaintainTime =
-        ( mntnTime === '' ) ? await getParamFromStorage( 'daylyMaintainTime' ) : mntnTime;
-    let alarmTime = new Date().setHours( Number(daylyMaintainTime.slice(0, 2)), // Вычисляем дату-время для таймера
-                                         Number(daylyMaintainTime.slice(3, 5)), 0, 0 );
-    if ( alarmTime < Date.now() )  // Если заданное время в текущей дате уже прошло, то устанавливаем таймер на
-      alarmTime += 86400000;       // заданное время в следующей дате (+ сутки = 86400000 = 1000 * 60 * 60 * 24)
-    await chrome.alarms.create( 'poolingTimer', { periodInMinutes: 1440, when: alarmTime } );
-    console.log( `[MB] Pooling timer set up on '${new Date(alarmTime)}'` );
-  }
-  else { // Ежедневное выполнение опроса отключено, снимаем таймер (если он был)
+async function updatePoollingTimer( alarmTime ) {
+//             --------------------------------
+  if ( alarmTime < 0 ) {  // Опрос по расписанию отключён, снимаем таймер (если он был)
     await chrome.alarms.clear( 'poolingTimer' );
     console.log( `[MB] Pooling timer cleared` );
+  }
+  else { // Устанавливаем новое значение таймера
+    await chrome.alarms.create( 'poolingTimer', { when: alarmTime } );
+    console.log( `[MB] Pooling timer set up on '${new Date( alarmTime )}'` );
   }
 }
 
 
 // При срабатывании таймера опроса по расписанию запустить процесс опроса
-chrome.alarms.onAlarm.addListener( async (alarm) => {
+chrome.alarms.onAlarm.addListener( async function( alarm ) {
 //                    ------------
   chrome.runtime.onMessage.dispatch( { 'message': 'MB_startPooling', init: 'byTimer' }, { tab: null, id: self.location.origin }, null );
 });
@@ -177,23 +257,40 @@ chrome.alarms.onAlarm.addListener( async (alarm) => {
 chrome.runtime.onMessage.addListener(
   async function( request, sender, sendResponse ) {
     switch ( request.message ) {
+      case 'MB_poolingTimerCalc': { // Передаём значения таймера для предложенного времени старта
+        if ( request.alarmTime !== undefined )
+          calcNextPoollingTime( request.alarmTime )
+          .then( function( alarmTime ) {
+            chrome.tabs.sendMessage( sender.tab.id, { message: 'MB_nextPoollingTime', alarmTime: alarmTime, command: request.message } );
+          });
+        else
+          console.log( `[MB] Undefined value for pooling time calculation` );
+        return true;
+        break;
+      }
       case 'MB_poolingTimerReset': { // Устанавливаем обновлённые значения таймера запуска опроса по расписанию
         if ( sendResponse ) sendResponse( 'done' ); // Ответ окну результатов опроса для поддержания канала связи
-        activateTimer( request.daylyMntn, request.mntnTime );
+        calcNextPoollingTime()
+        .then( async function( alarmTime ) {
+          updatePoollingTimer( alarmTime );
+          chrome.tabs.sendMessage( sender.tab.id, { message: 'MB_nextPoollingTime', alarmTime: alarmTime, command: request.message } );
+        });
         return true;
-        break; }
+        break;
+      }
       case 'MB_showNotification': {  // Показать уведомление (оповещение)
         if ( sendResponse ) sendResponse( 'done' ); // Ответ окну результатов опроса для поддержания канала связи
         await self.registration.showNotification( request.title, request.options );
         return true;
-        break; }
+        break;
+      }
       case 'MB_startPooling': {      // Запустить опрос в новом окне
         if ( sendResponse ) sendResponse( 'done' ); // Ответ в popup для для поддержания канала связи
         if ( !await getParamFromStorage( 'inProgress' ) ) { // Если нет текущего, то запускаем опрос
           try { // Открываем в новом окне страницу для проведения опроса и передаём ей параметром тип опроса
             let cycleOrder, workWin, workTab;
             getParamFromStorage( 'cycleOrder' ) // Выясняем порядок опроса
-            .then( function( result ) { // Открываем новое окно для выполнения опроса
+            .then( function( result ) {         // Открываем новое окно для выполнения опроса
               cycleOrder = result;
               // По кнопке из popup открываем окно активным в нормальном режиме, по таймеру - минимизированным
               let createData = { type: 'normal' };
@@ -201,9 +298,33 @@ chrome.runtime.onMessage.addListener(
                 case 'fromPopUp': { createData.state = 'normal';    createData.focused = true; 
                   break; }
                 case 'byTimer':   { createData.state = 'minimized'; createData.focused = false;
+                  calcNextPoollingTime()    // Получаем время следующего опроса по расписанию и ...
+                  .then( async function( alarmTime ) {
+                    await updatePoollingTimer( alarmTime );     // ... обновляем таймер таймер опроса
+                    // Выясняем, есть ли открытые страницы настроек расширения для обновления на них времени следующего опроса
+                    chrome.management.getSelf()       // Получаем параметры расширения
+                    .then( function( extnData ) {     // Ищем вкладку с адресом страницы его настроек
+                      chrome.tabs.query( { currentWindow: true, url: extnData.optionsUrl } )
+                      .then( function( result ) { // Страница настроек в текущем окне нашлась
+                        if ( result.length > 0 )  // Отправляем время следующего опроса для обновления на странице
+                          chrome.tabs.sendMessage( result[ 0 ].id, { message: 'MB_nextPoollingTime',
+                                                   alarmTime: alarmTime, command: 'MB_poolingTimerCalc' } )
+                      })
+                      .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) } )
+                      chrome.tabs.query( { currentWindow: false, url: extnData.optionsUrl } )
+                      .then( function( result ) {     // Страницы настроек в других окнах нашлись
+                        if ( result.length > 0 )      // Отправляем время следующего опроса для обновления на странице
+                          result.forEach( function( item ) {
+                            chrome.tabs.sendMessage( item.id, { message: 'MB_nextPoollingTime',
+                                                     alarmTime: alarmTime, command: 'MB_poolingTimerCalc' } );
+                          })
+                      })
+                      .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) } )
+                    })
+                  })
                   break; }
               };
-              chrome.windows.create( createData )
+              chrome.windows.create( createData ) // Создаём новое окно для страницы для проведения опроса
               .then( function( result ) {
                 workWin = result;
                 // Некоторые браузеры отказываются создавать минимизированное окно, пробуем установить нужный статус иначе
@@ -255,7 +376,8 @@ chrome.runtime.onMessage.addListener(
           }
         }
         return true;
-        break; }
+        break;
+      }
     } /* switch */
     // Для сообщений, которые не обрабатываются в Service Worker, выводим в консоль уведомление об их появлении
     console.log( `[MB] Message in Service Worker: "${request.message}"` );

@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Каскадные стили для страницы настроек (поля ввода и переключатели) расширения MobileBalance
- * Редакция:  2022.09.22
+ * Редакция:  2025.10.20
  *
 */
 
@@ -55,7 +55,7 @@ input[type='time'][disabled], select[disabled] {
 .chkbox_pseudo {
   position: relative;
   padding: 6px 6px 30px 56px; /* Зона псевдо-переключателя = margin:6px + height:24px + width:50px */
-  cursor: pointer;
+/*  cursor: pointer; */
 }
 
 /* Фон псевдо-переключателя в выключенном положении */
@@ -74,7 +74,7 @@ input[type='time'][disabled], select[disabled] {
 
 /* Фон псевдо-переключателя в положении checked */
 .chkbox:checked + .chkbox_pseudo::before {
-  background: rgba(153, 255, 102, 0.6); /* Цвет фона переключателя - 'Inchworm' rgb(153,255,102) #99FF66 */
+  background: #99FF66; /* Цвет фона переключателя - 'Inchworm' rgb(153,255,102) #99FF66 */
 }
 
 /* Подвижный элемент псевдо-переключателя в выключенном положении */
@@ -102,6 +102,16 @@ input[type='time'][disabled], select[disabled] {
   /* Цвет внешней рамки фокуса псевдо-переключателя - 'Dark Gray' rgb(176,176,176) #BOBOBO */
 }
 
+/* Переключатель при недоступности (disabled) */
+.chkbox:disabled {
+  cursor: initial;
+}
+
+/* Фон псевдо-переключателя при недоступности (disabled) основного переключателя */
+.chkbox:disabled + .chkbox_pseudo::before {
+  background: #DDDDDD; /* Цвет фона псевдо-переключателя - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
 
 /* Переключатель типа RadioButton */
 /* Его вместе с парным псевдо-переключателем следует поместить в div. Label позиции - следом за этим div-ом */
@@ -119,7 +129,7 @@ input[type='time'][disabled], select[disabled] {
 .radiobtn_pseudo {
   position: relative;
   padding: 0 0 36px 36px;  /* Зона псевдо-переключателя width:22px + 2x1px-рамки + 2xmargin:6px */
-  cursor: pointer;
+/*  cursor: pointer; */
 }
 
 /* Фон псевдо-переключателя в выключенном положении */
@@ -159,6 +169,21 @@ input[type='time'][disabled], select[disabled] {
 .radiobtn:focus + .radiobtn_pseudo::before {
   box-shadow: 0 0 0 2px rgba(176, 176, 176, 0.7);
   /* Цвет внешней рамки фокуса псевдо-переключателя - 'Dark Gray' rgb(176,176,176) #BOBOBO */
+}
+
+/* Переключатель при недоступности (disabled) */
+.radiobtn:disabled {
+  cursor: initial;
+}
+
+/* Фон псевдо-переключателя при недоступности (disabled) */
+.radiobtn:disabled + .radiobtn_pseudo::before {
+  background: #DDDDDD; /* Цвет фона псевдо-переключателя - 'Gainsboro' rgb(221,221,221) #DDDDDD */
+}
+
+/* Подвижный элемент псевдо-переключателя при недоступности (disabled) */
+.radiobtn:disabled + .radiobtn_pseudo::after {
+  background: #DDDDDD; /* Цвет фона псевдо-переключателя - 'Gainsboro' rgb(221,221,221) #DDDDDD */
 }
 
 

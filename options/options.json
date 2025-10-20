@@ -1,8 +1,11 @@
 {
   "popupShortInfo":             true,
   "cycleOrder":                 "sequence",
-  "daylyMaintain":              true,
-  "daylyMaintainTime":          "16:00",
+  "maintainPooling":            true,
+  "maintainStartTime":          "16:00",
+  "maintainDays":               [ 1, 1, 1, 1, 1, 1, 1 ],
+  "maintainRepeat":             false,
+  "maintainRepeatTime":         "",
   "repeatAttempts":             4,
   "markNegative":               false,
   "notificationsEnable":        true,

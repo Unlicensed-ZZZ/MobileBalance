@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2025.09.07
+ * Редакция:  2025.10.20
  *
 */
 
@@ -100,14 +100,23 @@ function dbAddRecord( item ) {
     }
     result.onsuccess = function( evnt ) {
       dbTrnsMB.commit(); // Закрываем транзакцию, сохраняем результаты из кэша в хранилище
-      // Обновляем количество записей в хранилище на странице настроек, если она открыта
-      chrome.management.getSelf()    // Получаем параметры расширения
-      .then( function( extnData ) {  // Ищем вкладку с адресом страницы его настроек
-        chrome.tabs.query( { url: extnData.optionsUrl } )
-        .then( function( result ) {  // Если страница нашлась - обновляем в ней количество записей в хранилище
-          if ( result.length > 0 ) chrome.runtime.sendMessage( { message: 'MB_updateRecordsCount' } );
+      // Выясняем, есть ли открытые страницы настроек расширения для обновления на них количества записей в хранилище
+      chrome.management.getSelf()       // Получаем параметры расширения
+      .then( function( extnData ) {     // Ищем вкладку с адресом страницы его настроек
+        chrome.tabs.query( { currentWindow: true, url: extnData.optionsUrl } )
+        .then( function( result ) {     // Страница настроек в текущем окне нашлась
+          if ( result.length > 0 )      // Отправляем команду обновления количества записей в хранилище
+            chrome.tabs.sendMessage( result[ 0 ].id, { message: 'MB_updateRecordsCount' } )
         })
-        .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) } ) 
+        .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) } )
+        chrome.tabs.query( { currentWindow: false, url: extnData.optionsUrl } )
+        .then( function( result ) {     // Страницы настроек в других окнах нашлись
+          if ( result.length > 0 )      // Отправляем команду обновления количества записей в хранилище
+            result.forEach( function( item ) {
+              chrome.tabs.sendMessage( item.id, { message: 'MB_updateRecordsCount' } );
+            })
+        })
+        .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) } )
       })
       resolve( evnt.target.result );
     };
@@ -117,7 +126,7 @@ function dbAddRecord( item ) {
 // Получение последней записи о результате запроса в хранилище 'Phones'
 function dbGetLastRecord( item ) {
 //       -----------------------
-  return new Promise( ( resolve, reject ) => {
+  return new Promise( function( resolve, reject ) {
     dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); // Открываем хранилище 'Phones'
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
     dbObjStorMB.onerror = function( evnt ) {
@@ -656,7 +665,8 @@ async function setRequestDelay( pIdx ) {
         });
         chrome.runtime.onMessage.dispatch( { message: 'MB_requestDelayComplete', pIdx: pIdx },
                                            { tab: null, id: self.location.origin }, null );
-      }, Delay * provider[ pIdx ].requestDelayValue );
+      }, Delay * ( ( provider[ pIdx ].requestDelayValue === '' ) ? 0 : provider[ pIdx ].requestDelayValue )
+    );
   try {
     await chrome.scripting.insertCSS( { target: { tabId: provider[ pIdx ].pullingTab },
                                         files: [ `./options/lib/modal.css` ] });
@@ -708,12 +718,13 @@ async function respondTimeout( evnt ) {
         removeTimeoutControl( currentNumber ); // Снимаем таймер таймаута по ответу
         chrome.runtime.onMessage.dispatch( { message: 'MB_workTab_respondTimeout', idx: evnt.detail.idx },
                                            { tab: null, id: self.location.origin }, null );
-        let ra = (pollingCycle[ currentNumber ].repeatAttempts > 0) ? // Отражаем статус запроса и оставшиеся попытки
+        let ra = ( pollingCycle[ currentNumber ].repeatAttempts > 0 ) ? // Отражаем статус запроса и оставшиеся попытки
                  String(pollingCycle[ currentNumber ].repeatAttempts) : '';
-        pollingCycle[ currentNumber ].lastState = (pollingCycle[ currentNumber ].repeatAttempts > 0) ? 'Timeout' : 'Fail';
+        pollingCycle[ currentNumber ].lastState = ( pollingCycle[ currentNumber ].repeatAttempts > 0 ) ? 'Timeout' : 'Fail';
         drawPoolingState( currentNumber, pollingCycle[ currentNumber ].lastState, ra );
         return true;
-      }, Delay * provider[ pIdx ].respondTimeoutValue );
+      }, Delay * ( ( provider[ pIdx ].respondTimeoutValue === '' ) ? 0 : provider[ pIdx ].respondTimeoutValue )
+    );
 }
 
 // Запустить таймер таймаута по ответу
@@ -744,10 +755,11 @@ async function waitPullingTabLoading( details ) {
   });
   // Если это событие пришло от вкладки текущего запроса (на страницах уже открытых вкладкок могут продолжаться обновления)
   if ( ( idx >= 0 ) && ( provider[ idx ].name === pollingCycle[ currentNumber ].provider ) ) {
-    chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );    // Снимаем контроль обновления вкладки
-    if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber ); // Снимаем таймер таймаута по ответу
+    chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );     // Снимаем контроль обновления вкладки
+    if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber );  // Снимаем таймер таймаута по ответу
     if ( provider[ idx ].onUpdateDelay )
-      await sleep ( Delay * provider[ idx ].onUpdateDelayValue ); // Задержка для догрузки контента рабочей вкладки
+      await sleep ( Delay * ( ( provider[ idx ].onUpdateDelayValue === '' )       // Задержка для догрузки контента рабочей вкладки
+                    ? 0 : provider[ idx ].onUpdateDelayValue ) );
     chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_ready' },
                                        { tab: null, id: self.location.origin }, null );
     return true;
@@ -1020,7 +1032,8 @@ chrome.runtime.onMessage.addListener(
           return true;          // Заканчиваем работу функции
         });
         if ( provider[ idx ].onUpdateDelay )
-          await sleep ( Delay * provider[ idx ].onUpdateDelayValue ); // Задержка для догрузки контента рабочей вкладки
+          await sleep ( Delay * ( ( provider[ idx ].onUpdateDelayValue === '' ) // Задержка для догрузки контента рабочей вкладки
+                        ? 0 : provider[ idx ].onUpdateDelayValue ) );
         // Если в настройках провайдера для текущих учётных данных...
         if ( provider[ idx ].requestDelay ) // ...указана задержка между запросами - запускаем её
           setRequestDelay( idx )            // Она по завершению запросит следующие учётные данные сообщением 'MB_requestDelayComplete'
@@ -1089,9 +1102,10 @@ chrome.runtime.onMessage.addListener(
               console.log( `[MB] Error geting tab info for "${provider[ pIdx ].description}", probably it was closed` );
             }
             if ( provider[ pIdx ].onUpdateDelay )
-              await sleep ( Delay * provider[ pIdx ].onUpdateDelayValue );  // Задержка для догрузки контента рабочей вкладки
-            if ( pollingCycle[ currentNumber ].requestStage !== 0 )         // Если текущая часть запроса не первая, то ...
-              --pollingCycle[ currentNumber ].requestStage;                 // ... уменьшаем счётчик частей запроса
+              await sleep ( Delay * ( ( provider[ pIdx ].onUpdateDelayValue === '' )  // Задержка для догрузки контента рабочей вкладки
+                            ? 0 : provider[ pIdx ].onUpdateDelayValue ) ); 
+            if ( pollingCycle[ currentNumber ].requestStage !== 0 )                   // Если текущая часть запроса не первая, то ...
+              --pollingCycle[ currentNumber ].requestStage;                           // ... уменьшаем счётчик частей запроса
             // Инициируем повторное выполнение текущего шага опроса
             chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_ready' }, { tab: null, id: self.location.origin } );
           }
@@ -1111,12 +1125,13 @@ chrome.runtime.onMessage.addListener(
           });
         }
         if ( idx >= 0 ) { // Если это запрос от вкладки, открытой в этом экземпляре опроса
-          if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber ); // Снимаем таймер таймаута по ответу
-          chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );    // Снимаем контроль обновления вкладки (если он был)
+          if ( provider[ idx ].respondTimeout ) removeTimeoutControl( currentNumber );  // Снимаем таймер таймаута по ответу
+          chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );     // Снимаем контроль обновления вкладки (если он был)
         // Заканчиваем работу с провайдером по текущим учётным данным (переходим по 'finishUrl' провайдера, что чаще всего = выходу из кабинета)
           await chrome.tabs.update( provider[ idx ].pullingTab, { url: provider[ idx ].finishUrl, autoDiscardable: false } );
           if ( provider[ idx ].onUpdateDelay )
-            await sleep ( Delay * provider[ idx ].onUpdateDelayValue ); // Задержка для догрузки контента рабочей вкладки
+            await sleep ( Delay * ( ( provider[ idx ].onUpdateDelayValue === '' )       // Задержка для догрузки контента рабочей вкладки
+                          ? 0 : provider[ idx ].onUpdateDelayValue ) );
         // Фиксируем результаты запроса
           console.log( `[MB] Result from "${(( provider[ idx ].custom ) ? '\u2605 ' : '') + // Провайдеров добавленных пользователем выделяем '★' в начале наименования
                         provider[ idx ].description}" for "${pollingCycle[ currentNumber ].description}": ` +
@@ -1392,9 +1407,10 @@ chrome.runtime.onMessage.addListener(
         break;
       }
       case 'MB_giveRequestDelay': { // Сообщаем рабочей вкладке время задержки между запросами для её провайдера
-        let idx = provider.findIndex( function( item ) {                   // Если запрос пришёл от рабочей вкладки
-          if (sender.tab.id === item.pullingTab)                           // провайдера, открытой в этом экземпляре
-            sendResponse( { requestDelayValue: item.requestDelayValue } ); // окна опроса (могут быть ещё окна опроса)
+        let idx = provider.findIndex( function( item ) {                      // Если запрос пришёл от рабочей вкладки
+          if (sender.tab.id === item.pullingTab)                              // провайдера, открытой в этом экземпляре
+            sendResponse( { requestDelayValue:                                // окна опроса (могут быть ещё окна опроса)
+                            ( item.requestDelayValue === '' ) ? 0 : item.requestDelayValue } );
         });
         return (idx < 0) ? false : true; // Если запрос от вкладки открытой в этом экземпляре опроса - это "наше" событие
         break;

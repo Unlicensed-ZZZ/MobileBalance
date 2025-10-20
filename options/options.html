@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Страница настроек расширения MobileBalance
- * Редакция:  2025.09.07
+ * Редакция:  2025.10.20
  *
 -->
 
@@ -112,14 +112,15 @@
               </tr>
               <tr>
                 <td style='text-align:right'>
-                  <label for='maintainDayly' style='margin-right:6px'>Выполнять опрос ежедневно в</label>
+                  <label for='maintainPooling' style='margin-right:6px'>Выполнять опрос по расписанию</label>
                 </td>
-                <td style='display:flex; text-align:left'>
-                  <div>
-                    <input type='checkbox' class='chkbox' id='maintainDayly'>
+                <td style='display:flex; text-align:left; align-items:center'>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainPooling'>
                     <div class='chkbox_pseudo'></div>
+                    в&nbsp;&nbsp;
                   </div>
-                  <input type='time' id='maintainTime' title='Показать выбор времени'>
+                  <input type='time' id='maintainStartTime' title='Показать выбор времени'>
                   <button type='button' class='panelButton' style='width:auto; margin-block:0.3em; padding-inline:0 0.3em;' id='maintainNote' title='Информация по настройке'>
                     <svg width='24' height='24' style='padding-left:6px;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                       <path fill='var(--imgColor)' d='M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C10.3817 22 8.81782 21.6146 7.41286 20.888L3.58704 21.9553C2.92212 22.141 2.23258 21.7525 2.04691 21.0876C1.98546 20.8676 1.98549 20.6349 2.04695 20.4151L3.11461 16.5922C2.38637 15.186 2 13.6203 2 12C2 6.47715 6.47715 2 12 2ZM12 3.5C7.30558 3.5 3.5 7.30558 3.5 12C3.5 13.4696 3.87277 14.8834 4.57303 16.1375L4.72368 16.4072L3.61096 20.3914L7.59755 19.2792L7.86709 19.4295C9.12006 20.1281 10.5322 20.5 12 20.5C16.6944 20.5 20.5 16.6944 20.5 12C20.5 7.30558 16.6944 3.5 12 3.5ZM12 15.5C12.5523 15.5 13 15.9477 13 16.5C13 17.0523 12.5523 17.5 12 17.5C11.4477 17.5 11 17.0523 11 16.5C11 15.9477 11.4477 15.5 12 15.5ZM12 6.75C13.5188 6.75 14.75 7.98122 14.75 9.5C14.75 10.5108 14.4525 11.074 13.6989 11.8586L13.5303 12.0303C12.9084 12.6522 12.75 12.9163 12.75 13.5C12.75 13.9142 12.4142 14.25 12 14.25C11.5858 14.25 11.25 13.9142 11.25 13.5C11.25 12.4892 11.5475 11.926 12.3011 11.1414L12.4697 10.9697C13.0916 10.3478 13.25 10.0837 13.25 9.5C13.25 8.80964 12.6904 8.25 12 8.25C11.3528 8.25 10.8205 8.74187 10.7565 9.37219L10.75 9.5C10.75 9.91421 10.4142 10.25 10 10.25C9.58579 10.25 9.25 9.91421 9.25 9.5C9.25 7.98122 10.4812 6.75 12 6.75Z'/> \
@@ -130,7 +131,7 @@
               <!-- Заметка по настройкам браузера для работы с таймером опроса по расписанию -->
               <tr>
                 <td colspan=2 style='text-align:right'>
-                  <div id='maintainNoteText' class='expandable'>
+                  <div tabIndex=-1 id='maintainNoteText' class='expandable'>
                     <p style='margin: 0.5em 1em 0.5em 0; padding: 0 0 0 1.5em'>
                     Чтобы опросы запускались в указанное время следует разрешить работу браузера в фоновом режиме в его настройках. Этот параметр находится в подразделе системных настроек браузера.<br>Название параметра для разных браузеров различается: <i>продолжать работу фоновых приложений, когда ... закрыт; разрешить работу в фоне...; не отключать работающие в фоновом режиме сервисы при закрытии...; ...разрешать в фоне выполнение функций Браузера</i><br>Если этот параметр в настройках браузера не установлен, то расширение будет корректно работать с опросами по расписанию только если браузер в момент проведения опроса запущен. При запуске браузера он может предпринять попытку выполнить пропущенный опрос (зависит от браузера).
                     </p>
@@ -138,11 +139,93 @@
                 </td>
               </tr>
               <tr>
+                <td></td>
+                <td style='display:flex; text-align:left; align-items:center; justify-content:space-between'>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainMon'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainMon' style='text-wrap-mode:nowrap;'>пн.&nbsp;&nbsp;</label>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainTue'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainTue' style='text-wrap-mode:nowrap;'>вт.&nbsp;&nbsp;</label>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainWed'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainWed' style='text-wrap-mode:nowrap;'>ср.&nbsp;&nbsp;</label>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainThu'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainThu' style='text-wrap-mode:nowrap;'>чт.&nbsp;&nbsp;</label>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainFri'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainFri' style='text-wrap-mode:nowrap;'>пт.&nbsp;&nbsp;</label>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainSat'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainSat' style='text-wrap-mode:nowrap;'>сб.&nbsp;&nbsp;</label>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainSun'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainSun' style='text-wrap-mode:nowrap;'>вс.</label>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td style='display:flex; text-align:left; align-items:center'>
+                  <div style='display:inline-flex; align-items:center'>
+                    <input type='checkbox' class='chkbox' id='maintainRepeat'>
+                    <div class='chkbox_pseudo'></div>
+                  </div>
+                  <label for='maintainRepeat' style='text-wrap-mode:nowrap;'>повторять опрос до конца суток каждые&nbsp;(час)&nbsp;&nbsp;</label>
+                  <input type='number' id='maintainRepeatTime' min='0' max='23.5' step='0.5' pattern='^[0-9]' placeholder='периодичность опроса, час'>
+                  <div class='toolTip'>
+                    <svg width='20' height='20' style='vertical-align:middle; padding-inline:0.3em;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                        <path fill='#99CCFF' d='M12 1.99902C17.5237 1.99902 22.0015 6.47687 22.0015 12.0006C22.0015 17.5243 17.5237 22.0021 12 22.0021C6.47626 22.0021 1.99841 17.5243 1.99841 12.0006C1.99841 6.47687 6.47626 1.99902 12 1.99902ZM12 3.49902C7.30469 3.49902 3.49841 7.3053 3.49841 12.0006C3.49841 16.6959 7.30469 20.5021 12 20.5021C16.6952 20.5021 20.5015 16.6959 20.5015 12.0006C20.5015 7.3053 16.6952 3.49902 12 3.49902ZM11.9963 10.4996C12.376 10.4994 12.69 10.7813 12.7399 11.1473L12.7468 11.2491L12.7504 16.7507C12.7507 17.1649 12.4151 17.5009 12.0009 17.5012C11.6212 17.5014 11.3072 17.2195 11.2573 16.8535L11.2504 16.7517L11.2468 11.2501C11.2465 10.8359 11.5821 10.4999 11.9963 10.4996ZM12.0004 7.00184C12.552 7.00184 12.9991 7.44896 12.9991 8.0005C12.9991 8.55205 12.552 8.99917 12.0004 8.99917C11.4489 8.99917 11.0017 8.55205 11.0017 8.0005C11.0017 7.44896 11.4489 7.00184 12.0004 7.00184Z'/> \
+                      </svg>
+                    <span class='toolTipText'>Внимание! При использовании повторных опросов <u>сопоставляйте указываемое значение периода с периодом для удаления предыдущих запросов</u> текущей даты в подразделе настроек хранилища (см. ниже).<br>Значения предыдущего опроса могут оказаться замещены результатами более позднего.</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td style='display:flex; align-items:center; justify-content:space-between;'>
+                  <div style='font-style:italic'>
+                    <span>Следующий опрос:&nbsp;&nbsp;</span>
+                    <span id='maintainInfo'></span>
+                  </div>
+                  <div>
+                    <div>
+                      <button id='prevPooling' class='panelButton' title='Предыдущий запуск опроса' style='width:auto; padding:0; margin:0 0 0 0.3em; font-size:large;' disabled>
+                        <svg width='24' height='24' style='vertical-align:middle;' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                          <path fill='var(--imgColor)' d="M15 17.8983C15 18.9722 13.7351 19.5462 12.9268 18.839L6.61617 13.3172C5.81935 12.6199 5.81935 11.3804 6.61617 10.6831L12.9268 5.16132C13.7351 4.45412 15 5.02809 15 6.10204L15 17.8983Z" fill="#212121"/>
+                        </svg>
+                      </button>
+                      <button id='nextPooling' class='panelButton' title='Следующий запуск опроса' style='width:auto; padding:0; margin:0 0.3em 0 0; font-size:large;'>
+                        <svg width='24' height='24' style='vertical-align:middle;' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                          <path fill='var(--imgColor)' d="M9 17.8983C9 18.9722 10.2649 19.5462 11.0731 18.839L17.3838 13.3172C18.1806 12.6199 18.1806 11.3804 17.3838 10.6831L11.0731 5.16132C10.2649 4.45412 9 5.02809 9 6.10204V17.8983Z" fill="#212121"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+
+              <tr>
                 <td style='text-align:right'>
                   <label for='repeatAttempts' style='margin-right:6px'>Количество повторов при неудачном запросе</label>
                 </td>
                 <td style='text-align:left'>
-                  <input type='number' id='repeatAttempts' min='0' pattern='[^0-9]' placeholder='количество запросов'>
+                  <input type='number' id='repeatAttempts' min='0' pattern='^[0-9]' placeholder='количество запросов'>
                 </td>
               </tr>
               <tr>
@@ -256,6 +339,13 @@
                   <label for='sameDateRecord' style='margin-right:6px'>Удалять предыдущие запросы текущей даты за период</label>
                 </td>
                 <td style='display:flex; text-align:left'>
+                  <label for='2hAge' style='display:flex; align-items:center; margin-right:6px'>
+                    <div style='margin-right:6px'>
+                      <input type='radio' class='radiobtn' id='2hAge' name='sameDateRecord' value='2'>
+                      <div class='radiobtn_pseudo'></div>
+                    </div>
+                    <span>2 часа</span>
+                  </label>
                   <label for='4hAge' style='display:flex; align-items:center; margin-right:6px'>
                     <div style='margin-right:6px'>
                       <input type='radio' class='radiobtn' id='4hAge' name='sameDateRecord' value='4'>
@@ -451,11 +541,11 @@
                 </tr>
                 <tr>
                   <td style='text-align:right'>
-                    <label for='inputInactiveRemind' style='margin:0 0.6em 0 0'>Уведомлять о первышении</label>
+                    <label for='inputInactiveRemind' style='margin:0 0.6em 0 0'>Уведомлять о превышении</label>
                   </td>
                   <td style='text-align:left'>
                     <div style='display:flex; align-items:baseline'>
-                      <input type='number' style='width:5em;' id='inputInactiveRemind' min='0' pattern='[^0-9]' placeholder='...кол-во'>
+                      <input type='number' style='width:5em;' id='inputInactiveRemind' min='0' pattern='^[0-9]' placeholder='...кол-во'>
                       <span style='color:#333333; margin-left:0.6em; cursor:default'>дней отсутствия изменений баланса</span>
                     </div>
                   </td>

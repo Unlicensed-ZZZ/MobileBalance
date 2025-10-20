@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.09.07
+ * Редакция:  2025.10.20
  *
 */
 
@@ -17,7 +17,10 @@ import('./../vars.mjs').then( (module) => { // Глобальные переме
 
 let dbMB, dbTrnsMB, dbObjStorMB, dbCrsrMB;
 let providerRecords = [], loginRecords = [];
-let cycleOrder = '', daylyMntn = false, mntnTime = '', rptAttempts = 0, poolWinAlive = false, poolLog = false, paintNegative = false, deleteSameDateRecord = 0;
+let alarmPoolingTime, testPoolingTime, testPoolingTimeArr = [];
+let cycleOrder = '', rptAttempts = 0, poolWinAlive = false, poolLog = false, paintNegative = false, deleteSameDateRecord = 0,
+    mntnPooling = false, mntnStartTime = '', mntnDays = [ 1, 1, 1, 1, 1, 1, 1 ], mntnRepeat = false, mntnRepeatTime =  0;
+const dayNames = { 0: 'вс.', 1: 'пн.', 2: 'вт.', 3: 'ср.', 4: 'чт.', 5: 'пт.', 6: 'сб.' };
 let fileClamedBy = ''; // Идентификатор кнопки, которой инициирована функция загрузки файла
 // Блок переменных по разрешениям показа уведомлений (оповещений)
 let notifPermission = 'denied';
@@ -85,13 +88,17 @@ function dbRecordsCount() {
 
 getOptionsFromStorage();
 
+
 // Получение списка основных параметров и учётных данных для опросов из local storage
 async function getOptionsFromStorage() {
 //             ---------------------
   await chrome.storage.local.get( null, function( fromStorage ) {
     cycleOrder = fromStorage.cycleOrder;
-    daylyMntn = fromStorage.daylyMaintain;
-    mntnTime = fromStorage.daylyMaintainTime;
+    mntnPooling = fromStorage.maintainPooling;
+    mntnStartTime = fromStorage.maintainStartTime;
+    mntnDays = fromStorage.maintainDays;
+    mntnRepeat = fromStorage.maintainRepeat;
+    mntnRepeatTime = fromStorage.maintainRepeatTime;
     rptAttempts = fromStorage.repeatAttempts;
     ntfEnable = fromStorage.notificationsEnable;
     ntfOnError = fromStorage.notificationsOnError;
@@ -104,6 +111,13 @@ async function getOptionsFromStorage() {
     loginRecords = (fromStorage.accounts !== undefined) ? fromStorage.accounts : Array([]);
   });
   await getProviderFromStorage();
+  let alarm = await chrome.alarms.get( 'poolingTimer' );
+  if ( alarm !== undefined ) {  // Если есть установленный таймер запуска опроса, то берём значения из него
+    alarmPoolingTime = testPoolingTime = alarm.scheduledTime
+    testPoolingTimeArr = [ testPoolingTime ];
+  }
+  else // Если таймер не установлен, то рассчитываем следующий запуск
+    chrome.runtime.sendMessage( { message: 'MB_poolingTimerCalc', alarmTime: 0 } );
 }
 
 // Получение списка провайдеров (plugin-ов) из local storage и подготовка списков их выбора
@@ -142,11 +156,12 @@ async function getProviderFromStorage() {
 
 chrome.tabs.onUpdated.addListener( initFromStorage );
 
+
 // Исходная отрисовка страниц с параметрами из local storage (в слушателе события chrome.tabs.onUpdated)
 async function initFromStorage( tabId, changeInfo, tab ) {
 //             -----------------------------------------
   let optTab = await chrome.tabs.getCurrent();
-  if (optTab.id === tabId) {
+  if ( optTab.id === tabId ) {
     chrome.tabs.onUpdated.removeListener( initFromStorage );
     // Первичное наполнение таблицы учётных данных
     await drawLoginTable( 'dataList' ); 
@@ -165,13 +180,63 @@ async function initFromStorage( tabId, changeInfo, tab ) {
   else return false;
 }
 
+
+// Установка недоступности органов управления расписанием опросов
+async function disableSchedule() {
+//             -----------------
+  maintainStartTime.disabled = maintainMon.disabled = maintainTue.disabled = maintainWed.disabled =
+  maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled =
+  maintainRepeat.disabled = maintainRepeatTime.disabled = prevPooling.disabled = nextPooling.disabled = true;
+}
+
+
+// Подготовка строки даты-времени следующего запроса
+async function poolingTimeText( alarmTime ) {
+//             ----------------------------
+  return new Promise( async function( resolve, reject ) {
+         // Если параметр выполнения опроса по расписанию установлен и указаны дни для проведения опросов ...
+    if ( ( ( mntnPooling === true ) && ( mntnDays.includes( 1 ) === true ) ) ||
+         // ... или есть входной параметр и он не отрицательный (опрос включён)
+         ( ( alarmTime !== undefined ) && ( alarmTime >= 0 ) ) ) {
+      let d = ( alarmTime === undefined ) ? new Date( alarmPoolingTime ) : new Date( alarmTime );
+      let timeStr = `${(d.getDate() < 10)    ? '0' + String(d.getDate())      : String(d.getDate())}.` +
+                    `${(d.getMonth() < 9)    ? '0' + String(d.getMonth() + 1) : String(d.getMonth() + 1)}.` +
+                    `${String(d.getFullYear())} `  + `(${dayNames[ d.getDay() ]}) в ` +
+                    `${(d.getHours() < 10)   ? '0' + String(d.getHours())     : String(d.getHours())}:` +
+                    `${(d.getMinutes() < 10) ? '0' + String(d.getMinutes())   : String(d.getMinutes())}`;
+      resolve( timeStr );
+    }
+    else
+      resolve( 'не определён' );
+  });
+}
+
+
 // Инициализация общих настроек по параметрам из local storage
 async function drawOptions() {
 //             -------------
   document.querySelector( `[id^='cycleOrder_${cycleOrder}']` ).checked = true;
-  maintainDayly.checked = ( daylyMntn ) ? true : false;
-  maintainTime.value = mntnTime;
-  maintainTime.disabled = ( maintainDayly.checked ) ? false : true;
+  maintainPooling.checked = ( mntnPooling ) ? true : false;
+  maintainStartTime.value = mntnStartTime;
+  maintainMon.checked = mntnDays[ 1 ] === 1;
+  maintainTue.checked = mntnDays[ 2 ] === 1;;
+  maintainWed.checked = mntnDays[ 3 ] === 1;;
+  maintainThu.checked = mntnDays[ 4 ] === 1;;
+  maintainFri.checked = mntnDays[ 5 ] === 1;;
+  maintainSat.checked = mntnDays[ 6 ] === 1;;
+  maintainSun.checked = mntnDays[ 0 ] === 1;;
+  maintainRepeat.checked = ( mntnRepeat ) ? true : false;
+  maintainRepeatTime.value = mntnRepeatTime;
+  if ( maintainPooling.checked ) { // Доступность элементов расписания
+    maintainStartTime.disabled = maintainMon.disabled = maintainTue.disabled = maintainWed.disabled =
+    maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled = false;
+    maintainRepeat.disabled = nextPooling.disabled = false;
+    maintainRepeatTime.disabled = ( mntnRepeat ) ? false : true;
+    maintainInfo.textContent = await poolingTimeText( alarmPoolingTime );
+  }
+  else
+    disableSchedule();
+
   repeatAttempts.value = rptAttempts;
   // Блок переключателей по уведомлениям (оповещениям)
   if (notifPermission === 'granted') {
@@ -211,6 +276,7 @@ async function drawOptions() {
       document.querySelector(`[id='notDelete']`).checked = true;
       break;
     }
+    case 2:
     case 4:
     case 8:
     case 12: {
@@ -230,6 +296,7 @@ async function drawOptions() {
                                      { tab: null, id: this.location.origin }, null );
 }
 
+
 // Инициализация блока провайдеров на вкладке общих настроек по параметрам из local storage
 async function drawProvider() {
 //             --------------
@@ -238,28 +305,31 @@ async function drawProvider() {
       providerInfo.innerHTML = '<b>Версия:</b> ' + item.version + '<br>' +
                                '<b>Автор:</b> ' + item.author + '<br>' +
                                '<b>Описание:</b> ' + item.annotation;
-      requestDelay.checked = (item.requestDelay) ? true : false;
+      requestDelay.checked = ( item.requestDelay ) ? true : false;
       requestDelayValue.value = item.requestDelayValue;
-      requestDelayValue.disabled = (requestDelay.checked) ? false : true;
+      requestDelayValue.disabled = ( requestDelay.checked ) ? false : true;
+      requestDelayValue.style.borderColor = requestDelayValue.style.outlineColor = requestDelayValue.style.borderWidth = '';
       // Если в записи провайдера нет изображения - вставляем картинку по умолчанию
-      providerIcon.src = (item.icon === '') ?
+      providerIcon.src = ( item.icon === '' ) ?
         'data:image/svg+xml;utf8,%3Csvg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="%23333333" style="transform:rotate(90deg);"%3E \
          %3Cpath d="M9.75 10C8.23122 10 7 11.2312 7 12.75V16.25C7 17.7688 8.23122 19 9.75 19H14.25C15.7688 19 17 17.7688 17 16.25V12.75C17 11.2312 15.7688 10 14.25 10H9.75ZM8.5 12.75C8.5 12.0596 9.05964 11.5 9.75 11.5H12V14H8.5V12.75ZM8.5 15.5H12V17.5H9.75C9.05964 17.5 8.5 16.9404 8.5 16.25V15.5ZM13.5 17.5V11.5H14.25C14.9404 11.5 15.5 12.0596 15.5 12.75V16.25C15.5 16.9404 14.9404 17.5 14.25 17.5H13.5Z"/%3E \
          %3Cpath d="M7.25 2C5.45507 2 4 3.45507 4 5.25V18.75C4 20.5449 5.45507 22 7.25 22H16.75C18.5449 22 20 20.5449 20 18.75V9.28553C20 8.42358 19.6576 7.59693 19.0481 6.98744L15.0126 2.9519C14.4031 2.34241 13.5764 2 12.7145 2H7.25ZM5.5 5.25C5.5 4.2835 6.2835 3.5 7.25 3.5H12.7145C13.1786 3.5 13.6237 3.68437 13.9519 4.01256L17.9874 8.0481C18.3156 8.37629 18.5 8.82141 18.5 9.28553V18.75C18.5 19.7165 17.7165 20.5 16.75 20.5H7.25C6.2835 20.5 5.5 19.7165 5.5 18.75V5.25Z"/%3E \
          %3C/svg%3E' : item.icon;
-      onUpdateDelay.checked = (item.onUpdateDelay) ? true : false;
+      onUpdateDelay.checked = ( item.onUpdateDelay ) ? true : false;
       onUpdateDelayValue.value = item.onUpdateDelayValue;
-      onUpdateDelayValue.disabled = (onUpdateDelay.checked) ? false : true;
-      respondTimeout.checked = (item.respondTimeout) ? true : false;
+      onUpdateDelayValue.disabled = ( onUpdateDelay.checked ) ? false : true;
+      onUpdateDelayValue.style.borderColor = onUpdateDelayValue.style.outlineColor = onUpdateDelayValue.style.borderWidth = '';
+      respondTimeout.checked = ( item.respondTimeout ) ? true : false;
       respondTimeoutValue.value = item.respondTimeoutValue;
-      respondTimeoutValue.disabled = (respondTimeout.checked) ? false : true;
+      respondTimeoutValue.disabled = ( respondTimeout.checked ) ? false : true;
+      respondTimeoutValue.style.borderColor = respondTimeoutValue.style.outlineColor = respondTimeoutValue.style.borderWidth = '';
       if ( item.inetUnits === '' ) // Если указаны единицы измерения, то устанавливаем их
         document.querySelectorAll( `[id^='providerInet']` ).forEach( function( item ) { item.checked = false; } );
       else
         document.querySelector( `[id^='providerInet'][value='${item.inetUnits}']` ).checked = true;
-      providerIgnoreFractional.checked = (item.ignoreFractional) ? true : false;
-      providerClearCookies.checked = (item.startUrlClearCookies) ? true : false;
-      providerBypassCache.checked = (item.startUrlBypassCache) ? true : false;
+      providerIgnoreFractional.checked = ( item.ignoreFractional ) ? true : false;
+      providerClearCookies.checked = ( item.startUrlClearCookies ) ? true : false;
+      providerBypassCache.checked = ( item.startUrlBypassCache ) ? true : false;
     }
   });
 }
@@ -542,8 +612,8 @@ loginData.addEventListener( 'click', async function( evnt ) {
 
 
 // Обработка нажатия кнопок управления по onclick на Div-"вкладке" основных параметров
-optionsPage.addEventListener( 'click', async function(evnt) {
-//        -----------------
+optionsPage.addEventListener( 'click', async function( evnt ) {
+//          -----------------
   let crsr = document.body.style.cursor;
   switch ( evnt.target.id ) {
     case 'maintainNote': { // Пояснение по настройкам браузера для работы с таймером опроса по расписанию
@@ -566,10 +636,11 @@ optionsPage.addEventListener( 'click', async function(evnt) {
       break; }
     case 'optionsSave': { // Сохранить основные параметры из local storage в файл
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      chrome.storage.local.get( [ 'popupShortInfo', 'cycleOrder', 'daylyMaintain', 'daylyMaintainTime', 'deleteSameDateRecord',
+      chrome.storage.local.get( [ 'popupShortInfo', 'cycleOrder', 'deleteSameDateRecord',
+                                  'maintainPooling', 'maintainStartTime', 'maintainDays', 'maintainRepeat', 'maintainRepeatTime', 
                                   'notificationsEnable', 'notificationsOnError', 'notificationsOnProcess', 'notificationsOnUpdateDelay',
-                                  'poolingWinAlive', 'poolingLogSave', 'markNegative', 'repeatAttempts', 'historyShowMaintained' ],
-                                function( fromStorage ) {
+                                  'poolingWinAlive', 'poolingLogSave', 'markNegative', 'repeatAttempts', 'historyShowMaintained' ] )
+      .then( function( fromStorage ) {
         let blob = new Blob( [ JSON.stringify( fromStorage, null, 2 ) ], { type: 'text/json', endings: 'native' } );
         let link = document.createElement( 'a' );
         link.setAttribute( 'href', URL.createObjectURL( blob ) );
@@ -591,6 +662,38 @@ optionsPage.addEventListener( 'click', async function(evnt) {
       .catch( function ( err ) {
         console.log( `[MB] ${err}` );
       });
+      break; }
+
+    case 'prevPooling': { // Показать время запуска предыдущего опроса по расписанию
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      // Получаем для отображения значение предыдущего запуска в testPoolingTime
+      for ( let i = testPoolingTimeArr.length - 1; i > 0; --i ) {
+        if ( testPoolingTime === testPoolingTimeArr[ i ] ) {
+          testPoolingTime = testPoolingTimeArr[ i - 1 ];
+          break;
+        }
+      }
+      maintainInfo.textContent = await poolingTimeText( testPoolingTime );
+      if ( testPoolingTime === testPoolingTimeArr[ 0 ] ) // Блокируем кнопку при достижении начального значения
+        prevPooling.disabled = true;
+      break; }
+    case 'nextPooling': { // Показать время запуска следующего опроса по расписанию
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      // Если показан последний из рассчитанных запусков, то ...
+      if ( testPoolingTime === testPoolingTimeArr[ testPoolingTimeArr.length - 1 ] ) {
+        // ... рассчитываем следующий запуск. Он будет в testPoolingTime, добавлен в конец массива testPoolingTimeArr и отображён
+        chrome.runtime.sendMessage( { message: 'MB_poolingTimerCalc', alarmTime: testPoolingTime } );
+      }
+      else { // Получаем для отображения значение следующего запуска в testPoolingTime
+        for ( let i = 0; i < testPoolingTimeArr.length - 1; ++i ) {
+          if ( testPoolingTime === testPoolingTimeArr[ i ] ) {
+            testPoolingTime = testPoolingTimeArr[ i + 1 ];
+            maintainInfo.textContent = await poolingTimeText( testPoolingTime );
+            break;
+          }
+        }
+      }
+      prevPooling.disabled = false; // Снимаем блокировку с кнопки перехода к предыдущему значению
       break; }
     case 'historyDelete': { // Очистить историю запросов в хранилище 'Phones' indexedDb
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
@@ -729,8 +832,8 @@ optionsPage.addEventListener( 'click', async function(evnt) {
 
 
 // Обработка нажатия кнопок управления по onclick на Div-"вкладке" параметров провайдеров
-providersPage.addEventListener( 'click', async function(evnt) {
-//        -----------------
+providersPage.addEventListener( 'click', async function( evnt ) {
+//            -----------------
   let crsr = document.body.style.cursor;
   switch ( evnt.target.id ) {
     case 'providerDelete': { // Удалить набор файлов текущего плагина
@@ -804,7 +907,7 @@ providersPage.addEventListener( 'click', async function(evnt) {
 
 
 // Обработка нажатия кнопок управления по onclick на Div-"вкладке" сведений о расширении
-aboutPage.addEventListener( 'click', async function(evnt) {
+aboutPage.addEventListener( 'click', async function( evnt ) {
 //        -----------------
   switch (evnt.target.id) {
     case 'changeLogNote': { // История изменений расширения из файла MB_ChangeLog.txt
@@ -846,12 +949,12 @@ chrome.storage.onChanged.addListener(
 // Отработка сообщений на вкладках общих настроек
 chrome.runtime.onMessage.addListener(
   async function( request, sender, sendResponse ) {
-    switch(request.message) {
+    switch( request.message ) {
       case 'MB_updateRecordsCount': { // Обновить количество записей в хранилище
         if ( sendResponse ) sendResponse( 'done' );  // Ответ в окно опроса для поддержания канала связи
-        dbRecordsCount().then( (result) => {
-          recCount.textContent = String(result);
-          historyDelete.disabled = historySave.disabled = (result === 0) ? true : false;
+        dbRecordsCount().then( function( result ) {
+          recCount.textContent = String( result );
+          historyDelete.disabled = historySave.disabled = ( result === 0 ) ? true : false;
           historyLoad.disabled = false;
         });
         break; }
@@ -867,6 +970,22 @@ chrome.runtime.onMessage.addListener(
         // Если открыто окно проведения опроса, то разблокируем кнопку восстановления исходных значений
         optionsRepair.disabled = (workWin >= 0) ? false : true;
         break; }
+      case 'MB_nextPoollingTime': { // Обработка значений запуска опросов по расписанию
+        switch ( request.command ) { // Сообщение-инициатор пришедшего (обрабатываемого здесь) сообщения
+          case 'MB_poolingTimerReset': {
+            alarmPoolingTime = testPoolingTime = request.alarmTime;
+            testPoolingTimeArr = [ testPoolingTime ];
+            prevPooling.disabled = true;
+            break;
+          }
+          case 'MB_poolingTimerCalc': {
+            testPoolingTime = request.alarmTime;
+            testPoolingTimeArr.push( testPoolingTime );
+            break;
+          }
+        }
+        maintainInfo.textContent = await poolingTimeText( testPoolingTime );
+        break; }
     } /* switch */
     return true;
   }
@@ -874,8 +993,8 @@ chrome.runtime.onMessage.addListener(
 
 
 // Обработка состояния объектов управления по onchange на Div-"вкладке" основных параметров
-optionsPage.addEventListener( 'change', async function(evnt) {
-//        -----------------
+optionsPage.addEventListener( 'change', async function( evnt ) {
+//          -----------------
   switch ( evnt.target.id ) {
     case 'cycleOrder_sequence': // Порядок опроса
     case 'cycleOrder_parallel': {
@@ -883,50 +1002,107 @@ optionsPage.addEventListener( 'change', async function(evnt) {
       cycleOrder = document.querySelector( `[name='cycleOrder']:checked` ).value;
       chrome.storage.local.set( { cycleOrder: cycleOrder } );
       break; }
-    case 'maintainDayly': { // Ежедневный опрос
+    case 'maintainPooling': { // Разрешить / запретить опрос по расписанию
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      daylyMntn = maintainDayly.checked;
-      chrome.storage.local.set( { daylyMaintain: daylyMntn } )
-      .then( () => {
-        chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset', daylyMntn: daylyMntn, mntnTime: mntnTime } );
+      mntnPooling = maintainPooling.checked;
+      chrome.storage.local.set( { maintainPooling: mntnPooling } )
+      .then( async function() {
+        chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
       });
-      maintainTime.disabled = (daylyMntn) ? false : true;
+      if ( mntnPooling ) { // Доступность элементов расписания
+        maintainStartTime.disabled = maintainMon.disabled = maintainTue.disabled = maintainWed.disabled =
+        maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled = false;
+        maintainRepeat.disabled = nextPooling.disabled = false;
+        maintainRepeatTime.disabled = ( mntnRepeat ) ? false : true;
+      }
+      else
+        disableSchedule();
       break; }
-    case 'maintainTime': { // Время начала ежедневного опроса
+    case 'maintainStartTime': { // Время начала опроса по расписанию
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      mntnTime = maintainTime.value;
-      chrome.storage.local.set( { daylyMaintainTime: mntnTime } )
-      .then( () => {
-        chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset', daylyMntn: daylyMntn, mntnTime: mntnTime } );
+      mntnStartTime = maintainStartTime.value;
+      chrome.storage.local.set( { maintainStartTime: mntnStartTime } )
+      .then( async function() {
+        chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
       });
+      break; }
+    case 'maintainMon': // Опросы по дням недели
+    case 'maintainTue':
+    case 'maintainWed':
+    case 'maintainThu':
+    case 'maintainFri':
+    case 'maintainSat':
+    case 'maintainSun': {
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      mntnDays[ 1 ] = ( maintainMon.checked ) ? 1 : 0;
+      mntnDays[ 2 ] = ( maintainTue.checked ) ? 1 : 0;
+      mntnDays[ 3 ] = ( maintainWed.checked ) ? 1 : 0;
+      mntnDays[ 4 ] = ( maintainThu.checked ) ? 1 : 0;
+      mntnDays[ 5 ] = ( maintainFri.checked ) ? 1 : 0;
+      mntnDays[ 6 ] = ( maintainSat.checked ) ? 1 : 0;
+      mntnDays[ 0 ] = ( maintainSun.checked ) ? 1 : 0;
+      chrome.storage.local.set( { maintainDays: mntnDays } )
+      .then( async function() {
+        chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
+      });
+      break; }
+    case 'maintainRepeat': { // Разрешить / запретить повторные запросы до конца суток
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      mntnRepeat = maintainRepeat.checked;
+      chrome.storage.local.set( { maintainRepeat: mntnRepeat } )
+      .then( async function() {
+        chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
+      });
+      maintainRepeatTime.disabled = ( mntnRepeat ) ? false : true;
+      break; }
+    case 'maintainRepeatTime': { // Время до старта повторного опроса (от времени опроса по расписанию 'maintainStartTime')
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+      maintainRepeatTime.style.borderColor = maintainRepeatTime.style.outlineColor = maintainRepeatTime.style.borderWidth = '';
+      // Разрешаем ввод только положительных значений от 0 до 23.99
+      if ( ( maintainRepeatTime.value !== '' ) && ( ( maintainRepeatTime.value < 0 ) || ( maintainRepeatTime.value >= 23.99 ) ||
+           isNaN( parseInt( maintainRepeatTime.value ) ) ) ) {
+        maintainRepeatTime.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+        maintainRepeatTime.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+        maintainRepeatTime.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
+        maintainRepeatTime.focus();
+        break;
+      }
+      else {
+        mntnRepeatTime = ( maintainRepeatTime.value === '' ) ? '' : maintainRepeatTime.value;
+        chrome.storage.local.set( { maintainRepeatTime: mntnRepeatTime } )
+        .then( async function() {
+          chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
+        });
+      }
       break; }
     case 'repeatAttempts': { // Количество повторов при неудачном запросе
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      repeatAttempts.style.outlineColor = ''; // Сбрасываем цвет рамки фокуса - он мог быть установлен в цвет ошибки
-      if (repeatAttempts.value < 0) {
-        repeatAttempts.style.outlineColor = '#800000'; // Цвет рамки - 'Maroon' rgb(128,0,0) #800000
+      // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+      repeatAttempts.style.borderColor = repeatAttempts.style.outlineColor = repeatAttempts.style.borderWidth = '';
+      // Разрешаем ввод только положительных целочисленных значений
+      if ( ( repeatAttempts.value !== '' ) && ( ( repeatAttempts.value < 0 ) || isNaN( parseInt( repeatAttempts.value ) ) ||
+           ( ( parseFloat( parseFloat( repeatAttempts.value ).toFixed( 3 ) ) - parseInt( repeatAttempts.value ) ) > 0 ) ) ) {
+        repeatAttempts.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+        repeatAttempts.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+        repeatAttempts.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
         repeatAttempts.focus();
         break;
       }
-      rptAttempts = parseInt((repeatAttempts.value === '') ? 0 : repeatAttempts.value);
-      chrome.storage.local.set( { repeatAttempts: rptAttempts } );
+      else {
+        rptAttempts = ( repeatAttempts.value === '' ) ? '' : parseInt( repeatAttempts.value );
+        chrome.storage.local.set( { repeatAttempts: rptAttempts } );
+      }
       break; }
     case 'enableNotifications': { // Разрешить оповещения от расширения
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      if (notifPermission === 'granted') {
+      if ( notifPermission === 'granted' ) {
         ntfEnable = enableNotifications.checked;
         chrome.storage.local.set( { notificationsEnable: ntfEnable } );
-        if (ntfEnable === false) {
-          onErrorNotifications.disabled = onProcessNotifications.disabled = onUpdateDelayNotifications.disabled = true;
-          onErrorNotifications.checked = onProcessNotifications.checked = onUpdateDelayNotifications.checked = false;
-        }
-        else {
+        if ( ntfEnable === false )
+          onErrorNotifications.disabled = onProcessNotifications.disabled = onUpdateDelayNotifications.disabled = true
+        else
           onErrorNotifications.disabled = onProcessNotifications.disabled = onUpdateDelayNotifications.disabled = false;
-          enableNotifications.checked = ntfEnable;
-          onErrorNotifications.checked = ntfOnError;
-          onProcessNotifications.checked = ntfOnProcess;
-          onUpdateDelayNotifications.checked = ntfOnUpdateDelay;
-        }
       }
       break; }
     case 'onErrorNotifications': { // Разрешить оповещения при ошибках запросов
@@ -969,6 +1145,7 @@ optionsPage.addEventListener( 'change', async function(evnt) {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       chrome.storage.local.set( { deleteSameDateRecord: deleteSameDateRecord = 0 } );
       break; }
+    case '2hAge':
     case '4hAge':
     case '8hAge':
     case '12hAge': {
@@ -982,8 +1159,8 @@ optionsPage.addEventListener( 'change', async function(evnt) {
 
 
 // Обработка состояния объектов управления по onchange на Div-"вкладке" параметров провайдеров
-providersPage.addEventListener( 'change', async function(evnt) {
-//        -----------------
+providersPage.addEventListener( 'change', async function( evnt ) {
+//            -----------------
   switch ( evnt.target.id ) {
     case 'chooseProvider': { // Выбор набора параметров провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
@@ -991,85 +1168,100 @@ providersPage.addEventListener( 'change', async function(evnt) {
       break; }
     case 'requestDelay': { // Включение задержки между опросами по номерам провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      for ( let i = 0; i < providerRecords.length; ++i ) {
-        if (chooseProvider.value === providerRecords[ i ].name) {
-          providerRecords[ i ].requestDelay = requestDelay.checked;
-          chrome.storage.local.set( { provider: providerRecords } );
-          requestDelayValue.disabled = (requestDelay.checked) ? false : true;
-          break;
-        }
+      let pIdx = providerRecords.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
+        return ( chooseProvider.value === item.name )
+      });
+      if ( pIdx >= 0 ) {
+        providerRecords[ pIdx ].requestDelay = requestDelay.checked;
+        chrome.storage.local.set( { provider: providerRecords } );
+        requestDelayValue.disabled = ( requestDelay.checked ) ? false : true;
       }
       break; }
     case 'requestDelayValue': { // Значение задержки между опросами по номерам провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      requestDelayValue.style.outlineColor = ''; // Сбрасываем цвет рамки фокуса - он мог быть установлен в цвет ошибки
-      if (requestDelayValue.value < 0) {
-        requestDelayValue.style.outlineColor = '#800000';
+      // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+      requestDelayValue.style.borderColor = requestDelayValue.style.outlineColor = requestDelayValue.style.borderWidth = '';
+      // Разрешаем ввод только положительных целочисленных значений
+      if ( ( requestDelayValue.value !== '' ) && ( ( requestDelayValue.value < 0 ) || isNaN( parseInt( requestDelayValue.value ) ) ||
+           ( ( parseFloat( parseFloat( requestDelayValue.value ).toFixed( 3 ) ) - parseInt( requestDelayValue.value ) ) > 0 ) ) ) {
+        requestDelayValue.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+        requestDelayValue.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+        requestDelayValue.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
         requestDelayValue.focus();
-        break;
       }
-      for ( let i = 0; i < providerRecords.length; ++i ) {
-        if (chooseProvider.value === providerRecords[ i ].name) {
-          providerRecords[ i ].requestDelayValue =
-            parseInt( (requestDelayValue.value === '') ? 0 : requestDelayValue.value );
+      else {
+        let pIdx = providerRecords.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
+          return ( chooseProvider.value === item.name )
+        });
+        if ( pIdx >= 0 ) {
+          providerRecords[ pIdx ].requestDelayValue = ( requestDelayValue.value === '' ) ? '' : parseInt( requestDelayValue.value );
           chrome.storage.local.set( { provider: providerRecords } );
-          break;
         }
       }
       break; }
     case 'onUpdateDelay': { // Включение задержки после обновления / смены страницы провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      for ( let i = 0; i < providerRecords.length; ++i ) {
-        if (chooseProvider.value === providerRecords[ i ].name) {
-          providerRecords[ i ].onUpdateDelay = onUpdateDelay.checked;
-          chrome.storage.local.set( { provider: providerRecords } );
-          onUpdateDelayValue.disabled = (onUpdateDelay.checked) ? false : true;
-          break;
-        }
+      let pIdx = providerRecords.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
+        return ( chooseProvider.value === item.name )
+      });
+      if ( pIdx >= 0 ) {
+        providerRecords[ pIdx ].onUpdateDelay = onUpdateDelay.checked;
+        chrome.storage.local.set( { provider: providerRecords } );
+        onUpdateDelayValue.disabled = ( onUpdateDelay.checked ) ? false : true;
       }
       break; }
     case 'onUpdateDelayValue': { // Значение задержки после обновления / смены страницы провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      onUpdateDelayValue.style.outlineColor = ''; // Сбрасываем цвет рамки фокуса - он мог быть установлен в цвет ошибки
-      if (onUpdateDelayValue.value < 0) {
-        onUpdateDelayValue.style.outlineColor = '#800000';
+      // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+      onUpdateDelayValue.style.borderColor = onUpdateDelayValue.style.outlineColor = onUpdateDelayValue.style.borderWidth = '';
+      // Разрешаем ввод только положительных целочисленных значений
+      if ( ( onUpdateDelayValue.value !== '' ) && ( ( onUpdateDelayValue.value < 0 ) || isNaN( parseInt( onUpdateDelayValue.value ) ) ||
+           ( ( parseFloat( parseFloat( onUpdateDelayValue.value ).toFixed( 3 ) ) - parseInt( onUpdateDelayValue.value ) ) > 0 ) ) ) {
+        onUpdateDelayValue.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+        onUpdateDelayValue.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+        onUpdateDelayValue.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
         onUpdateDelayValue.focus();
-        break;
       }
-      for ( let i = 0; i < providerRecords.length; ++i ) {
-        if (chooseProvider.value === providerRecords[ i ].name) {
-          providerRecords[ i ].onUpdateDelayValue =
-            parseInt( (onUpdateDelayValue.value === '') ? 0 : onUpdateDelayValue.value );
+      else {
+        let pIdx = providerRecords.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
+          return ( chooseProvider.value === item.name )
+        });
+        if ( pIdx >= 0 ) {
+          providerRecords[ pIdx ].onUpdateDelayValue = ( onUpdateDelayValue.value === '' ) ? '' : parseInt( onUpdateDelayValue.value );
           chrome.storage.local.set( { provider: providerRecords } );
-          break;
         }
       }
       break; }
     case 'respondTimeout': { // Включение времени ожидания от провайдера ответа на запрос
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      for ( let i = 0; i < providerRecords.length; ++i ) {
-        if (chooseProvider.value === providerRecords[ i ].name) {
-          providerRecords[ i ].respondTimeout = respondTimeout.checked;
-          chrome.storage.local.set( { provider: providerRecords } );
-          respondTimeoutValue.disabled = (respondTimeout.checked) ? false : true;
-          break;
-        }
+      let pIdx = providerRecords.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
+        return ( chooseProvider.value === item.name )
+      });
+      if ( pIdx >= 0 ) {
+        providerRecords[ pIdx ].respondTimeout = respondTimeout.checked;
+        chrome.storage.local.set( { provider: providerRecords } );
+        respondTimeoutValue.disabled = ( respondTimeout.checked ) ? false : true;
       }
       break; }
     case 'respondTimeoutValue': { // Значение времени ожидания от провайдера ответа на запрос
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      respondTimeoutValue.style.outlineColor = ''; // Сбрасываем цвет рамки фокуса - он мог быть установлен в цвет ошибки
-      if (respondTimeoutValue.value < 0) {
-        respondTimeoutValue.style.outlineColor = '#800000';
+      // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+      respondTimeoutValue.style.borderColor = respondTimeoutValue.style.outlineColor = respondTimeoutValue.style.borderWidth = '';
+      // Разрешаем ввод только положительных целочисленных значений
+      if ( ( respondTimeoutValue.value !== '' ) && ( ( respondTimeoutValue.value < 0 ) || isNaN( parseInt( respondTimeoutValue.value ) ) ||
+           ( ( parseFloat( parseFloat( respondTimeoutValue.value ).toFixed( 3 ) ) - parseInt( respondTimeoutValue.value ) ) > 0 ) ) ) {
+        respondTimeoutValue.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+        respondTimeoutValue.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+        respondTimeoutValue.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
         respondTimeoutValue.focus();
-        break;
       }
-      for ( let i = 0; i < providerRecords.length; ++i ) {
-        if (chooseProvider.value === providerRecords[ i ].name) {
-          providerRecords[ i ].respondTimeoutValue =
-            parseInt( (respondTimeoutValue.value === '') ? 0 : respondTimeoutValue.value );
+      else {
+        let pIdx = providerRecords.findIndex( function( item ) { // Определяем провайдера для текущих учётных данных
+          return ( chooseProvider.value === item.name )
+        });
+        if ( pIdx >= 0 ) {
+          providerRecords[ pIdx ].respondTimeoutValue = ( respondTimeoutValue.value === '' ) ? '' : parseInt( respondTimeoutValue.value );
           chrome.storage.local.set( { provider: providerRecords } );
-          break;
         }
       }
       break; }
@@ -1124,16 +1316,16 @@ providersPage.addEventListener( 'change', async function(evnt) {
 // Проверка-запрос разрешения пользователя на запись файлов расширением
 async function verifyPermission( handle, readWrite ) {
 //             -------------------------------------
-  return new Promise( (resolve, reject) => {
+  return new Promise( function( resolve, reject ) {
     var options = {};
     options.mode = ( readWrite ) ? 'readwrite' : 'read';
     handle.queryPermission( options )
-    .then( (result) => {
+    .then( function( result ) {
       if ( result === 'granted' )           // Если разрешение уже есть, то больше ничего делать не нужно
         resolve( true )
       else {
         handle.requestPermission( options ) // Здесь пользователь получит запрос на предоставление разрешения
-        .then( (result) => {                // Если пользователь подтветдил разрешение, то больше ничего делать не нужно
+        .then( function( result ) {         // Если пользователь подтветдил разрешение, то больше ничего делать не нужно
           resolve( result === 'granted' );  // Если пользователь разрешение не подтветдил, то возвращаем false
         })
       }
@@ -1158,14 +1350,14 @@ function getLoadedFile( btnId, fsHandle ) {
                                        `): ${fsHandle.name}`);
   let rawFile = new FileReader();
   fsHandle.getFile()
-  .then ( function (result) {
+  .then ( function ( result ) {
     rawFile.readAsText( result );     // Прочитываем выбранный пользователем файл
   })
   .catch( function ( err ) {
     if ( fileClamedBy === 'historyLoad' ) {
       infoWin.style.display = 'none'; // Снимаем модальное информационное окно
-      dbRecordsCount().then( (result) => {
-        historyDelete.disabled = historySave.disabled = (result === 0) ? true : false;
+      dbRecordsCount().then( ( result ) => {
+        historyDelete.disabled = historySave.disabled = ( result === 0 ) ? true : false;
         historyLoad.disabled = false;
       });
     }
@@ -1179,8 +1371,8 @@ function getLoadedFile( btnId, fsHandle ) {
   //      -------
     if ( fileClamedBy === 'historyLoad' ) {
       infoWin.style.display = 'none'; // Снимаем модальное информационное окно
-      dbRecordsCount().then( (result) => {
-        historyDelete.disabled = historySave.disabled = (result === 0) ? true : false;
+      dbRecordsCount().then( ( result ) => {
+        historyDelete.disabled = historySave.disabled = ( result === 0 ) ? true : false;
         historyLoad.disabled = false;
       });
     }
@@ -1221,7 +1413,7 @@ function getLoadedFile( btnId, fsHandle ) {
             item.passwValue = encodePassword( item.passwValue );
           });
           chrome.storage.local.set( { accounts: loginRecords } );
-          for ( let i = (dataList.rows.length - 1); i >= 0; --i ) // Удаляем текущие строки в таблице учётных записей
+          for ( let i = dataList.rows.length - 1; i >= 0; --i ) // Удаляем текущие строки в таблице учётных записей
             dataList.deleteRow( i );
           selectedRow = undefined; // Если в таблице учётных записей была выделена строка - снимаем выделение
           drawLoginTable( 'dataList' ); // Отрисовываем строки таблицы учётных записей заново (по loginRecords)
@@ -1236,19 +1428,25 @@ function getLoadedFile( btnId, fsHandle ) {
         if ( jsonFile.cycleOrder !== undefined ) {
           chrome.storage.local.set( { cycleOrder: cycleOrder = jsonFile.cycleOrder } );
         }
-        if ( jsonFile.daylyMaintainTime !== undefined ) {
-          chrome.storage.local.set( { daylyMaintainTime: mntnTime = jsonFile.daylyMaintainTime } );
+        if ( jsonFile.maintainPooling !== undefined ) {
+          chrome.storage.local.set( { maintainPooling: mntnPooling = jsonFile.maintainPooling } );
         }
-        if ( jsonFile.daylyMaintain !== undefined ) {
-          chrome.storage.local.set( { daylyMaintain: daylyMntn = jsonFile.daylyMaintain } )
-          .then( () => {
-            if ( daylyMntn )
-              chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset', daylyMntn: daylyMntn, mntnTime: mntnTime } );
-          });
+        if ( jsonFile.maintainStartTime !== undefined ) {
+          chrome.storage.local.set( { maintainStartTime: mntnStartTime = jsonFile.maintainStartTime } )
+        }
+        if ( jsonFile.maintainDays !== undefined ) {
+          chrome.storage.local.set( { maintainDays: mntnDays = jsonFile.maintainDays } )
+        }
+        if ( jsonFile.maintainRepeat !== undefined ) {
+          chrome.storage.local.set( { maintainRepeat: mntnRepeat = jsonFile.maintainRepeat } )
+        }
+        if ( jsonFile.maintainRepeatTime !== undefined ) {
+          chrome.storage.local.set( { maintainRepeatTime: mntnRepeatTime = jsonFile.maintainRepeatTime } )
         }
         if ( jsonFile.repeatAttempts !== undefined ) {
           chrome.storage.local.set( { repeatAttempts: rptAttempts = jsonFile.repeatAttempts } );
         }
+        chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );  // По принятым данным вычисляем запуск по расписанию
         if ( jsonFile.notificationsEnable !== undefined ) {
           chrome.storage.local.set( { notificationsEnable: ntfEnable = jsonFile.notificationsEnable } );
         }
@@ -1269,6 +1467,9 @@ function getLoadedFile( btnId, fsHandle ) {
         }
         if ( jsonFile.markNegative !== undefined ) {
           chrome.storage.local.set( { markNegative: paintNegative = jsonFile.markNegative } );
+        }
+        if ( jsonFile.deleteSameDateRecord !== undefined ) {
+          chrome.storage.local.set( { deleteSameDateRecord: deleteSameDateRecord = jsonFile.deleteSameDateRecord } );
         }
         if ( jsonFile.historyShowMaintained !== undefined ) {
           chrome.storage.local.set( { historyShowMaintained: jsonFile.historyShowMaintained } );
@@ -1297,7 +1498,7 @@ function getLoadedFile( btnId, fsHandle ) {
           newProvider.scriptActions = ( jsonFile.scriptActions ) ? jsonFile.scriptActions : [];
           newProvider.scriptFiles = ( jsonFile.scriptFiles ) ? jsonFile.scriptFiles : [];
           newProvider.requestDelay = ( jsonFile.requestDelay === true );
-          newProvider.requestDelayValue = ( jsonFile.requestDelayValue ) ? Number(jsonFile.requestDelayValue) : 0;
+          newProvider.requestDelayValue = ( jsonFile.requestDelayValue ) ? Number(jsonFile.requestDelayValue) : '';
           newProvider.onUpdateDelay = ( jsonFile.onUpdateDelay === true );
           newProvider.onUpdateDelayValue = ( jsonFile.onUpdateDelayValue ) ? Number(jsonFile.onUpdateDelayValue) : 0;
           newProvider.respondTimeout = ( jsonFile.respondTimeout === true );
@@ -1353,7 +1554,7 @@ function getLoadedFile( btnId, fsHandle ) {
             if (valueArr.length === headerArr.length) {
               let value = undefined;
               let tArr = MBResult; //  Создаём объект со значениями полей по умолчанию
-              for (let j = 0; j < headerArr.length; j++) {
+              for ( let j = 0; j < headerArr.length; j++ ) {
                 // Эти поля из структуры оригинальной BalanceHistory.mdb не импортируем
                 if ( [ 'NN', 'ObPlat', 'Average', 'TurnOff', 'JeansExpired', 'Recomend', 'USDRate',
                        'Contract', 'PhoneReal', 'BalanceRUB', 'Currenc', 'BalDeltaQuery', 'MinDelta',
@@ -1369,7 +1570,7 @@ function getLoadedFile( btnId, fsHandle ) {
                        'Balance3'].indexOf( headerArr[ j ] ) >= 0 ) {
                   if (valueArr[ j ] === '') value = 0
                   else
-                    value = parseFloat( parseFloat( valueArr[ j ].replace( ',', '.' ) ).toFixed(3) );
+                    value = parseFloat( parseFloat( valueArr[ j ].replace( ',', '.' ) ).toFixed( 3 ) );
                 }
                 // 'QueryDateTime' - ключевое (primary key). Если в нём не будет значения, то indexedDB
                 if (headerArr[ j ] === 'QueryDateTime') { //   не запишет такую запись в хранилище
@@ -1388,19 +1589,19 @@ function getLoadedFile( btnId, fsHandle ) {
           } /* for i */
           console.log( `[MB] History data import success. ${String(allTextLines.length - 2)} ` +
                        `records processed to add in '${dbObjStorMB.name}'` );
-          dbRecordsCount().then( (result) => {
+          dbRecordsCount().then( ( result ) => {
             console.log( `[MB] Object store '${dbObjStorMB.name}' total records: ${String(result)}` );
             infoWin.style.display = 'none'; // Снимаем модальное информационное окно
             recCount.textContent = String(result);
-            historyDelete.disabled = historySave.disabled = (result === 0) ? true : false;
+            historyDelete.disabled = historySave.disabled = ( result === 0 ) ? true : false;
             historyLoad.disabled = false;
             document.body.style.cursor = crsr;
           });
         }
         catch(err) {
-          dbRecordsCount().then( (result) => {
+          dbRecordsCount().then( ( result ) => {
             infoWin.style.display = 'none'; // Снимаем модальное информационное окно
-            historyDelete.disabled = historySave.disabled = (result === 0) ? true : false;
+            historyDelete.disabled = historySave.disabled = ( result === 0 ) ? true : false;
             historyLoad.disabled = false;
           });
           fileClamedBy = '';
@@ -1417,10 +1618,11 @@ function getLoadedFile( btnId, fsHandle ) {
 
 
 // Модальное окно параметров учётных данных
-function loginWin( itemId = undefined ) {       // Если itemId = undefined - создаём новую запись
+function loginWin( itemId = undefined ) {   // Если входного значения 'itemId' нет, то создаём новую запись
 //       ------------------------------
-  selectProvider.style.outlineColor = '';       // Сбрасываем цвет рамки фокуса - он мог быть установлен
-  inputInactiveRemind.style.outlineColor = '';  // в цвет ошибки #800000 при предыдущем открытии окна
+  // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+  selectProvider.style.borderColor = selectProvider.style.outlineColor = selectProvider.style.borderWidth = '';
+  inputInactiveRemind.style.borderColor = inputInactiveRemind.style.outlineColor = inputInactiveRemind.style.borderWidth = '';
 
   if ( itemId === undefined ) { // Инициализация окна для новой учётной записи
     selectMaintain.checked = true;
@@ -1439,11 +1641,11 @@ function loginWin( itemId = undefined ) {       // Если itemId = undefined -
   modalWin.style.display = 'block';
   selectMaintain.focus();
 
-  return new Promise((resolve, reject) => {
+  return new Promise( function( resolve, reject ) {
 
-    // Отмена изменений / создания параметров в 'модальном' окне по клавише Escape
+    // Отмена изменений / создания параметров в 'модальном' окне по нажитию клавиши Escape
     document.addEventListener( 'keyup', keyCatcher );
-    function keyCatcher(evnt) {
+    function keyCatcher( evnt ) {
       if ( evnt.key === 'Escape' ) {
         modalWin.style.display = 'none';
         document.removeEventListener( 'keyup', keyCatcher );
@@ -1469,29 +1671,38 @@ function loginWin( itemId = undefined ) {       // Если itemId = undefined -
 
     // Сохранение изменений / создание параметров в 'модальном' окне
     modalWinSave.onclick = function() { // Создание новой учётной записи
-      if (selectProvider.value === '') {
-        selectProvider.style.outlineColor = '#800000'; // Цвет рамки - 'Maroon' rgb(128,0,0) #800000
+      if ( selectProvider.value === '' ) {
+        selectProvider.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+        selectProvider.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+        selectProvider.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
         selectProvider.focus();
       }
       else {
-        if (inputInactiveRemind.value < 0) {
-          inputInactiveRemind.style.outlineColor = '#800000';
+        // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+        selectProvider.style.borderColor = selectProvider.style.outlineColor = selectProvider.style.borderWidth = '';
+      // Разрешаем ввод только положительных целочисленных значений
+        if ( ( inputInactiveRemind.value !== '' ) && ( ( inputInactiveRemind.value < 0 ) || isNaN( parseInt( inputInactiveRemind.value ) ) ||
+             ( ( parseFloat( parseFloat( inputInactiveRemind.value ).toFixed( 3 ) ) - parseInt( inputInactiveRemind.value ) ) > 0 ) ) ) {
+          inputInactiveRemind.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+          inputInactiveRemind.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+          inputInactiveRemind.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
           inputInactiveRemind.focus();
         }
         else {
-          selectProvider.style.outlineColor = ''; // Цвет рамки указанный в CSS
+          // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+          inputInactiveRemind.style.borderColor = inputInactiveRemind.style.outlineColor = inputInactiveRemind.style.borderWidth = '';
           // Копируем предыдущие значения учётных данных - в них могут быть дополнительные параметры ...
           let LoginItem = Object.assign( new Object(), loginRecords[ itemId ] );
           // ... и меняем значения на указанные в 'модальном' окне
           LoginItem.maintain = selectMaintain.checked;
           LoginItem.loginValue = inputLogin.value;
-          LoginItem.passwValue = encodePassword( inputPassword.value ); // Паролm для хранения в local storage кодируем
+          LoginItem.passwValue = encodePassword( inputPassword.value ); // Пароль для хранения в local storage кодируем
           // Удаляем запятые - они не дадут разделить JSON основных параметров на строки при сохранении в файл.
-          // В других полях запятых оказаться не должно
-          LoginItem.description = (inputDescription.value).replaceAll( ',', '' );
+          // В других полях предполагаем, что запятых оказаться не должно
+          LoginItem.description = ( inputDescription.value ).replaceAll( ',', '' );
           LoginItem.provider = selectProvider.value;
           // Для пустых значений в цифровом поле обеспечиваем запись '', для любых других - Number, а не строку
-          LoginItem.inactiveRemind = (inputInactiveRemind.value === '') ? '' : Number(inputInactiveRemind.value);
+          LoginItem.inactiveRemind = ( inputInactiveRemind.value === '' ) ? '' : Number( inputInactiveRemind.value );
           modalWin.style.display = 'none';
           document.removeEventListener( 'keyup', keyCatcher );
           resolve( LoginItem );

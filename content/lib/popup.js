@@ -2,10 +2,11 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2025.09.07
+ * Редакция:  2025.10.20
  *
 */
 
+const dayNames = { 0: 'вс.', 1: 'пн.', 2: 'вт.', 3: 'ср.', 4: 'чт.', 5: 'пт.', 6: 'сб.' };
 let Delay, dbVersion, sleep;                    // Глобальные переменные расширения (из модуля vars.mjs)
 import('./../../vars.mjs').then( (module) => {
   Delay = module.Delay;
@@ -486,23 +487,19 @@ function checkOutdated( item ) {
 function checkNextPoolingTime() {
 //       ----------------------
   return new Promise( (resolve, reject) => {
-    chrome.storage.local.get( 'daylyMaintain' )
-    .then( function( result ) {
-      if ( result.daylyMaintain ) {
-        chrome.alarms.get( 'poolingTimer' )
-        .then( function( alarm ) {
-          let d = new Date( alarm.scheduledTime );
-          let timeStr = `${(d.getDate() < 10)    ? '0' + String(d.getDate())      : String(d.getDate())}.` +
-                        `${(d.getMonth() < 9)    ? '0' + String(d.getMonth() + 1) : String(d.getMonth() + 1)}.` +
-                        `${String(d.getFullYear())} в ` +
-                        `${(d.getHours() < 10)   ? '0' + String(d.getHours())     : String(d.getHours())}:` +
-                        `${(d.getMinutes() < 10) ? '0' + String(d.getMinutes())   : String(d.getMinutes())}`;
-          resolve( 'Следующий опрос:&nbsp;' + timeStr );
-        })
+    chrome.alarms.get( 'poolingTimer' )
+    .then( function( alarm ) {
+      if ( alarm === undefined )
+        resolve( 'Следующий опрос:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;не определён' )
+      else {
+        let d = new Date( alarm.scheduledTime );
+        let timeStr = `${(d.getDate() < 10)    ? '0' + String(d.getDate())      : String(d.getDate())}.` +
+                      `${(d.getMonth() < 9)    ? '0' + String(d.getMonth() + 1) : String(d.getMonth() + 1)}.` +
+                      `${String(d.getFullYear())} ` + `(${dayNames[ d.getDay() ]}) в ` +
+                      `${(d.getHours() < 10)   ? '0' + String(d.getHours())     : String(d.getHours())}:` +
+                      `${(d.getMinutes() < 10) ? '0' + String(d.getMinutes())   : String(d.getMinutes())}`;
+        resolve( 'Следующий опрос:&nbsp;' + timeStr );
       }
-      else
-        resolve( 'Следующий опрос:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;не определён' );
     })
-    .catch((err) => { console.log(`[MB] Error: ${err}`) })
   });
 }
