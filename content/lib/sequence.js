@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2025.10.20
+ * Редакция:  2025.10.27
  *
 */
 
@@ -31,15 +31,17 @@ chrome.storage.local.get( 'inProgress' ).then( result => { inProgress = result.i
 let pStart, pFinish;            // Начало-завершение опроса
 let repeatAttempts = 0;         // Количество повторов при неудачном / незавершённом запросе по учётным данным
 let poolingWinAlive = false;    // Оставлять открытым окно результатов после завершения опроса
-let poolingLogSave = false;     // Сохранять лог после закрытия окна опроса
 let paintNegative = false;      // Выделять отрицательные занчения баланса цветом
+let poolingLogSave = false;     // Сохранять лог после закрытия окна опроса
+let poolingResultSave = false;  // Сохранять результаты опроса после закрытия окна опроса
+let delSameDateRecordTime = 0;  // Период времени в часах для удаления предыдущих запросов в текущей дате
 let provider = [];              // Наборы параметров для провайдеров (plugin-ов)
 let accounts = [];              // Наборы параметров для учётных записей
 let pollingCycle = [];          // Структура элементов для проведения опроса
 let currentNumber = 0;          // Текущие учётные данные в структуре для которых выполняется запрос
-let userIntrusion = false;      // Установлена работа пользователя с кнопками окна опроса
+let userIntrusion = false;      // Зафиксирована работа пользователя с кнопками окна опроса
 let pauseRequested = false;     // Пользователем запрошена остановка опроса
-let poolOnce = false;           // Выполнить один текущий запрос, после него отсановиться
+let poolOnce = false;           // Выполнить один текущий запрос, после него остановиться
 // Блок переменных по разрешениям показа уведомлений (оповещений)
 let ntfEnable = false, ntfOnError = false, ntfOnProcess = false, ntfOnUpdateDelay = false;
 
@@ -150,13 +152,13 @@ function dbGetLastRecord( item ) {
 // Удаление в хранилище записей от текущей даты в пределах указанного периода времени
 function dbDeleteSameDateRecords( item ) {
 //       -------------------------------
-  return new Promise( (resolve, reject) => {
-    let sameRecordsFound = false; // Признак проведения операций удаления записей
-    if ( deleteSameDateRecord > 0 ) { // Если в настройках удаление не установлено, то ничего не делаем
-      let recDate; // Дата-время предыдущего запроса
+  return new Promise( function( resolve, reject ) {
+    let sameRecordsFound = false;       // Признак проведения операций удаления записей
+    if ( delSameDateRecordTime > 0 ) {
+      let recDate;  // Дата-время предыдущего запроса
       let curDate = Date.now(); // Текущие дата-время
       // Параметр периода для удаления (задан в часах) переводим в миллисекунды (3600000 = 60 * 60 * 1000)
-      let deletePeriod = deleteSameDateRecord * 3600000;
+      let deletePeriod = delSameDateRecordTime * 3600000;
       // Определяем порог даты: значение текущей даты в 00:00:00
       let thresholdDate = new Date().setHours( 0, 0, 0, 0 );
 
@@ -183,7 +185,7 @@ function dbDeleteSameDateRecords( item ) {
         // Если дата запроса в найденной записи = текущей (в пределах порога от 00:00 до текущего времени),
         //   то определяем вхождение времени этого запроса в период, заданный в настройках для удаления
         if ( ( thresholdDate - recDate ) < 0 ) {
-          if ( ( (curDate - thresholdDate) - (recDate - thresholdDate) ) < deletePeriod ) {
+          if ( ( ( curDate - thresholdDate ) - ( recDate - thresholdDate ) ) < deletePeriod ) {
             evnt.target.result.delete( evnt.target.result.primaryKey ); // Удаляем запись
             sameRecordsFound = true; // Устанавливаем флаг - удаление записей производилось
             dbCrsrMB.result.continue(); // Берём следующую запись запроса по loginValue текущих учётных данных
@@ -199,8 +201,8 @@ function dbDeleteSameDateRecords( item ) {
         }
       }
     }
-    else
-      resolve( sameRecordsFound );
+    else // Если в настройках не установлено удаление записей, то ничего не делаем
+      resolve( sameRecordsFound )
   });
 }
 
@@ -210,6 +212,8 @@ async function beforeunloadListener( evnt ) {
   await pollingEnd( true );   // Инициируем завершение опроса с закрытием рабочих вкладок провайдеров
   if ( poolingLogSave )       // Если в настройках указано сохранение лога при закрытии окна опроса, то сохраняем его
     await savePollingLog();
+  if ( poolingResultSave )    // Если в настройках указано сохранение результатов опроса при закрытии окна опроса, то сохраняем его
+    await savePollingResult();
 };
 // Устанвливаем контроль обновления страницы с 'passive = true' - не отменять поведение события по умолчанию
 // Отменять поведение события по умолчанию для 'beforeunload' нельзя - появится 'alert'-запрос подтверждения закрытия страницы
@@ -228,11 +232,14 @@ async function initCommonParams() {
   // Получаем значения из localStorage
   provider = (await chrome.storage.local.get( 'provider' )).provider;
   accounts = (await chrome.storage.local.get( 'accounts' )).accounts;
-  repeatAttempts = (await chrome.storage.local.get( 'repeatAttempts' )).repeatAttempts;
-  deleteSameDateRecord = (await chrome.storage.local.get( 'deleteSameDateRecord' )).deleteSameDateRecord;
+  repeatAttempts = Number( (await chrome.storage.local.get( 'repeatAttempts' )).repeatAttempts );
+  delSameDateRecordTime = (await chrome.storage.local.get( 'deleteSameDateRecordTime' )).deleteSameDateRecordTime;
+  delSameDateRecordTime = ( ( delSameDateRecordTime === '' ) ||  // Если период для удаления запросов в текущей дате не задан или отключён
+       ( (await chrome.storage.local.get( 'deleteSameDateRecord' )).deleteSameDateRecord === false ) ) ? 0 : Number( delSameDateRecordTime );
   poolingWinAlive = (await chrome.storage.local.get( 'poolingWinAlive' )).poolingWinAlive;
-  poolingLogSave = (await chrome.storage.local.get( 'poolingLogSave' )).poolingLogSave;
   paintNegative = (await chrome.storage.local.get( 'markNegative' )).markNegative;
+  poolingLogSave = (await chrome.storage.local.get( 'poolingLogSave' )).poolingLogSave;
+  poolingResultSave = (await chrome.storage.local.get( 'poolingResultSave' )).poolingResultSave;
   chrome.notifications.getPermissionLevel( async (level) => { // Если есть разрешение на показ уведомлений (оповещений)
     if (level === 'granted') {          // то считываем переменные. Иначе все переменные = false (при их инициализации)
       ntfEnable = (await chrome.storage.local.get( 'notificationsEnable' )).notificationsEnable;
@@ -241,7 +248,7 @@ async function initCommonParams() {
       ntfOnUpdateDelay = (await chrome.storage.local.get( 'notificationsOnUpdateDelay' )).notificationsOnUpdateDelay;
     }
   });
-  prepareCycle(); // Готовыим структуры для проведения опроса
+  prepareCycle(); // Готовим структуры для проведения опроса
   scrollDiv.focus(); // Преходим к таблице, чтобы можно было прокручивать её с клавиатуры
 }
 
@@ -256,7 +263,6 @@ async function prepareCycle() {
   }
   for (let i = 0; i < Object.entries(pollingCycle).length; i++) { // Обогащаем наборы параметрами из общих настроек:
     pollingCycle[ i ].repeatAttempts = repeatAttempts + 1; //   количество повторов при неудачном / незавершённом запросе
-                                                           // Добавляем рабочие параметры для запроса:
     pollingCycle[ i ].inDelay = false;                     //   пауза между запросами к провайдеру активна
     pollingCycle[ i ].requestStage = 0;                    //   счётчик текущей части запроса
     pollingCycle[ i ].success = false;                     //   признак успешного завершения запроса
@@ -325,7 +331,7 @@ async function prepareCycle() {
   if ( currentNumber < 0 ) {                 // Если нет учётных данных для опроса, то завершаем его
     console.log(`[MB] No login data`);
     pollingStart.style.color = '#800000';
-    pollingStart.textContent += 'Нет учётных данных данных для опроса';
+    pollingStart.textContent += 'Нет учётных данных данных для опроса\n';
     pollingEnd();
   }
   else { // Запуск основного цикла опроса по сообщениям
@@ -342,7 +348,7 @@ function checkUncompleteRequests() {
 //       -------------------------
   let uncompleteArr = [];
   pollingCycle.forEach( function( item, index ) {
-   if ( !item.success && (item.repeatAttempts > 0) )
+   if ( !item.success && ( item.repeatAttempts > 0 ) )
      uncompleteArr.push( index );
   });
   if ( uncompleteArr.length === 0)
@@ -546,6 +552,8 @@ async function pollingEnd( force = false ) {  // 'force' = 'true' - вкладк
   */    .then( async function() {
           if ( poolingLogSave )                 // Если в настройках указано сохранение лога при закрытии окна опроса, то сохраняем его
             await savePollingLog();
+          if ( poolingResultSave )              // Если в настройках указано сохранение результатов опроса при закрытии окна опроса, то сохраняем его
+            await savePollingResult();
           await chrome.tabs.remove( workTab.id )                            // ... закрываем вкладку результатов опроса
           .catch( async ( err ) => {            // Обрабатываем ошибку 'Tabs cannot be edited right now (user may be dragging a tab).'
             if ( err.message.includes( '(user may be dragging a tab)' ) ) {
@@ -645,8 +653,8 @@ async function setRequestDelay( pIdx ) {
   pollingCycle.findIndex( function( item, index ) {              // Ставим признак задержки между запросами в
     if (( item.provider === provider[ pIdx ].name ) &&           // записях учётных данных по этому провайдеру,
         ( ( !item.success ) && ( item.repeatAttempts > 0 ) )) {  // у которых запрос ещё не был успешен и ещё есть
-        item.inDelay = true;                                     // попытки повторов по неудачному / незавершённому запросу
-        drawPoolingState( index, 'Await' );
+      item.inDelay = true;                                       // попытки повторов по неудачному / незавершённому запросу
+      drawPoolingState( index, 'Await' );
     }
     return false; // По всем значениям возвращаем false, чтобы пройти по всем элементам
   });
@@ -1664,13 +1672,70 @@ function createDateStr() {
   return result;
 }
 
+
 // Сохранение лога опроса на диск
 async function savePollingLog() {
 //             ----------------
-  return new Promise( (resolve, reject) => {
+  return new Promise( function( resolve, reject ) {
     let fileNameStr = `${createDateStr()} MB-pollingLog.log`;
     console.log( `[MB] Saving logging data from console to file '${fileNameStr}'` );
     let blob = new Blob( consoleData, { type: 'text/json', endings: 'native' } );
+    let link = document.createElement( 'a' );
+    link.setAttribute( 'download', fileNameStr );
+    link.setAttribute( 'href', window.URL.createObjectURL( blob ) );
+    link.click();
+    link.remove();
+    resolve( true );
+  });
+}
+
+
+// Сохранение страницы результатов опроса на диск
+async function savePollingResult() {
+//             -------------------
+  let time = new Date( pFinish - pStart );
+  let pageContent = [ '<!DOCTYPE html>\n', '<html lang="ru">\n', '<head>\n', '<meta charset="utf-8">\n', '<title>[MB] Результат опроса</title>\n', '</head>\n',
+                      '<body style="font-family:system-ui; font-size:medium;">\n',
+                      '<style>\n',
+                      'td { border:0.2em solid #DDDDDD; padding:0.2em 0.4em; vertical-align:top; font-weight: normal; }\n',
+                      '</style>\n',
+                      '<div style="text-align:center; margin:1vh;">\n',
+                      `<h1 style="display:inline-block; margin: 0 2vw 0 0;">Результат опроса MobileBalance</h1>${document.getElementById( "poolingPageTitle" ).outerHTML}\n`,
+                      '</div>\n',
+                      '<div style="width:fit-content; justify-self:center; margin:1vh; font-size:2vh; background-color:#FFFFE6;">Опрос начат: ' +
+                      '<span style="display:inline-block; color:#32CD32; font-weight:bold;">\n' +
+                      `${(pStart.getHours() < 10)   ? '0' + String(pStart.getHours())   : String(pStart.getHours())}:`   +
+                      `${(pStart.getMinutes() < 10) ? '0' + String(pStart.getMinutes()) : String(pStart.getMinutes())}:` +
+                      `${(pStart.getSeconds() < 10) ? '0' + String(pStart.getSeconds()) : String(pStart.getSeconds())}</span>\n`  +
+                      '<span>&nbsp;&nbsp;&nbsp;&nbsp;Опрос завершён&nbsp;/ остановлен:&nbsp;</span>\n' +
+                      '<span style="display:inline-block; color:#32CD32; font-weight:bold;">\n' +
+                      `${(pFinish.getHours() < 10)   ? '0' + String(pFinish.getHours())   : String(pFinish.getHours())}:`   +
+                      `${(pFinish.getMinutes() < 10) ? '0' + String(pFinish.getMinutes()) : String(pFinish.getMinutes())}:` +
+                      `${(pFinish.getSeconds() < 10) ? '0' + String(pFinish.getSeconds()) : String(pFinish.getSeconds())}`  +
+                      `  (${(time.getMinutes() < 10) ? '0' + String(time.getMinutes()) : String(time.getMinutes())}:` +
+                      `${(time.getSeconds() < 10) ? '0' + String(time.getSeconds()) : String(time.getSeconds())})</span>\n` +
+                      '</div>\n', '<div align="center" style="display:block;">\n',
+                      '<div style="display:flex; justify-content:center; overflow-y:auto; overflow-x:hidden; width:fit-content; max-height:76vh;">\n',
+                      '<table style="border: 0.2em solid #DDDDDD; border-collapse:separate; border-spacing:0; background-color:#FFFFE6; table-layout:fixed; text-align:left; font-size:small;">\n',
+                      '<thead style="position:sticky; top:0; background:#DDDDDD; font-weight:normal;">\n', '<tr>\n',
+                      '<td>Название</td>\n', '<td>Номер (логин)</td>\n', '<td><b>Баланс</b>/Кредит</td>\n', '<td>Расход</td>\n', '<td>Не менялся</td>\n',
+                      '<td>Баланс2/Баланс3</td>\n', '<td>SMS</td>\n', '<td>Минуты</td>\n', '<td>Интернет</td>\n', '<td>До (дата)</td>\n', '<td>Блок</td>\n',
+                      '<td>Услуги</td>\n', '<td>Провайдер</td>\n', '<td>Получено</td>\n', '</tr>\n', '</thead>\n',
+                      '<tbody style="height:-webkit-fill-available; font-weight:normal; font-size:medium;">\n' ];
+  let pollingItems = document.getElementById( 'pollingItems' );
+  for( let i = 0; i < pollingItems.childElementCount; i++) {
+    cellText = '';
+    for( let j = 0; j < pollingItems.childNodes[ i ].childElementCount; j++) {
+      if ( j > 0 ) // Колонку статуса пропускаем
+        cellText += pollingItems.childNodes[ i ].childNodes[ j ].outerHTML;
+    }
+    pageContent = pageContent.concat( `<tr>\n${cellText}</tr>\n` );
+  }
+  pageContent = pageContent.concat( '</tbody>\n', '</table>\n', '</div>\n', '</div>\n', '</body>\n', '</html>\n' );
+  return new Promise( function( resolve, reject ) {
+    let fileNameStr = `${createDateStr()} MB-pollingResult.html`;
+    console.log( `[MB] Saving polling html-result to file '${fileNameStr}'` );
+    let blob = new Blob( pageContent, { type: 'text/html; charset=UTF-8', endings: 'native' } );
     let link = document.createElement( 'a' );
     link.setAttribute( 'download', fileNameStr );
     link.setAttribute( 'href', window.URL.createObjectURL( blob ) );

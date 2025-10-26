@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.10.20
+ * Редакция:  2025.10.27
  *
 */
 
@@ -18,8 +18,9 @@ import('./../vars.mjs').then( (module) => { // Глобальные переме
 let dbMB, dbTrnsMB, dbObjStorMB, dbCrsrMB;
 let providerRecords = [], loginRecords = [];
 let alarmPoolingTime, testPoolingTime, testPoolingTimeArr = [];
-let cycleOrder = '', rptAttempts = 0, poolWinAlive = false, poolLog = false, paintNegative = false, deleteSameDateRecord = 0,
-    mntnPooling = false, mntnStartTime = '', mntnDays = [ 1, 1, 1, 1, 1, 1, 1 ], mntnRepeat = false, mntnRepeatTime =  0;
+let cycleOrder = '', rptAttempts = 0, poolWinAlive = false, paintNegative = false, poolResult = false,
+    delSameDateRecord = false, delSameDateRecordTime = 0, mntnPooling = false, mntnStartTime = '',
+    mntnDays = [ 1, 1, 1, 1, 1, 1, 1 ], mntnRepeat = false, mntnRepeatTime =  0;
 const dayNames = { 0: 'вс.', 1: 'пн.', 2: 'вт.', 3: 'ср.', 4: 'чт.', 5: 'пт.', 6: 'сб.' };
 let fileClamedBy = ''; // Идентификатор кнопки, которой инициирована функция загрузки файла
 // Блок переменных по разрешениям показа уведомлений (оповещений)
@@ -105,9 +106,11 @@ async function getOptionsFromStorage() {
     ntfOnProcess = fromStorage.notificationsOnProcess;
     ntfOnUpdateDelay = fromStorage.notificationsOnUpdateDelay;
     poolWinAlive = fromStorage.poolingWinAlive;
-    poolLog = fromStorage.poolingLogSave;
     paintNegative = fromStorage.markNegative;
-    deleteSameDateRecord = fromStorage.deleteSameDateRecord;
+    poolLog = fromStorage.poolingLogSave;
+    poolResult = fromStorage.poolingResultSave;
+    delSameDateRecord = fromStorage.deleteSameDateRecord;
+    delSameDateRecordTime = fromStorage.deleteSameDateRecordTime;
     loginRecords = (fromStorage.accounts !== undefined) ? fromStorage.accounts : Array([]);
   });
   await getProviderFromStorage();
@@ -269,24 +272,15 @@ async function drawOptions() {
       onProcessNotifications.checked = onUpdateDelayNotifications.checked = false;
   }
   poolingWinAlive.checked = ( poolWinAlive ) ? true : false;
-  poolingLogSave.checked = ( poolLog ) ? true : false;
   markNegative.checked = ( paintNegative ) ? true : false;
-  switch ( deleteSameDateRecord ) {
-    case 0: {
-      document.querySelector(`[id='notDelete']`).checked = true;
-      break;
-    }
-    case 2:
-    case 4:
-    case 8:
-    case 12: {
-      document.querySelector(`[id='${String(deleteSameDateRecord)}hAge']`).checked = true;
-      break;
-    }
-  }
+  poolingLogSave.checked = ( poolLog ) ? true : false;
+  poolingResultSave.checked = ( poolResult ) ? true : false;
+  sameDateRecord.checked = ( delSameDateRecord ) ? true : false;
+  sameDateRecordTime.value = delSameDateRecordTime;
+  sameDateRecordTime.disabled = ( sameDateRecord.checked === false ) ? true : false;
   dbRecordsCount().then( (result) => {
     recCount.textContent = String(result);
-    historyDelete.disabled = historySave.disabled = (result === 0) ? true : false;
+    historyDelete.disabled = historySave.disabled = ( result === 0 ) ? true : false;
     historyLoad.disabled = false;
   });
   // div-контейнер элементов настройки скрыт (class='expandable') до завершения инициализации. Здесь делаем его видимым
@@ -636,10 +630,11 @@ optionsPage.addEventListener( 'click', async function( evnt ) {
       break; }
     case 'optionsSave': { // Сохранить основные параметры из local storage в файл
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      chrome.storage.local.get( [ 'popupShortInfo', 'cycleOrder', 'deleteSameDateRecord',
-                                  'maintainPooling', 'maintainStartTime', 'maintainDays', 'maintainRepeat', 'maintainRepeatTime', 
+      chrome.storage.local.get( [ 'popupShortInfo', 'cycleOrder', 'deleteSameDateRecord', 'deleteSameDateRecordTime',
+                                  'maintainPooling', 'maintainStartTime', 'maintainDays', 'maintainRepeat', 'maintainRepeatTime',
                                   'notificationsEnable', 'notificationsOnError', 'notificationsOnProcess', 'notificationsOnUpdateDelay',
-                                  'poolingWinAlive', 'poolingLogSave', 'markNegative', 'repeatAttempts', 'historyShowMaintained' ] )
+                                  'poolingWinAlive', 'markNegative', 'poolingLogSave', 'poolingResultSave', 'repeatAttempts',
+                                  'historyShowMaintained' ] )
       .then( function( fromStorage ) {
         let blob = new Blob( [ JSON.stringify( fromStorage, null, 2 ) ], { type: 'text/json', endings: 'native' } );
         let link = document.createElement( 'a' );
@@ -1131,27 +1126,44 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
       poolWinAlive = poolingWinAlive.checked;
       chrome.storage.local.set( { poolingWinAlive: poolWinAlive } );
       break; }
+    case 'markNegative': {    // Выделять отрицательное значение баланса цыетом
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      paintNegative = markNegative.checked;
+      chrome.storage.local.set( { markNegative: paintNegative } );
+      break; }
     case 'poolingLogSave': {  // Сохранять лог после закрытия окна опроса
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       poolLog = poolingLogSave.checked;
       chrome.storage.local.set( { poolingLogSave: poolLog } );
       break; }
-    case 'markNegative': { // Выделять отрицательное значение баланса цыетом
-      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      paintNegative = markNegative.checked;
-      chrome.storage.local.set( { markNegative: paintNegative } );
+    case 'poolingResultSave': { // Сохранять результаты опроса после закрытия окна опроса
+      evnt.stopPropagation();   // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      poolResult = poolingResultSave.checked;
+      chrome.storage.local.set( { poolingResultSave: poolResult } );
       break; }
-    case 'notDelete': {
+    case 'sameDateRecord': {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      chrome.storage.local.set( { deleteSameDateRecord: deleteSameDateRecord = 0 } );
+      delSameDateRecord = sameDateRecord.checked;
+      chrome.storage.local.set( { deleteSameDateRecord: delSameDateRecord } );
+      sameDateRecordTime.disabled = ( delSameDateRecord ) ? false : true;
       break; }
-    case '2hAge':
-    case '4hAge':
-    case '8hAge':
-    case '12hAge': {
+    case 'sameDateRecordTime': {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      deleteSameDateRecord = Number( document.querySelector( `[id='${evnt.target.id}']` ).value );
-      chrome.storage.local.set( { deleteSameDateRecord: deleteSameDateRecord } );
+      // Сбрасываем цвет рамки фокуса и её толщину - они могли быть ранее установлены в цвет ошибки
+      sameDateRecordTime.style.borderColor = sameDateRecordTime.style.outlineColor = sameDateRecordTime.style.borderWidth = '';
+      // Разрешаем ввод только положительных значений от 0 до 23.99
+      if ( ( sameDateRecordTime.value !== '' ) && ( ( sameDateRecordTime.value < 0 ) || ( sameDateRecordTime.value >= 23.99 ) ||
+           isNaN( parseInt( sameDateRecordTime.value ) ) ) ) {
+        sameDateRecordTime.style.borderColor = '#800000';   // Цвет рамки при выделении элемента - 'Maroon' rgb(128,0,0) #800000
+        sameDateRecordTime.style.borderWidth = 'medium';    // Толщина рамки (как при выделении элемента)
+        sameDateRecordTime.style.outlineColor = '#800000';  // Цвет рамки пассивного элемента - 'Maroon' rgb(128,0,0) #800000
+        sameDateRecordTime.focus();
+        break;
+      }
+      else {
+        delSameDateRecordTime = ( sameDateRecordTime.value === '' ) ? '' : sameDateRecordTime.value;
+        chrome.storage.local.set( { deleteSameDateRecordTime: delSameDateRecordTime } );
+      }
       break; }
   } /* switch */
   return true;
@@ -1462,14 +1474,21 @@ function getLoadedFile( btnId, fsHandle ) {
         if ( jsonFile.poolingWinAlive !== undefined ) {
           chrome.storage.local.set( { poolingWinAlive: poolWinAlive = jsonFile.poolingWinAlive } );
         }
-        if ( jsonFile.poolingLogSave !== undefined ) {
-          chrome.storage.local.set( { poolingLogSave: poolLog = jsonFile.poolingLogSave } );
-        }
         if ( jsonFile.markNegative !== undefined ) {
           chrome.storage.local.set( { markNegative: paintNegative = jsonFile.markNegative } );
         }
+        if ( jsonFile.poolingLogSave !== undefined ) {
+          chrome.storage.local.set( { poolingLogSave: poolLog = jsonFile.poolingLogSave } );
+        }
+        if ( jsonFile.poolingResultSave !== undefined ) {
+          chrome.storage.local.set( { poolingResultSave: poolResult = jsonFile.poolingResultSave } );
+        }
         if ( jsonFile.deleteSameDateRecord !== undefined ) {
-          chrome.storage.local.set( { deleteSameDateRecord: deleteSameDateRecord = jsonFile.deleteSameDateRecord } );
+          delSameDateRecord = ( typeof( jsonFile.deleteSameDateRecord ) === Boolean ) ? jsonFile.deleteSameDateRecord : true;
+          chrome.storage.local.set( { deleteSameDateRecord: delSameDateRecord } );
+        }
+        if ( jsonFile.deleteSameDateRecordTime !== undefined ) {
+          chrome.storage.local.set( { deleteSameDateRecordTime: delSameDateRecordTime = jsonFile.deleteSameDateRecordTime } );
         }
         if ( jsonFile.historyShowMaintained !== undefined ) {
           chrome.storage.local.set( { historyShowMaintained: jsonFile.historyShowMaintained } );

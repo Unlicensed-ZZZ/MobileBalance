@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Каскадные стили для страницы настроек (поля ввода и переключатели) расширения MobileBalance
- * Редакция:  2025.10.20
+ * Редакция:  2025.10.24
  *
 */
 
@@ -198,34 +198,90 @@ input[type='time'][disabled], select[disabled] {
 .toolTip .toolTipText {
   visibility: hidden;
   width: 18vw;
-  background-color: #FFFF99; /* Цвет фона подсказки - 'Pastel yellow' rgb(255,255,153) #FFFF99 */
-  color: #333333;            /* Цвет текста подсказки - 'Olive Drab' rgb(51,51,51) #333333 */
+  background-color: #FFFF99;  /* Цвет фона подсказки - 'Pastel yellow' rgb(255,255,153) #FFFF99 */
+  color: #333333;             /* Цвет текста подсказки - 'Olive Drab' rgb(51,51,51) #333333 */
   font-size: small;
   text-align: justify;
   border: thin solid #DDDDDD;
   border-radius: 10px;
   padding: 5px;
-  position: absolute;        /* Позиционируем подсказку относительно точки её привязки в :hover */
-  z-index: 10;               /* Подсказка - в слое более высоком, чем другие (включая модальные окна) */
-  right: 50%;
+  position: absolute;         /* Позиционируем подсказку относительно точки её привязки в :hover */
+  z-index: 10;                /* Подсказка - в слое более высоком, чем другие (включая модальные окна) */
+  right: -50%;                /* Расстояние от подсказки до элемента по горизонтали */
 }
+
+
+/* Подсказка над элементом */
+.toolTip-top {
+  bottom: 125%;             /* Расстояние от подсказки до элемента по вертикали */
+  margin-left: -60px;
+}
+
+/* Подсказка под элементом */
+.toolTip-bottom {
+  top: 125%;                /* Расстояние от подсказки до элемента по вертикали */
+  margin-left: -60px;
+}
+
+/* Подсказка справа от элемента */
+.toolTip-right {
+  top: -5px;
+  margin-left: -60px;
+}
+
+/* Подсказка слева от элемента */
+.toolTip-left {
+  top: -5px;
+  right: 115%;
+  margin-left: -60px;
+}
+
 
 /* Появление всплывающей подсказки и её позиционирование относительно точки привязки */
 .toolTip:hover .toolTipText {
   visibility: visible;
-  top: 135%;
-  right: -50%;
   box-shadow: 6px -4px 12px 0px #DDDDDD;
 }
 
-/* Стрелка всплывающей подсказки и её позиционирование относительно текста подсказки */
+/* 'Стрелка' всплывающей подсказки и её позиционирование относительно текста подсказки */
 .toolTip .toolTipText::after {
   content: "";
   position: absolute;
-  bottom: 100%;  /* На верхней грания блока текста подсказки */
-  left: 88%;     /* В правой части блока текста подсказки (50% - середина по горизонтали) */
-  margin-left: -5px;
-  border-width: 6px;
-  border-style: solid;
-  border-color: transparent transparent #FFFF99 transparent;
 }
+
+.toolTip-top::after {
+  top: 100%;                                                  /* Расположение на нижней грани блока текста подсказки */
+  left: 92%;                                                  /* Позиция - в правой части блока текста подсказки (50% - середина по горизонтали) */
+  margin-left: -5px;                                          /* Размер 'стрелки' */
+  border-width: 6px;                                          /* Размер рамки 'стрелки' */
+  border-style: solid;                                        /* Рамка 'стрелки' - сплошная */
+  border-color: #FFFF99 transparent transparent transparent;  /* Цвет рамки 'стрелки' */
+}
+
+.toolTip-bottom::after {
+  bottom: 100%;                                               /* Расположение на верхней грани блока текста подсказки */
+  left: 92%;                                                  /* Позиция - в правой части блока текста подсказки (50% - середина по горизонтали) */
+  margin-left: -5px;                                          /* Размер 'стрелки' */
+  border-width: 6px;                                          /* Размер рамки 'стрелки' */
+  border-style: solid;                                        /* Рамка 'стрелки' - сплошная */
+  border-color: transparent transparent #FFFF99 transparent;  /* Цвет рамки 'стрелки' */
+}
+
+.toolTip-right::after {
+  left: 100%;                                                 /* Расположение на правой грани блока текста подсказки */
+  top: 30%;                                                   /* Позиция - в верхней части блока текста подсказки (50% - середина по вертикали) */
+  margin-left: -5px;                                          /* Размер 'стрелки' */
+  border-width: 6px;                                          /* Размер рамки 'стрелки' */
+  border-style: solid;                                        /* Рамка 'стрелки' - сплошная */
+  border-color: transparent transparent transparent #FFFF99;  /* Цвет рамки 'стрелки' */
+}
+
+.toolTip-right::after {
+  right: 100%;                                                /* Расположение на левой грани блока текста подсказки */
+  top: 30%;                                                   /* Позиция - в верхней части блока текста подсказки (50% - середина по вертикали) */
+  margin-left: -5px;                                          /* Размер 'стрелки' */
+  border-width: 6px;                                          /* Размер рамки 'стрелки' */
+  border-style: solid;                                        /* Рамка 'стрелки' - сплошная */
+  border-color: transparent #FFFF99 transparent transparent;  /* Цвет рамки 'стрелки' */
+}
+

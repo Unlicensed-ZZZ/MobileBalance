@@ -7,13 +7,15 @@
   "maintainRepeat":             false,
   "maintainRepeatTime":         "",
   "repeatAttempts":             4,
-  "markNegative":               false,
   "notificationsEnable":        true,
   "notificationsOnError":       true,
   "notificationsOnProcess":     true,
   "notificationsOnUpdateDelay": true,
   "poolingWinAlive":            false,
+  "markNegative":               false,
   "poolingLogSave":             false,
-  "deleteSameDateRecord":       8,
+  "poolingResultSave":          false,
+  "deleteSameDateRecord":       true,
+  "deleteSameDateRecordTime":   8,
   "historyShowMaintained":      true
 }
