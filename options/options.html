@@ -70,7 +70,7 @@
                 </td>
                 <td style='display:flex; text-align:left; align-items:center'>
                   <label for='cycleOrder_sequence' style='display:flex; align-items:center; margin-right:12px'>
-                    <div>
+                    <div style='position:relative;'>
                       <input type='radio' class='radiobtn' id='cycleOrder_sequence' name='cycleOrder' value='sequence'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
@@ -83,7 +83,7 @@
                     </div>              
                   </label>
                   <label for='cycleOrder_parallel' style='display:flex; align-items:center; margin-right:12px'>
-                    <div>
+                    <div style='position:relative;'>
                       <input type='radio' class='radiobtn' id='cycleOrder_parallel' name='cycleOrder' value='parallel'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
@@ -115,7 +115,7 @@
                   <label for='maintainPooling' style='margin-right:6px'>Выполнять опрос по расписанию</label>
                 </td>
                 <td style='display:flex; text-align:left; align-items:center'>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainPooling'>
                     <div class='chkbox_pseudo'></div>
                     в&nbsp;&nbsp;
@@ -141,37 +141,37 @@
               <tr>
                 <td></td>
                 <td style='display:flex; text-align:left; align-items:center; justify-content:space-between'>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainMon'>
                     <div class='chkbox_pseudo'></div>
                   </div>
                   <label for='maintainMon' style='text-wrap-mode:nowrap;'>пн.&nbsp;&nbsp;</label>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainTue'>
                     <div class='chkbox_pseudo'></div>
                   </div>
                   <label for='maintainTue' style='text-wrap-mode:nowrap;'>вт.&nbsp;&nbsp;</label>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainWed'>
                     <div class='chkbox_pseudo'></div>
                   </div>
                   <label for='maintainWed' style='text-wrap-mode:nowrap;'>ср.&nbsp;&nbsp;</label>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainThu'>
                     <div class='chkbox_pseudo'></div>
                   </div>
                   <label for='maintainThu' style='text-wrap-mode:nowrap;'>чт.&nbsp;&nbsp;</label>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainFri'>
                     <div class='chkbox_pseudo'></div>
                   </div>
                   <label for='maintainFri' style='text-wrap-mode:nowrap;'>пт.&nbsp;&nbsp;</label>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainSat'>
                     <div class='chkbox_pseudo'></div>
                   </div>
                   <label for='maintainSat' style='text-wrap-mode:nowrap;'>сб.&nbsp;&nbsp;</label>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainSun'>
                     <div class='chkbox_pseudo'></div>
                   </div>
@@ -181,7 +181,7 @@
               <tr>
                 <td></td>
                 <td style='display:flex; text-align:left; align-items:center'>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='maintainRepeat'>
                     <div class='chkbox_pseudo'></div>
                   </div>
@@ -235,7 +235,7 @@
                     <div id='notifTrigger' style='display:flex; flex-direction:row'>
                       <div style='display:flex; align-items:center'>
                         <label for='enableNotifications' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                             <input type='checkbox' class='chkbox' id='enableNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -247,7 +247,7 @@
                       </div>
                       <div class='notifMB' style='display:none; align-items:center'>
                         <label for='onProcessNotifications' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                             <input type='checkbox' class='chkbox' id='onProcessNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -258,7 +258,7 @@
                     <div style='display:flex; flex-direction:column'>
                       <div class='notifMB' style='display:none; align-items:center'>
                         <label for='onErrorNotifications' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                             <input type='checkbox' class='chkbox' id='onErrorNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -267,7 +267,7 @@
                       </div>
                       <div class='notifMB' style='display:none; align-items:center'>
                         <label for='onUpdateDelayNotifications' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                             <input type='checkbox' class='chkbox' id='onUpdateDelayNotifications'>
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -287,7 +287,7 @@
                     <div style='display:flex; flex-direction: column;'>
                       <div style='display:flex'>
                         <label for='poolingWinAlive' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                             <input type='checkbox' class='chkbox' id='poolingWinAlive'>
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -296,7 +296,7 @@
                       </div>
                       <div style='display:flex'>
                         <label for='markNegative' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                           <input type='checkbox' class='chkbox' id='markNegative' >
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -307,7 +307,7 @@
                     <div style='display:flex; flex-direction: column;'>
                       <div style='display:flex'>
                         <label for='poolingLogSave' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                             <input type='checkbox' class='chkbox' id='poolingLogSave'>
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -316,7 +316,7 @@
                       </div>
                       <div style='display:flex'>
                         <label for='poolingResultSave' style='display:flex; align-items:center; margin-right:6px'>
-                          <div style='margin-right:6px'>
+                          <div style='margin-right:6px; position:relative;'>
                             <input type='checkbox' class='chkbox' id='poolingResultSave'>
                             <div class='chkbox_pseudo'></div>
                           </div>
@@ -350,7 +350,7 @@
                   <label for='sameDateRecord' style='margin-right:6px'>Удалять предыдущие запросы текущей даты за период (час)</label>
                 </td>
                 <td style='display:flex; text-align:left; align-items:center'>
-                  <div style='display:inline-flex; align-items:center'>
+                  <div style='display:inline-flex; align-items:center; position:relative;'>
                     <input type='checkbox' class='chkbox' id='sameDateRecord'>
                     <div class='chkbox_pseudo'></div>
                   </div>
@@ -484,7 +484,7 @@
                   </td>
                   <td style='text-align:left; width:-webkit-fill-available'>
                     <div style="display:flex">
-                      <div>
+                      <div style='position:relative;'>
                         <input type='checkbox' id='selectMaintain' class='chkbox' checked>
                         <div class='chkbox_pseudo'></div>
                       </div>
@@ -579,7 +579,7 @@
                 <label for='requestDelay' style='margin-right:6px; display:inline-flex; align-items:center'>
                     <img id='providerIcon' alt='icon' height='24' style='margin-right:12px'>...делать паузу (сек)</label>
                 </td>
-                <td style='display:flex; text-align:left'>
+                <td style='display:flex; text-align:left; position:relative;'>
                   <div>
                     <input type='checkbox' class='chkbox' id='requestDelay'>
                     <div class='chkbox_pseudo'></div>
@@ -591,7 +591,7 @@
                 <td style='text-align:right'>
                   <label for='onUpdateDelay' style='margin-right:6px; display:inline-flex; align-items:center'>Пауза после обновления / смены страницы провайдера (сек)</label>
                 </td>
-                <td style='display:flex; text-align:left'>
+                <td style='display:flex; text-align:left; position:relative;'>
                   <div>
                     <input type='checkbox' class='chkbox' id='onUpdateDelay'>
                     <div class='chkbox_pseudo'></div>
@@ -603,7 +603,7 @@
                 <td style='text-align:right'>
                   <label for='respondTimeout' style='margin-right:6px; display:inline-flex; align-items:center'>Ожидать от провайдера ответ на запрос не более (сек)</label>
                 </td>
-                <td style='display:flex; text-align:left'>
+                <td style='display:flex; text-align:left; position:relative;'>
                   <div>
                     <input type='checkbox' class='chkbox' id='respondTimeout'>
                     <div class='chkbox_pseudo'></div>
@@ -617,28 +617,28 @@
                 </td>
                 <td style='display:flex; text-align:left'>
                   <label for='providerInetTb' style='display:flex; align-items:center; margin-right:6px'>
-                    <div style='margin-right:6px'>
+                    <div style='margin-right:6px; position:relative;'>
                       <input type='radio' class='radiobtn' id='providerInetTb' name='providerInetUnits' value='T'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
                     <span>терабайтах</span>
                   </label>
                   <label for='providerInetGb' style='display:flex; align-items:center; margin-right:6px'>
-                    <div style='margin-right:6px'>
+                    <div style='margin-right:6px; position:relative;'>
                       <input type='radio' class='radiobtn' id='providerInetGb' name='providerInetUnits' value='G'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
                     <span>гигибайтах</span>
                   </label>
                   <label for='providerInetMb' style='display:flex; align-items:center; margin-right:6px'>
-                    <div style='margin-right:6px'>
+                    <div style='margin-right:6px; position:relative;'>
                       <input type='radio' class='radiobtn' id='providerInetMb' name='providerInetUnits' value='M'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
                     <span>мегабайтах</span>
                   </label>
                   <label for='providerInetAuto' style='display:flex; align-items:center; margin-right:6px'>
-                    <div style='margin-right:6px'>
+                    <div style='margin-right:6px; position:relative;'>
                       <input type='radio' class='radiobtn' id='providerInetAuto' name='providerInetUnits' value='A'>
                       <div class='radiobtn_pseudo'></div>
                     </div>
@@ -650,7 +650,7 @@
                 <td style='text-align:right'>
                   <label for='providerIgnoreFractional' style='margin-right:6px'>Отбрасывать дробную часть баланса при оценке его изменения</label>
                 </td>
-                <td style='display:flex; align-items:center; justify-content:space-between;'>
+                <td style='display:flex; align-items:center; justify-content:space-between; position:relative;'>
                   <div>
                     <input type='checkbox' class='chkbox' id='providerIgnoreFractional'>
                     <div class='chkbox_pseudo'></div>
@@ -658,7 +658,7 @@
                   <div>
                   <div>
                     <label for="providerClearCookies" style="display:flex; align-items:center; margin-right:12px; margin-bottom:2px">
-                      <div>
+                      <div style='position:relative;'>
                         <input type="checkbox" class="chkbox" id="providerClearCookies">
                         <div class="chkbox_pseudo"></div>
                       </div>
@@ -667,7 +667,7 @@
                   </div>
                   <div>
                     <label for="providerBypassCache" style="display:flex; align-items:center; margin-right:12px; margin-top:2px">
-                      <div>
+                      <div style='position:relative;'>
                         <input type="checkbox" class="chkbox" id="providerBypassCache">
                         <div class="chkbox_pseudo"></div>
                       </div>

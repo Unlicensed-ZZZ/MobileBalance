@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Каскадные стили для страницы настроек (поля ввода и переключатели) расширения MobileBalance
- * Редакция:  2025.10.24
+ * Редакция:  2025.10.27
  *
 */
 
@@ -40,7 +40,15 @@ input[type='time'][disabled], select[disabled] {
 
 
 /* Переключатель типа CheckBox */
-/* Его вместе с парным псевдо-переключателем следует поместить в div. Label позиции - вне этого div-а */
+/* Его вместе с парным псевдо-переключателем следует поместить в div-обёртку
+   Первым - переключатель с .chkbox, следом div с псевдо-переключателем
+   div-обёртка должен иметь position: relative. Label позиции - вне div-обёртки
+   Пример: <label for='doSomething'>Название переключателя</label>
+           <div style='position:relative;'> // div-обёртка
+              <input type='checkbox' class='chkbox' id='doSomething'>
+              <div class='chkbox_pseudo'></div>
+           </div>
+*/
 .chkbox {
   position: absolute;
   z-index: 10;             /* Переключатель - в слое более высоком, чем другие (включая модальные окна) */
@@ -114,7 +122,18 @@ input[type='time'][disabled], select[disabled] {
 
 
 /* Переключатель типа RadioButton */
-/* Его вместе с парным псевдо-переключателем следует поместить в div. Label позиции - следом за этим div-ом */
+/* Его вместе с парным псевдо-переключателем следует поместить в div-обёртку
+   Первым - переключатель с .chkbox, следом div с псевдо-переключателем
+   div-обёртка должен иметь position: relative.
+   Label позиции - вне div-обёртки иои она внутри label.
+   Пример: <label for='doSomething'>
+              <div style='position:relative;'>
+                 <input type='radio' class='radiobtn' id='doSomething' value='value'>
+                 <div class='radiobtn_pseudo'></div>
+              </div>
+              <span>Название переключателя</span>
+           </label>
+*/
 .radiobtn {
   position: absolute;
   z-index: 10;                /* Переключатель - в слое более высоком, чем другие (включая модальные окна) */
