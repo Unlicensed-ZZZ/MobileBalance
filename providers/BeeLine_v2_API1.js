@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2025.08.07
+ * Редакция:  2025.10.28
  *
 */
 
@@ -123,13 +123,17 @@ async function authInput( login, passw ) {
 }
 
 
-function initLogout() {
-//       ----------
+async function initLogout() {
+//             ----------
   // Завершаем текущий сеанс, страницу на следующем шаге перезагрузит расширение
   if ( window.location.pathname.includes( 'customers/products' ) ) { // Выход из старого и нового (с 26.09.2022) личных кабинетов
     // Определяем в меню кнопку пункта выхода из личного кабинета
     let menuItems = Array.from( document.getElementsByTagName( 'button' ) );
-    let exitButton = menuItems.find( (item) => { return (item.innerText.toUpperCase() === 'ВЫЙТИ') });
+    let exitButton = menuItems.find( (item) => { return ( item.classList.contains( 'login-button' ) === true ) });
+    exitButton.click(); // 'Нажимаем' на кнопку вывода формы меню профиля
+    await sleep( 200 ); // Пауза, чтобы успела сформироваться форма меню профиля
+    menuItems = Array.from( document.getElementsByTagName( 'button' ) );
+    exitButton = menuItems.find( (item) => { return (item.innerText.toUpperCase() === 'ВЫЙТИ') });
     // Передаём результаты опроса расширению
     chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
                                                  status: requestStatus, error: requestError,

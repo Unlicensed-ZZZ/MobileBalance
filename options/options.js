@@ -630,11 +630,11 @@ optionsPage.addEventListener( 'click', async function( evnt ) {
       break; }
     case 'optionsSave': { // Сохранить основные параметры из local storage в файл
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      chrome.storage.local.get( [ 'popupShortInfo', 'cycleOrder', 'deleteSameDateRecord', 'deleteSameDateRecordTime',
-                                  'maintainPooling', 'maintainStartTime', 'maintainDays', 'maintainRepeat', 'maintainRepeatTime',
+      chrome.storage.local.get( [ 'popupShortInfo', 'historyShowMaintained', 'cycleOrder',
+                                  'maintainPooling', 'maintainStartTime', 'maintainDays', 'maintainRepeat', 'maintainRepeatTime', 'repeatAttempts', 
                                   'notificationsEnable', 'notificationsOnError', 'notificationsOnProcess', 'notificationsOnUpdateDelay',
-                                  'poolingWinAlive', 'markNegative', 'poolingLogSave', 'poolingResultSave', 'repeatAttempts',
-                                  'historyShowMaintained' ] )
+                                  'poolingWinAlive', 'markNegative', 'poolingLogSave', 'poolingResultSave', 
+                                  'deleteSameDateRecord', 'deleteSameDateRecordTime' ] )
       .then( function( fromStorage ) {
         let blob = new Blob( [ JSON.stringify( fromStorage, null, 2 ) ], { type: 'text/json', endings: 'native' } );
         let link = document.createElement( 'a' );
@@ -994,13 +994,12 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
     case 'cycleOrder_sequence': // Порядок опроса
     case 'cycleOrder_parallel': {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      cycleOrder = document.querySelector( `[name='cycleOrder']:checked` ).value;
-      chrome.storage.local.set( { cycleOrder: cycleOrder } );
+      chrome.storage.local.set( { cycleOrder: cycleOrder =
+                                  document.querySelector( `[name='cycleOrder']:checked` ).value } );
       break; }
     case 'maintainPooling': { // Разрешить / запретить опрос по расписанию
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      mntnPooling = maintainPooling.checked;
-      chrome.storage.local.set( { maintainPooling: mntnPooling } )
+      chrome.storage.local.set( { maintainPooling: mntnPooling = maintainPooling.checked } )
       .then( async function() {
         chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
       });
@@ -1015,8 +1014,7 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
       break; }
     case 'maintainStartTime': { // Время начала опроса по расписанию
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      mntnStartTime = maintainStartTime.value;
-      chrome.storage.local.set( { maintainStartTime: mntnStartTime } )
+      chrome.storage.local.set( { maintainStartTime: mntnStartTime = maintainStartTime.value } )
       .then( async function() {
         chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
       });
@@ -1043,12 +1041,11 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
       break; }
     case 'maintainRepeat': { // Разрешить / запретить повторные запросы до конца суток
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      mntnRepeat = maintainRepeat.checked;
-      chrome.storage.local.set( { maintainRepeat: mntnRepeat } )
+      chrome.storage.local.set( { maintainRepeat: mntnRepeat = maintainRepeat.checked } )
       .then( async function() {
         chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
       });
-      maintainRepeatTime.disabled = ( mntnRepeat ) ? false : true;
+      maintainRepeatTime.disabled = ( mntnRepeat === true ) ? false : true;
       break; }
     case 'maintainRepeatTime': { // Время до старта повторного опроса (от времени опроса по расписанию 'maintainStartTime')
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
@@ -1064,8 +1061,8 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
         break;
       }
       else {
-        mntnRepeatTime = ( maintainRepeatTime.value === '' ) ? '' : maintainRepeatTime.value;
-        chrome.storage.local.set( { maintainRepeatTime: mntnRepeatTime } )
+        chrome.storage.local.set( { maintainRepeatTime: mntnRepeatTime =
+                                    ( maintainRepeatTime.value === '' ) ? '' : maintainRepeatTime.value } )
         .then( async function() {
           chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
         });
@@ -1085,15 +1082,14 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
         break;
       }
       else {
-        rptAttempts = ( repeatAttempts.value === '' ) ? '' : parseInt( repeatAttempts.value );
-        chrome.storage.local.set( { repeatAttempts: rptAttempts } );
+        chrome.storage.local.set( { repeatAttempts: rptAttempts =
+                                    ( repeatAttempts.value === '' ) ? '' : parseInt( repeatAttempts.value ) } );
       }
       break; }
     case 'enableNotifications': { // Разрешить оповещения от расширения
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       if ( notifPermission === 'granted' ) {
-        ntfEnable = enableNotifications.checked;
-        chrome.storage.local.set( { notificationsEnable: ntfEnable } );
+        chrome.storage.local.set( { notificationsEnable: ntfEnable = enableNotifications.checked } );
         if ( ntfEnable === false )
           onErrorNotifications.disabled = onProcessNotifications.disabled = onUpdateDelayNotifications.disabled = true
         else
@@ -1103,49 +1099,41 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
     case 'onErrorNotifications': { // Разрешить оповещения при ошибках запросов
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       if (notifPermission === 'granted') {
-        ntfOnError = onErrorNotifications.checked;
-        chrome.storage.local.set( { notificationsOnError: ntfOnError } );
+        chrome.storage.local.set( { notificationsOnError: ntfOnError = onErrorNotifications.checked } );
       }
       break; }
     case 'onProcessNotifications': { // Разрешить оповещения при начале-завершении опроса
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       if (notifPermission === 'granted') {
-        ntfOnProcess = onProcessNotifications.checked;
-        chrome.storage.local.set( { notificationsOnProcess: ntfOnProcess } );
+        chrome.storage.local.set( { notificationsOnProcess: ntfOnProcess = onProcessNotifications.checked } );
       }
       break; }
     case 'onUpdateDelayNotifications': { // Разрешить оповещения при отсутствии изменений баланса
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      if (notifPermission === 'granted') {
-        ntfOnUpdateDelay = onUpdateDelayNotifications.checked;
-        chrome.storage.local.set( { notificationsOnUpdateDelay: ntfOnUpdateDelay } );
+      if ( notifPermission === 'granted' ) {
+        chrome.storage.local.set( { notificationsOnUpdateDelay: ntfOnUpdateDelay = onUpdateDelayNotifications.checked } );
       }
       break; }
     case 'poolingWinAlive': { // Оставлять окно результатов после опроса открытым
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      poolWinAlive = poolingWinAlive.checked;
-      chrome.storage.local.set( { poolingWinAlive: poolWinAlive } );
+      chrome.storage.local.set( { poolingWinAlive: poolWinAlive = poolingWinAlive.checked } );
       break; }
     case 'markNegative': {    // Выделять отрицательное значение баланса цыетом
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      paintNegative = markNegative.checked;
-      chrome.storage.local.set( { markNegative: paintNegative } );
+      chrome.storage.local.set( { markNegative: paintNegative = markNegative.checked } );
       break; }
     case 'poolingLogSave': {  // Сохранять лог после закрытия окна опроса
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      poolLog = poolingLogSave.checked;
-      chrome.storage.local.set( { poolingLogSave: poolLog } );
+      chrome.storage.local.set( { poolingLogSave: poolLog = poolingLogSave.checked } );
       break; }
     case 'poolingResultSave': { // Сохранять результаты опроса после закрытия окна опроса
       evnt.stopPropagation();   // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      poolResult = poolingResultSave.checked;
-      chrome.storage.local.set( { poolingResultSave: poolResult } );
+      chrome.storage.local.set( { poolingResultSave: poolResult = poolingResultSave.checked } );
       break; }
     case 'sameDateRecord': {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      delSameDateRecord = sameDateRecord.checked;
-      chrome.storage.local.set( { deleteSameDateRecord: delSameDateRecord } );
-      sameDateRecordTime.disabled = ( delSameDateRecord ) ? false : true;
+      chrome.storage.local.set( { deleteSameDateRecord: delSameDateRecord = sameDateRecord.checked } );
+      sameDateRecordTime.disabled = ( delSameDateRecord === true ) ? false : true;
       break; }
     case 'sameDateRecordTime': {
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
@@ -1161,8 +1149,8 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
         break;
       }
       else {
-        delSameDateRecordTime = ( sameDateRecordTime.value === '' ) ? '' : sameDateRecordTime.value;
-        chrome.storage.local.set( { deleteSameDateRecordTime: delSameDateRecordTime } );
+        chrome.storage.local.set( { deleteSameDateRecordTime: delSameDateRecordTime =
+                                    ( sameDateRecordTime.value === '' ) ? '' : sameDateRecordTime.value } );
       }
       break; }
   } /* switch */
