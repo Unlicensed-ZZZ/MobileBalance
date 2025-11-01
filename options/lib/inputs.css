@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Каскадные стили для страницы настроек (поля ввода и переключатели) расширения MobileBalance
- * Редакция:  2025.10.27
+ * Редакция:  2025.10.30
  *
 */
 
@@ -12,6 +12,11 @@ label {
   margin: 6px;
   color: #333333; /* Цвет - 'Olive Drab' rgb(51,51,51) #333333 */
   cursor: pointer;
+}
+
+/* Надписи к полям ввода и выбору из списка при их недоступности (disabled) */
+label:has( input:disabled ) {
+  cursor: default;
 }
 
 /* Поля ввода и выбора из списка */
@@ -192,7 +197,7 @@ input[type='time'][disabled], select[disabled] {
 
 /* Переключатель при недоступности (disabled) */
 .radiobtn:disabled {
-  cursor: initial;
+  cursor: default;
 }
 
 /* Фон псевдо-переключателя при недоступности (disabled) */

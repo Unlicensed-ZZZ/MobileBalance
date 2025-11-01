@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.10.27
+ * Редакция:  2025.10.31
  *
 */
 
@@ -25,7 +25,7 @@ const dayNames = { 0: 'вс.', 1: 'пн.', 2: 'вт.', 3: 'ср.', 4: 'чт.', 5
 let fileClamedBy = ''; // Идентификатор кнопки, которой инициирована функция загрузки файла
 // Блок переменных по разрешениям показа уведомлений (оповещений)
 let notifPermission = 'denied';
-chrome.notifications.getPermissionLevel( level => { notifPermission = level } );
+chrome.notifications.getPermissionLevel( function( level ) { notifPermission = level } );
 let ntfEnable = false, ntfOnError = false, ntfOnProcess = false, ntfOnUpdateDelay = false;
 
 
@@ -239,37 +239,23 @@ async function drawOptions() {
   }
   else
     disableSchedule();
-
   repeatAttempts.value = rptAttempts;
-  // Блок переключателей по уведомлениям (оповещениям)
-  if (notifPermission === 'granted') {
-    notifTrigger.style.flexDirection = 'column';
+  // Блок переключателей по уведомлениям (оповещениям). Если у расширения разрешения на показ уведомлений...
+  if ( notifPermission === 'granted' ) {          // ... есть, то показываем их настройки и скрываем предупреждение
     notifDisabled.style.display = 'none';
-    document.querySelectorAll( '.notifMB' ).forEach( function (item) {
-      item.style.display = 'flex';
-    });
+    document.querySelectorAll( '.notifOption' )   // Элементы настроек определяем по классу 'notifOption'
+      .forEach( function( item ) { item.style.display = '' } );
     enableNotifications.checked = ntfEnable;
-    if ( !ntfEnable ) {
-      onErrorNotifications.disabled = onProcessNotifications.disabled = onUpdateDelayNotifications.disabled = true;
-      onErrorNotifications.checked = onProcessNotifications.checked = onUpdateDelayNotifications.checked = false;
-    }
-    else {
-      onErrorNotifications.disabled = onProcessNotifications.disabled = onUpdateDelayNotifications.disabled = false;
-      onErrorNotifications.checked = ntfOnError;
-      onProcessNotifications.checked = ntfOnProcess;
-      onUpdateDelayNotifications.checked = ntfOnUpdateDelay;
-    }
+    onErrorNotifications.checked = ntfOnError;
+    onProcessNotifications.checked = ntfOnProcess;
+    onUpdateDelayNotifications.checked = ntfOnUpdateDelay;
+    onErrorNotifications.disabled = onProcessNotifications.disabled =
+      onUpdateDelayNotifications.disabled = ( ntfEnable === true ) ? false : true;
   }
-  else {
-    notifTrigger.style.flexDirection = 'row';
-    notifDisabled.style.display = 'inline-flex';
-    document.querySelectorAll( '.notifMB' ).forEach( function (item) {
-      item.style.display = 'none';
-    });
-    enableNotifications.disabled = onErrorNotifications.disabled =
-      onProcessNotifications.disabled = onUpdateDelayNotifications.disabled = true;
-    enableNotifications.checked = onErrorNotifications.checked =
-      onProcessNotifications.checked = onUpdateDelayNotifications.checked = false;
+  else {                                          // ... нет, то скрываем их настройки и показываем предупреждение
+    notifDisabled.style.display = '';
+    document.querySelectorAll( '.notifOption' )   // Элементы настроек определяем по классу 'notifOption'
+      .forEach( function( item ) { item.style.display = 'none' } );
   }
   poolingWinAlive.checked = ( poolWinAlive ) ? true : false;
   markNegative.checked = ( paintNegative ) ? true : false;
