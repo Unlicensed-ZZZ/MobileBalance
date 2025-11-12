@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MobileBalance",
   "description": "Получение данных баланса у провайдера",
-  "version": "1.0.88",
+  "version": "1.0.89",
   "author": "ZZZ (aka Unlicensed)",
   "action": {
     "default_icon": {
@@ -31,11 +31,11 @@
   "externally_connectable": {
     "ids": [ "*" ]
   },
-  "host_permissions": [ "https://*/*" ],
+  "host_permissions": [ "*://*/*" ],
   "options_ui": {
     "page": "./options/options.html",
     "open_in_tab": true
   },
-  "permissions": [ "alarms", "background", "scripting", "storage",
-                   "notifications", "tabs", "webNavigation" ]
+  "permissions": [ "alarms", "background", "cookies", "scripting",
+                   "storage", "notifications", "tabs", "webNavigation" ]
 }

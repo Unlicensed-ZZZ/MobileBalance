@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2025.10.20
+ * Редакция:  2025.11.11
  *
 */
 
@@ -152,36 +152,54 @@ function providerOpenSite ( event ) {
   let startUrlBypassCache = event.currentTarget.dataset.startUrlBypassCache === '1';
   let startUrlClearCookies = event.currentTarget.dataset.startUrlClearCookies === '1';
 
-  chrome.tabs.create( { active: false } )                                   // Создаём новую вкладку
+  chrome.tabs.create( { active: false } )                                               // Создаём новую неактивную вкладку
   .then( function( response ) {
-    tabId =    response.id;                                                 // Открываем на созданной вкладке сайт провайдера
+    tabId =    response.id;                                                             // Открываем на созданной вкладке сайт провайдера
     tabIndex = response.index;
     winId =    response.windowId;
     chrome.tabs.update( tabId, { url: startUrl, autoDiscardable: false } )
     .then( async function ( response ) {
-      await importAwait();                                                  // Ожидание завершения импорта значений и функций из модуля
+      await importAwait();                                                              // Ожидание завершения импорта значений и функций из модуля
       if ( startUrlClearCookies || startUrlBypassCache ) {
-        let resp = undefined;
+        let pageResponse = undefined;
         do { // Ждём завершения загрузки страницы
-          await sleep( 200 );                                               // Пауза для завершения загрузки страницы
-          resp = await chrome.tabs.get( tabId );                            // Получаем параметры вкладки,
-        } while ( resp !== undefined && resp.status !== 'complete' );       //   контролируем в них статаус загрузки страницы
+          await sleep ( 200 );                                                          // Пауза для завершения загрузки страницы
+          pageResponse = await chrome.tabs.get( tabId );                                // Получаем параметры вкладки,
+        } while ( pageResponse !== undefined && pageResponse.status !== 'complete' );   //   контролируем в них статаус загрузки страницы
+
         // Если для провайдера запрошено удаление cookies со страницы авторизации, то инициируем их очистку
         if ( startUrlClearCookies ) {
-          await chrome.scripting.executeScript( { target: { tabId: tabId }, files: [ `./content/lib/clearCookies.js` ] } );
-          await sleep( 300 );                                               // Пауза для завершения загрузки и выполнения скрипта
+          if ( pageResponse.url !== '' ) {  // Получаем из параметров вкладки актуальный URL (после перехода на StartURL могли быть перенаправления)
+            let domainStr = ( new URL( pageResponse.url ) ).hostname.split( '.' );
+            domainStr = domainStr[ domainStr.length - 2 ] + '.' + domainStr[ domainStr.length - 1 ]; // Выделяем из URL только домен первого уровня
+            // Получаем для выявленного домена все cookie в браузере
+            await chrome.cookies.getAll( { domain: domainStr } )
+            .then( async function( cookieArr ) {
+              if ( cookieArr.length > 0 ) { // Если cookie для выявленного домена в браузере найдены, то удаляем их
+                for ( let i = cookieArr.length - 1; i >= 0; --i ) {
+                  await chrome.cookies.remove( { name: cookieArr[ i ].name,
+                                                 url: `http${( cookieArr[ i ].secure ? 's' : '' )}://` +
+                                                      `${cookieArr[ i ].domain}${cookieArr[ i ].path}` } )
+                  .catch( function( err ) {} ); // Ошибки подавляем
+                }
+              }
+            })
+            .catch( function( err ) {} ); // Ошибки подавляем
+          }
         }
-        // Если для провайдера запрошено обновление страницы с сервера (сброс кэша), то выполняем обновление страницы с сервера (bypassCache=true)
-        if ( startUrlBypassCache ) { // Обновление с параметром 'bypassCache' = 'true' должно инициировать загрузку страницы с сервера (как нажатие Ctrl+F5)
-          await chrome.tabs.reload( tabId, { bypassCache: true } );
-          await sleep( 200 );                                               // Пауза для завершения загрузки страницы
-        }
+        // Если выполнялось удаление cookies для провайдера, то обновление страницы уже завершено и нужно обновить её повторно. Но если запрошено и
+        //  обновление страницы с сервера, то она будет обновлена при обработке этого параметра
+
+        // Если для провайдера запрошено обновление страницы с сервера, то выполняем его с параметром 'bypassCache: true' (аналог нажатия Ctrl+F5)
+        if ( startUrlBypassCache )
+          await chrome.tabs.reload( tabId, { bypassCache: true } )
+        else  // Повторное обновление страницы после удаления cookies для провайдера
+          await chrome.tabs.update( tabId, { url: startUrl, autoDiscardable: false } )
       }
-      return chrome.tabs.highlight( { windowId: winId, tabs: tabIndex } );  // Переходим на вкладку с сайтом провайдера
+      return chrome.tabs.highlight( { windowId: winId, tabs: tabIndex } );  // Переходим на созданную вкладку с сайтом провайдера
       self.close();                                                         // popup-окно закрываем
-    }, 
-    () => { if ( chrome.runtime.lastError ) console.log( '[MB] Error occured: ' + chrome.runtime.lastError ) }
-    )
+    })
+    .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) });
   })
 };
 
