@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2025.08.17
+ * Редакция:  2025.11.14
  *
 */
 
@@ -32,7 +32,7 @@ chrome.runtime.onMessage.addListener( async ( request, sender, sendResponse ) =>
         case 'log&pass': {
           // Проверяем состояние сессии - авторизованы ли мы в личном кабинете с какими-то учётными данными или нет
           fetch( apiUrl + '/api/auth/sessionCheck',
-                 { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' }
+                 { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' }
           })
           .then( function( response ) {
             response.json()
@@ -112,7 +112,7 @@ async function initLogout() {
 
   // Инициируем завершение сеанса работы с личным кабинетом
   fetch( window.location.origin + '/api/logout',
-    { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' }
+    { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' }
     // Расширение дополнительно выполнит переход на страницу входа переходом по 'finishUrl' = 'https://lk.megafon.ru' 
   })
   .finally( function( result ) {
@@ -132,7 +132,7 @@ async function authInput( login, passw ) {
 //             -------------------------
   fetch( apiUrl + '/api/login',
     { method: 'POST', mode: 'cors', credentials: 'include', body: `login=7${login}&password=${passw}&incognitoFlag=true`,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-App-Type': 'react_lk' }
     })
   .then( function( response ) {
     response.json()
@@ -165,7 +165,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем значение текущего баланса, кредитного лимита
     response = await fetch( apiUrl + '/api/main/balance',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       MBResult = { Balance: parseFloat( jsonResult.balance.toFixed(2) ) }; // Создаём 1-ое значение объекта ответа
@@ -186,7 +186,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем ФИО владельца, номер лицевого счёта
     response = await fetch( apiUrl + '/api/profile/info',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       MBResult.UserName = jsonResult.oApiName; // ФИО владельца
@@ -205,7 +205,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем состав услуг ( формат: 'бесплатные' / 'платные' ), собираем стоимость услуг для платных
     response = await fetch( apiUrl + '/api/services/currentServices/list',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.free !== undefined )
@@ -230,7 +230,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем наименование тарифа, дату следующего платежа и сумму по тарифу (если они есть)
     response = await fetch( apiUrl + '/api/tariff/2019-3/current',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       MBResult.TarifPlan = jsonResult.name; // Наименование тарифа
@@ -263,7 +263,7 @@ async function getData() {
   if ( payment === null ) { // Если в данных о тарифе не было суммы следующего платежа, то пробуем собрать её из данных о расходах
     for ( i = 1; i <= maxRetries; ++i ) {
       response = await fetch( apiUrl + '/api/reports/expenses',
-                              { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                              { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
       if ( response.ok && ( response.status === 200 ) ) {
         jsonResult = await response.json();
         if ( jsonResult.expenseGroups !== undefined ) {                 // Если в ответе есть раздел 'expenseGroups', то собираем из его объектов ...
@@ -290,7 +290,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем остатки пакетов
     response = await fetch( apiUrl + '/api/options/v2/remainders/mini',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       // Получаем остаток пакета голосовых минут (если есть в составе тарифа)
@@ -350,7 +350,7 @@ async function getData() {
   // Если ранее не была принята дата следующего платежа и есть остаток пакета голосовых минут, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.Minutes )) {
     response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=VOICE',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
@@ -364,7 +364,7 @@ async function getData() {
   // Если ранее не была принята дата следующего платежа и есть остаток пакета сообщений, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.SMS )) {
     response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=MESSAGE',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
@@ -378,7 +378,7 @@ async function getData() {
   // Если ранее не была принята дата следующего платежа и есть остаток пакета интернета, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.Internet )) {
     response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=INTERNET',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk', 'X-Cabinet-Capabilities': 'web-2020' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,

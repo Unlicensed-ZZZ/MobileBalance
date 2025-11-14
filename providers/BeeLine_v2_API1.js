@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2025.10.28
+ * Редакция:  2025.11.14
  *
 */
 
@@ -131,9 +131,11 @@ async function initLogout() {
     let menuItems = Array.from( document.getElementsByTagName( 'button' ) );
     let exitButton = menuItems.find( (item) => { return ( item.classList.contains( 'login-button' ) === true ) });
     exitButton.click(); // 'Нажимаем' на кнопку вывода формы меню профиля
-    await sleep( 200 ); // Пауза, чтобы успела сформироваться форма меню профиля
-    menuItems = Array.from( document.getElementsByTagName( 'button' ) );
-    exitButton = menuItems.find( (item) => { return (item.innerText.toUpperCase() === 'ВЫЙТИ') });
+    do { // Ждём завершения формирования формы меню профиля с кнопкой выхода
+      await sleep( 100 ); // Пауза, чтобы успела сформироваться форма меню профиля
+      menuItems = Array.from( document.getElementsByTagName( 'button' ) );
+      exitButton = menuItems.find( (item) => { return (item.innerText.toUpperCase() === 'ВЫЙТИ') });
+    } while( exitButton === undefined );
     // Передаём результаты опроса расширению
     chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
                                                  status: requestStatus, error: requestError,
