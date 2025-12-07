@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Yota через API
- * Редакция:  2025.08.05
+ * Редакция:  2025.12.07
  *
 */
 
@@ -12,6 +12,7 @@ let requestStatus = true;
 let requestError = '';
 let MBResult = undefined;
 let MBLogin = undefined;
+let inputToken = undefined;
 let currentToken = { renew: false }; // Для обновления токена через ответ раширению в 'detail'. По умолчанию его обновлять не нужно.
 
 chrome.runtime.onMessage.addListener( async function( request, sender, sendResponse ) {
@@ -21,6 +22,10 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       if ( sendResponse ) sendResponse( 'done' );  // Ответ в окно опроса для поддержания канала связи
       MBextentionId = sender.id;
       MBLogin = request.login;
+      if ( ( request.detail !== undefined ) &&        // Если в дополнительных параметрах передан ранее сохранённый токен ...
+           ( request.detail.token !== undefined ) &&  // ... и он имеет значение (не пустая строка) ...
+           ( request.detail.token !== '' ) )          // ... принимаем его для попытки авторизации
+        inputToken = request.detail.token;
       switch ( request.action ) {
         case 'log&pass': {
           //  При входе на 'web.yota.ru' при отсутствии авторизации попадаем на страницу '/login', при активной авторизации - на страницу '/profile'.
@@ -47,11 +52,9 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
             }
             else { // Активной авторизации нет
               if ( window.location.pathname === '/login' ) {                                      // Должны находиться на странице '/login'
-                if ( ( request.detail !== undefined ) &&                                          // Если в дополнительных параметрах передан ранее сохранённый токен ...
-                     ( request.detail.token !== undefined ) &&                                    // ... и он имеет значение (не пустая строка), то вносим его в cookie, ...
-                     ( request.detail.token !== '' ) ) {                                          // ... восстанавливая сессию, ранее открытую для учётных данных
+                if ( inputToken !== undefined ) {                                                 // Если передан ранее сохранённый токен, то ...
                   console.log( `[MB] Attempting to authorize as '${MBLogin}' ...` );
-                  await cookieStore.set( { 'name': 'token', 'value': request.detail.token, path: '/' } );
+                  await cookieStore.set( { 'name': 'token', 'value': inputToken, path: '/' } );   // ... записываем его в cookie (восстанавливаем сессию)
                   window.location.replace( window.location.origin + '/profile' );                 // Переходим на страницу личного кабинета, этот экземпляр скрипта будет утрачен
                   return;
                 }
@@ -105,8 +108,16 @@ function sleep( ms ) {
 
 async function initLogout() {
 //       ----------
-  // Закрываем текущую сессию удалением токена в cookie (если он был)
-  await cookieStore.delete( { name: 'token', path: '/' } );
+  let Tkn = await cookieStore.get( 'token' );                     // Получаем токен (на случай, если он изменился в ходе запроса)
+  if ( Tkn !== null ) {                                           // Токен есть (авторизация активна)
+    if ( Tkn.value !== inputToken ) {                             // Токен изменился (или был получен в ходе запроса)
+      currentToken.renew = true;                                  // Нужно записать / обновить его значение в учётных данных
+      currentToken.token = Tkn.value;
+    }
+    await cookieStore.delete( { name: 'token', path: '/' } );     // Закрываем текущую сессию удалением токена в cookie (если он был)
+  }
+  else
+    currentToken.renew = true;                                    // Токена нет, нужно удалить его неактуальное значение в учётных данных
   // Передаём результаты зароса расширению
   chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError,
                                                data: (MBResult === undefined) ? undefined : MBResult,
@@ -117,24 +128,13 @@ async function initLogout() {
 
 async function getData() {
 //             ---------
-  let Tkn = await cookieStore.get( 'token' );
   // Проверяем, находимся ли странице личного кабинета 'web.yota.ru/profile' (прошла ли авторизация)
-  if ( !window.location.href.includes( '/profile' ) ) {   // Если не попали на 'web.yota.ru/profile' ...
-    if ( Tkn === null ) {                                 // ... то если токена нет, то скорее всего предложенный сохранённый токен отвергнут и запрашивается авторизация
-      fetchError( `Authorization needed or server not responding` );
-      // Токена нет, запрос обновления должен удалить в учётных данных неактуальное значение
-    }
-    else {  // Если токен есть, то это нештатная ситуация, то токен попробуем сохранить и использовать в следующем запросе по этим учётным данным
-      fetchError( `Account page error or server not responding` );
-      currentToken.token = Tkn.value;
-      // Запрос должен записать / обновить в учётных данных значение токена
-    }
-    currentToken.renew = true; // Токена нет, запрос обновления должен удалить в учётных данных неактуальное значение
-    initLogout(); // Выходим из личного кабинета
+  if ( !window.location.href.includes( '/profile' ) ) {   // Если авторизации нет, то заканчиваем запрос
+    fetchError( ( ( (await cookieStore.get( 'token' )) === null ) ? 'Authorization needed' : 'Account page error' ) +
+                                                                  ' or server not responding' );
+    initLogout();
     return;
   }
-  else
-    Tkn = Tkn.value;
   let siteId = undefined;
   let freeCounter = 0, paidCounter = 0, paidAmmount = 0;
   // Получаем базовый URL для API-запросов
@@ -249,9 +249,6 @@ async function getData() {
               // Формируем строку в формате: 'бесплатные' / 'платные' / (сумма по платным)
               MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;
 
-              // Подготавливаем к передаче расширению значение токене для сохранения (сессия для текущих учётных данных)
-              currentToken.renew = true; // Запрос должен записать / обновить в учётных данных значение токена
-              currentToken.token = ( await cookieStore.get( 'token' ) ).value;
               initLogout(); // Выходим из личного кабинета. Страницу на следующем шаге перезагрузит расширение
 
             })
