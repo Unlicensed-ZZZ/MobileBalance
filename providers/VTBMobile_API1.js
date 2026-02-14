@@ -2,7 +2,7 @@
  * ----------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для 'ВТБ Мобайл' через API
- * Редакция:  2025.07.05
+ * Редакция:  2026.01.29
 */
 
 let MBextentionId = undefined;
@@ -194,10 +194,11 @@ async function getData( login ) {
               console.log( `[MB] Response for '/api/v1/personal/get-next-purchase-date/' API: ${JSON.stringify( response )}` );
               // Получаем стоимость тарифа и дату следующего платежа в формате 'DD.MM.YYYY'
               if ( response.monthlyPrice !== undefined )
-                paidAmmount += parseFloat( response.monthlyPrice.replaceAll( ',', '.' ) ).toFixed(2);
-              if ( response.nextPurchaseDate !== undefined )
+                paidAmmount = paidAmmount + parseFloat( response.monthlyPrice.replaceAll( ',', '.' ) );
+              if ( ( response.nextPurchaseDate !== undefined ) && ( response.nextPurchaseDate !== null ) ) {
                 tmp = response.nextPurchaseDate.split( 'T' )[ 0 ].split( '-' );
                 MBResult.TurnOffStr = `${tmp[ 2 ]}.${tmp[ 1 ]}.${tmp[ 0 ]}`;
+              }
 
               fetch( window.location.origin + `/api/v1/lists/get-product-by-ext-key/?ext_key=${subscriberExt_key}`,
                      { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'Content-Type': 'application/json' }
@@ -216,7 +217,7 @@ async function getData( login ) {
                   // Ждём тариф, у которого они будут подключены. Выясним структуру ответа по ним и выведем в строке услуг
                   // paidCounter = ???
                   // Формируем строку услуг
-                  MBResult.UslugiOn = `${freeCounter} / ??? (${paidAmmount})`;
+                  MBResult.UslugiOn = `${freeCounter} / ??? (${paidAmmount.toFixed(2)})`;
 
 
                   initLogout();

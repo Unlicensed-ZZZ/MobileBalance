@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2025.10.31
+ * Редакция:  2026.02.14
  *
 */
 
@@ -890,21 +890,21 @@ providersPage.addEventListener( 'click', async function( evnt ) {
 // Обработка нажатия кнопок управления по onclick на Div-"вкладке" сведений о расширении
 aboutPage.addEventListener( 'click', async function( evnt ) {
 //        -----------------
-  switch (evnt.target.id) {
+  switch( evnt.target.id ) {
     case 'changeLogNote': { // История изменений расширения из файла MB_ChangeLog.txt
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      if (changeLogText.classList.contains( 'expanded' )) {
+      if ( changeLogText.classList.contains( 'expanded' ) ) {
         changeLogText.classList.toggle( 'expanded' );
         changeLogText.style.height = 0;
       }
       else {
-        if (!changeLogText.classList.contains( 'textLoaded' )) {
+        if ( !changeLogText.classList.contains( 'textLoaded' ) ) {
           try { // Если файл ещё не считывали - делаем это
             changeLogText.textContent = await ( await fetch( `\\MB_ChangeLog.txt` ) ).text();
             changeLogText.classList.toggle( 'textLoaded' );
           }
           catch(err) {
-            console.log(`[MB] ${err}`);
+            console.log( `[MB] ${err}` );
           }
         }
         changeLogText.style.height = '36vh';
@@ -1150,7 +1150,12 @@ providersPage.addEventListener( 'change', async function( evnt ) {
   switch ( evnt.target.id ) {
     case 'chooseProvider': { // Выбор набора параметров провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
-      drawProvider();
+      if ( providerInfo.classList.contains( 'expanded' ) )
+        providerInfo.classList.toggle( 'expanded' );  // Скрываем элемент описания провайдера, если он отображается
+      providerInfo.style.height = 0;                  // Сбрасываем значение высоты элемента
+      drawProvider();                                 // Проставляем значения настроек провайдера
+      providerInfo.style.height = `auto`;             // Устанавливаем высоту по новому контенту элемента
+      providerInfo.classList.toggle( 'expanded' );    // Отображаем элемент описания провайдера
       break; }
     case 'requestDelay': { // Включение задержки между опросами по номерам провайдера
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше

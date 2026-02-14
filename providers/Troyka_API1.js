@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для кошелька карты 'Тройка' в 'mosmetro.ru' через API
  *            Логин - номер карты, пароль не используется
- * Редакция:  2025.08.07
+ * Редакция:  2026.01.08
  *
 */
 
@@ -97,7 +97,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                 window.location.reload();
               }
               else { // Открываем страницу авторизации, расширение инициирует следующий этап - приём данных
-                console.log( `[MB] Active authtorization was not detected on '${request.action}' stage` );
+                console.log( `[MB] Active authtorization was not detected (stage "${request.action}")` );
                 // Переходим на страницу авторизации, этот экземпляр плагина будет утрачен
                 let AuthButton = document.getElementsByClassName( 'sign-in-buttons' )[ 0 ];
                 if ( AuthButton !== undefined ) {
@@ -125,7 +125,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
           await new Promise( resolve => setTimeout( resolve, 300 ) )  // Задержка, чтобы успела догрузиться и сформироваться страница
           if ( ( !window.location.origin.includes( 'lk.mosmetro.ru' ) ) ||
                ( document.getElementsByTagName( 'header' )[ 0 ].classList.contains( 'no_auth' ) ) ) {
-            fetchError( `Active authtorization was not detected on '${request.action}' stage or it was expired` );
+            fetchError( `Active authtorization was not detected or expired (stage "${request.action}")` );
             currentTokens.renew = true; // Расширение должно будет удалить в учётных данных неактуальные значения токенов
             chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError,
                                                          data: (MBResult === undefined) ? undefined : MBResult,

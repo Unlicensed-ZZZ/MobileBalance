@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2025.11.11
+ * Редакция:  2026.02.14
  *
 */
 
@@ -263,16 +263,17 @@ async function prepareCycle() {
   }
   for (let i = 0; i < Object.entries(pollingCycle).length; i++) { // Обогащаем наборы параметрами из общих настроек:
     pollingCycle[ i ].repeatAttempts = repeatAttempts + 1; //   количество повторов при неудачном / незавершённом запросе
+    pollingCycle[ i ].phaseRepeated = 0;                   //   количество запросов на повтор этапа от рабочей вкладки
     pollingCycle[ i ].inDelay = false;                     //   пауза между запросами к провайдеру активна
     pollingCycle[ i ].requestStage = 0;                    //   счётчик текущей части запроса
     pollingCycle[ i ].success = false;                     //   признак успешного завершения запроса
     pollingCycle[ i ].loginText = pollingCycle[ i ].loginValue; //   поле для отображения логина в таблице результатов
     // Если значение логина (номера) похоже на номер телефона, то форматируем поле для отображения логина
     if ( (pollingCycle[ i ].loginValue.length === 10) && Number.isInteger( Number(pollingCycle[ i ].loginValue) ) )
-      pollingCycle[ i ].loginText = `(${pollingCycle[ i ].loginValue.slice(0,3)}) ` +
-                                    `${pollingCycle[ i ].loginValue.slice(3,6)}-` +
-                                    `${pollingCycle[ i ].loginValue.slice(6,8)}-` +
-                                    `${pollingCycle[ i ].loginValue.slice(8)}`;
+      pollingCycle[ i ].loginText = `(${pollingCycle[ i ].loginValue.slice( 0, 3 )}) ` +
+                                     `${pollingCycle[ i ].loginValue.slice( 3, 6 )}-` +
+                                     `${pollingCycle[ i ].loginValue.slice( 6, 8 )}-` +
+                                     `${pollingCycle[ i ].loginValue.slice( 8 )}`;
     pollingCycle[ i ].result =                             //   структура-заготовка для результата запроса
       Object.assign( new Object(), MBResult );
     pollingCycle[ i ].result.PhoneNumber =                 //   заполняем в результате запроса поле логина
@@ -567,6 +568,7 @@ async function pollingEnd( force = false ) {  // 'force' = 'true' - вкладк
     }
   }
   else { // Если обнаружены записи с незавершёнными запросами - возвращаемся их опрашивать
+    pollingCycle[ currentNumber ].phaseRepeated = 0;  // Сбрасываем счётчик запросов на повтор этапа от рабочей вкладки
     await chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_new' }, { tab: null, id: self.location.origin } );
   }
 }
@@ -613,7 +615,7 @@ async function getNextNumber() {
     .catch( function( err ) {} ); // то нет и кода обработки приёма сообщений - снимаем ошибку канала связи
   }
   else {
-    if ( (pollingCycle.findIndex( function( item ) { return (item.inDelay) ? true : false } ) ) < 0) {
+    if ( pollingCycle.findIndex( function( item ) { return item.inDelay ? true : false } ) < 0 ) {
       // Если нет учётных данных, ожидающих завершения задержки запросов к провайдеру...
       if ( (pollingCycle[ currentNumber ].lastState === 'Fail') && ntfEnable && ntfOnError )
         throwNotification( pollingCycle[ currentNumber ], 'Fail', { body: 'Ошибка запроса данных' } );
@@ -621,6 +623,7 @@ async function getNextNumber() {
       if ( currentNumber < 0 )                              // Если её нет, то завершаем опрос
         pollingEnd()
       else { // Если есть, то продолжаем с запросом по следующей записи учётных данных
+        pollingCycle[ currentNumber ].phaseRepeated = 0;  // Сбрасываем счётчик запросов на повтор этапа от рабочей вкладки
         await chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_new' }, { tab: null, id: self.location.origin } );
       }
     }
@@ -1000,6 +1003,7 @@ chrome.runtime.onMessage.addListener(
                                            login:   pollingCycle[ currentNumber ].loginValue,
                                            passw:   ( passw === undefined ) ? undefined : passw, // Если этап запроса не требует пароля, то исключаем этот параметр
                                            accIdx:  currentNumber,  // Индекс позиции учётных данных в списке опроса
+                                           phaseRepeated: pollingCycle[ currentNumber ].phaseRepeated, // Счётчик запросов на повтор этапа от рабочей вкладки
                                            detail:  ( pollingCycle[ currentNumber ].detail === undefined ) ? // Если сохранённых данных нет, то исключаем этот параметр
                                                     undefined : pollingCycle[ currentNumber ].detail
                                          } )
@@ -1092,7 +1096,9 @@ chrome.runtime.onMessage.addListener(
             if ( ( sender.id === 'MBpollingCycle' ) || ( ( request.accIdx === currentNumber ) &&
                  ( ( provider[ pIdx ].respondTimeout === false ) || ( pollingCycle[ currentNumber ].сontrolTimeout !== null ) ) )
                ) {
-              console.log( `[MB] Plugin requested to skip next phase: ${request.error}` );
+              console.log( `[MB] Plugin "${provider[ pIdx ].description}" requested to skip next phase` +
+                           ` for "${pollingCycle[ currentNumber ].description}": ${request.error}` );
+              pollingCycle[ currentNumber ].phaseRepeated = 0;  // Сбрасываем счётчик запросов на повтор этапа от рабочей вкладки
               if ( pollingCycle[ currentNumber ].requestStage < ( provider[ pIdx ].scriptActions.length - 1 ) )
                 ++pollingCycle[ currentNumber ].requestStage; // Увеличиваем счётчик частей запроса
             }
@@ -1122,13 +1128,14 @@ chrome.runtime.onMessage.addListener(
              ) {
             if ( provider[ pIdx ].respondTimeout ) removeTimeoutControl( currentNumber );   // Снимаем таймер таймаута по ответу
             chrome.webNavigation.onCompleted.removeListener( waitPullingTabLoading );       // Снимаем контроль обновления вкладки (если он был)
-            console.log( `[MB] Plugin requested to repeat current phase: ${request.error}` );
+            console.log( `[MB] Plugin "${provider[ pIdx ].description}" requested to repeat current phase` +
+                         ` for "${pollingCycle[ currentNumber ].description}": ${request.error}` );
             try {
               let tabInfo;
               do {
                 tabInfo = await chrome.tabs.get( provider[ pIdx ].pullingTab );
                 await sleep ( Delay );
-              } while ( tabInfo.status !== 'complete' ); // Дождидаемся завершения загрузки страницы на вкладке запроса
+              } while ( tabInfo.status !== 'complete' ); // Дождидаемся завершения загрузки страницы на рабочей вкладке запроса
             }
             catch( err ) {
               console.log( `[MB] Error geting tab info for "${provider[ pIdx ].description}", probably it was closed` );
@@ -1136,8 +1143,10 @@ chrome.runtime.onMessage.addListener(
             if ( provider[ pIdx ].onUpdateDelay )
               await sleep ( Delay * ( ( provider[ pIdx ].onUpdateDelayValue === '' )  // Задержка для догрузки контента рабочей вкладки
                             ? 0 : provider[ pIdx ].onUpdateDelayValue ) ); 
-            if ( pollingCycle[ currentNumber ].requestStage !== 0 )                   // Если текущая часть запроса не первая, то ...
-              --pollingCycle[ currentNumber ].requestStage;                           // ... уменьшаем счётчик частей запроса
+            if ( pollingCycle[ currentNumber ].requestStage !== 0 )                   // Если текущая часть запроса не первая, то...
+              --pollingCycle[ currentNumber ].requestStage;                           // ...уменьшаем счётчик частей запроса
+            if ( sender.id !== 'MBpollingCycle' )                                     // Если запрос пришёл от рабочей вкладки провайдера...
+              pollingCycle[ currentNumber ].phaseRepeated += 1;                       // ...то увеличиваем счётчик запросов на повтор этапа
             // Инициируем повторное выполнение текущего шага опроса
             chrome.runtime.onMessage.dispatch( { message: 'MB_pullingTab_ready' }, { tab: null, id: self.location.origin } );
           }
@@ -1247,8 +1256,8 @@ chrome.runtime.onMessage.addListener(
             // Отображаем значения полей 'Balance2' / 'Balance3'
             d = document.getElementById( String(currentNumber) + '-bal23' );
             d.style.textAlign = 'right';
-            d.innerHTML = ( pollingCycle[ currentNumber ].result.Balance2 > 0 ) ? (pollingCycle[ currentNumber ].result.Balance2).toFixed(2) : '-';
-            d.innerHTML += ( pollingCycle[ currentNumber ].result.Balance3 > 0 ) ? `<br>${(pollingCycle[ currentNumber ].result.Balance3).toFixed(2)}` : `<br>-`;
+            d.innerHTML  = ( pollingCycle[ currentNumber ].result.Balance2 > 0 ) ? (pollingCycle[ currentNumber ].result.Balance2).toFixed( 2 ) : '-';
+            d.innerHTML += ( pollingCycle[ currentNumber ].result.Balance3 > 0 ) ? `<br>${(pollingCycle[ currentNumber ].result.Balance3).toFixed( 2 )}` : `<br>-`;
 
             // Отображаем остаток SMS
             if ( !pollingCycle[ currentNumber ].result.SMS )  pollingCycle[ currentNumber ].result.SMS = 0;
@@ -1461,7 +1470,7 @@ chrome.runtime.onMessage.addListener(
               return true                                                     // окна опроса (могут быть ещё окна опроса)
             else return false; // Если запрос от "чужой" вкладки, то будет возвращено значение -1
           });
-        // Направляем вкладке вспомогательных модулей запрос на выполнение действий
+        // Направляем запрос на выполнение действий вспомогательному модулю
         if ( idx >= 0 ) { // Если это запрос от вкладки, открытой в этом экземпляре опроса
           console.log( `[MB] Plugin "${provider[ idx ].description}" calaimed helper for "${pollingCycle[ currentNumber ].description}"` );
           // В минимизированном окне или на неактивной вкладке результатов окна опроса браузер определяет загруженные вспомогательные
@@ -1481,8 +1490,6 @@ chrome.runtime.onMessage.addListener(
           //   provider - объект данных провайдера, для которого нужно импортировать модули библиотек
           //   args     - объект с параметрами, переданными плагином-родителем для выполнения действий
           //              вспомогательным модулем или функциями импортированных библиотек
-          console.log( `[MB] "${provider[ idx ].name}_helper" performing  actions for "${pollingCycle[ currentNumber ].description}"...` );
-
           let tmpWin = await chrome.windows.get( workWin.id, { populate: true } );
           let showWorkWin = false;
           // Если работа проходит в свёрнутом (минимизированном) окне, то 
@@ -1493,13 +1500,13 @@ chrome.runtime.onMessage.addListener(
                                                        top: ( window.screen.height - 35 ), left: ( window.screen.width / 4 ) } );
             showWorkWin = true;
           }
-          await provider[ idx ].helperFunc( provider[ idx ], request.args )
+          await provider[ idx ].helperFunc( provider[ idx ], request.args ) // Выполняем default-функцию вспомогательного модуля
           .then( async function( result ) {
             if ( result !== undefined ) {   // Если нет ошибок в работе вспомогательного модуля ...
               if ( result.respond ) {       // ... и есть необходимость направления данных плагину-родителю
-                console.log( `[MB] Sending "${provider[ idx ].name}_helper" result to "${pollingCycle[ currentNumber ].description}"...` );
                 await chrome.tabs.sendMessage( provider[ idx ].pullingTab, 
-                                               { message: 'MB_takeData', action: 'helperResult', helper: result } )
+                                               { message: 'MB_takeData', action: 'helperResult', accIdx: currentNumber,
+                                                 phaseRepeated: pollingCycle[ currentNumber ].phaseRepeated, helper: result } )
                 .catch( async function( err ) { // При ошибках направляем родителю статус 'false', данные = 'undefined'
                   console.log( `[MB] Error sending result from "${provider[ idx ].description}" helper: ${err}` );
                 })
@@ -1509,7 +1516,9 @@ chrome.runtime.onMessage.addListener(
           .catch( async function( err ) { // При ошибках направляем родителю статус 'false', данные = 'undefined'
             console.log( `[MB] Error in helper "${provider[ idx ].helperFile}": ${err}` );
             await chrome.tabs.sendMessage( provider[ idx ].pullingTab, 
-                                           { message: 'MB_takeData',  action: 'helperResult', helper: { data: undefined, respond: false } } )
+                                           { message: 'MB_takeData',  action: 'helperResult', accIdx: currentNumber,
+                                             phaseRepeated: pollingCycle[ currentNumber ].phaseRepeated,
+                                             helper: { data: undefined, respond: false } } )
             .catch( async function( err ) { // При ошибках направляем родителю статус 'false', данные = 'undefined'
               console.log( `[MB] Error sending result from "${provider[ idx ].description}" helper: ${err}` );
             })
@@ -1530,7 +1539,9 @@ chrome.runtime.onMessage.addListener(
         break;
       }
       case 'MB_showInLog': { // Отображение переданного сообщения в логе опроса
+        if ( sendResponse ) sendResponse( 'done' );
         console.log( request.text );
+        return true; // Заканчиваем работу функции
         break;
       }
       default: {
@@ -1601,7 +1612,7 @@ requestTable.addEventListener( 'click', async function( evnt ) {
               if ( pollingCycle[ item ].repeatAttempts === 0 )          //   если все попытки запросов по записи выбраны
                 ++pollingCycle[ item ].repeatAttempts;                  //   то добавляем ей 1 попытку
             });
-          currentNumber = assignCurrentNumber( -1 ); // Определяем первую запись структуры для проведения запроса
+          currentNumber = assignCurrentNumber( -1 );                    // Определяем первую запись структуры для проведения запроса
           console.log( `[MB] All unsuccessful queries started by user` );
           break;
         }
@@ -1614,11 +1625,12 @@ requestTable.addEventListener( 'click', async function( evnt ) {
           break;
         }
         case 'btnResume': {             // По кнопке 'Продолжить опрос'
-          currentNumber = assignCurrentNumber( -1 ); // Определяем первую запись структуры для проведения запроса
+          currentNumber = assignCurrentNumber( -1 );                    // Определяем первую запись структуры для проведения запроса
           console.log( `[MB] Polling resumed by user` );
           break;
         }
       }
+      pollingCycle[ currentNumber ].phaseRepeated = 0;                     // Сбрасываем счётчик запросов на повтор этапа от рабочей вкладки
       await chrome.storage.local.set( { inProgress: inProgress = true } ); // Устанавливаем статус активности опроса
       btnRepeatFailedAll.disabled = btnRepeatFailedSingle.disabled = btnResume.disabled = btnConsoleLog.disabled = true;
       btnPause.disabled = false;
@@ -1691,8 +1703,8 @@ function createDateStr() {
   let timeStamp = new Date();
   timeStamp.getTime();
   let result = String(timeStamp.getFullYear());
-  result += ( ((timeStamp.getMonth()+1)<10) ? ('-0'+String(timeStamp.getMonth()+1)) : ('-'+String(timeStamp.getMonth()+1)) );
-  result += ( (timeStamp.getDate()<10) ? ('-0'+String(timeStamp.getDate())) : ('-'+String(timeStamp.getDate())) );
+  result += ( ((timeStamp.getMonth() + 1) < 10) ? ('-0'+String(timeStamp.getMonth()+1)) : ('-'+String(timeStamp.getMonth()+1)) );
+  result += ( (timeStamp.getDate() < 10) ? ('-0'+String(timeStamp.getDate())) : ('-'+String(timeStamp.getDate())) );
   return result;
 }
 
