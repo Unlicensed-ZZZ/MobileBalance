@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных)
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2026.02.10
+ * Редакция:  2026.02.15
  *
 */
 
@@ -30,7 +30,7 @@ dateTo = `${((new Date( Date.now())).toJSON()).split('T')[ 0 ]}T23:59:59${tZone}
 //                                                          'successRequests' - счётчик удачных запросов = API-запросов, на которые был получен ответ без ошибок;
 //                                                          'successContent' - наиболее полный ответ, полученный в предыдущих 'successRequests' запросах
 let requestParam = { dataBalance:    { verAPI: 2, api1Part: 'accountInfo/mscpBalance', 
-                                       api2Part: { operationName: 'GetBalanceBaseQueryInput', variables: {}, query: 'query GetBalanceBaseQueryInput { balances { nodes { ... on BalanceInfo { status source effectiveDate cashbackBalanceText cashbackHintText remainingValue { amount currency __typename } limits { ... on LimitInfo { bannerText className source type remainingValue { amount currency __typename } __typename } ... on LimitError { className type error { message code __typename } __typename } __typename } __typename } ... on BalanceError { industry { code name industryId __typename } account { idValue idType __typename } error { message code __typename } __typename } __typename } __typename } }' },
+                                       api2Part: { operationName: 'GetBalanceBaseQueryInput', variables: {}, query: 'query GetBalanceBaseQueryInput { balances { nodes { ... on BalanceInfo { name code status source effectiveDate remainingValue { amount currency __typename } limits { ... on LimitInfo { bannerText className source type remainingValue { amount currency __typename } __typename } ... on LimitError { className type error { message code __typename } __typename } __typename } __typename } ... on BalanceError { industry { code name industryId __typename } account { idValue idType __typename } error { message code __typename } __typename } __typename } __typename } }' },
                                        longtaskCheck: true,  retries: 4, minSuccess: 4, successRequests: 0, successContent: [] },
                      accountBlocker: { verAPI: 1, api1Part: '/api/accountInfo/accountBlocker', api2Part: '',
                                        longtaskCheck: false, retries: 4, minSuccess: 2, successRequests: 0, successContent: [] },
@@ -409,21 +409,41 @@ async function getData() {
             await getDataAction( requestParam.dataBalance, 'mscpBalance' )
             .then( function( response ) {
               // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
-              // то забираем данные текущего баланса
+              // то забираем данные текущего баланса и вычисляем кэшбэк (если он есть)
+              let tmp;
               if ( requestParam.dataBalance.successRequests >= requestParam.dataBalance.minSuccess ) {
                 switch( requestParam.dataBalance.verAPI ) {
                   case 1: {
                     if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                      MBResult = { Balance: parseFloat( response.amount.toFixed(2) ) }
+                      MBResult = { Balance: parseFloat( response.amount.toFixed( 2 ) ) }
                     else                          // Если в объекте уже есть значения
-                      MBResult.Balance = parseFloat( response.amount.toFixed(2) );
+                      MBResult.Balance = parseFloat( response.amount.toFixed( 2 ) );
                     break;
                   }
                   case 2: {
-                    if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                      MBResult = { Balance: parseFloat( response.data.balances.nodes[ 0 ].remainingValue.amount.toFixed(2) ) }
-                    else                          // Если в объекте уже есть значения
-                      MBResult.Balance = parseFloat( response.data.balances.nodes[ 0 ].remainingValue.amount.toFixed(2) );
+                    response.data.balances.nodes.forEach( function( item ) {
+                      if ( item.name.toUpperCase().includes( 'БАЛАНС' ) ) { // name = 'Баланс лицевого счета'
+                        if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
+                          MBResult = { Balance: parseFloat( item.remainingValue.amount.toFixed( 2 ) ) }
+                        else                          // Если в объекте уже есть значения
+                          MBResult.Balance = parseFloat( item.remainingValue.amount.toFixed( 2 ) );
+                      }
+                      if ( item.name.toUpperCase().includes( 'СОБСТВЕН' ) ) // name = 'Собственные средства'
+                        tmp = item.remainingValue.amount.toFixed( 2 );
+                    });
+                    // Если есть раздел 'Собственные средства', то если значение разности баланса и суммы 'remainingValue.amount'
+                    //   собственных средств положительное, то определяем её как значение кэшбэка
+                    // Отрицательная разность может быть для тарифов без абонентской платы при обсутствии кэшбэка и расходах за период
+                    // Пример 1: собств.средства = 100 руб., кэшбэк =  0 руб., расход за период = -20 руб., баланс = 80 руб.
+                    //           баланс - собств.средства = 80 - 100 = -20
+                    // Пример 2: собств.средства = 100 руб., кэшбэк = 40 руб., расход за период = -20 руб., баланс = 120 руб.
+                    //           баланс - собств.средства = 120 - 100 = 20
+                    if ( ( MBResult.Balance !== undefined ) && ( ( MBResult.Balance - tmp ) > 0 ) ) {
+                      if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
+                        MBResult = { Balance2: parseFloat( MBResult.Balance - tmp ) }
+                      else                          // Если в объекте уже есть значения
+                        MBResult.Balance2 = MBResult.Balance - tmp
+                    }
                     break;
                   }
                 }
@@ -464,9 +484,9 @@ async function getData() {
                 switch( requestParam.creditLimit.verAPI ) {
                   case 1: {
                     if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                      MBResult = { KreditLimit: parseFloat( response.currentCreditLimitValue.toFixed(2) ) }
+                      MBResult = { KreditLimit: parseFloat( response.currentCreditLimitValue.toFixed( 2 ) ) }
                     else                          // Если в объекте уже есть значения
-                      MBResult.KreditLimit = parseFloat( response.currentCreditLimitValue.toFixed(2) );
+                      MBResult.KreditLimit = parseFloat( response.currentCreditLimitValue.toFixed( 2 ) );
                     break;
                   }
                   case 2: {
@@ -572,9 +592,9 @@ async function getData() {
                       tmp = countersSearch( response.data.counters, 'Internet', 'NonUsed' );
                       if ( tmp !== null ) // Если остаток по пакету интернета обнаружен, то принимаем его
                         if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                          MBResult = { Internet: ( tmp < 0 ) ? -1 : parseFloat( tmp.toFixed(3) ) }
+                          MBResult = { Internet: ( tmp < 0 ) ? -1 : parseFloat( tmp.toFixed( 3 ) ) }
                         else                          // Если в объекте уже есть значения
-                          MBResult.Internet = ( tmp < 0 ) ? -1 : parseFloat( tmp.toFixed(3) );
+                          MBResult.Internet = ( tmp < 0 ) ? -1 : parseFloat( tmp.toFixed( 3 ) );
                       // Забираем дату следующего платежа из секции основных данных остатков, если её ещё нет в ответе
                       for ( let i = 0; i < response.data.counters.length; i++ ) {
                         if ( ( response.data.counters[ i ].packageGroup === 'Main' ) &&
@@ -626,24 +646,13 @@ async function getData() {
                 await getDataAction( requestParam.expensesInfo, 'expensesInfo' )
                 .then( function( response ) {
                   // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
-                  // то забираем расходы за период (для API ver2) ...
+                  // то забираем расходы за период (для API ver2)
                   if ( requestParam.expensesInfo.successRequests >= requestParam.expensesInfo.minSuccess ) {
                     response.data.transactionsByFilter.categories.forEach( function( item ) {
                       if ( item.alias !== 'abonent_charging' )
                         paidAmmount += item.amount;
                     })
                     paidAmmount += tarifPrice; // В качестве значения абонентской платы принимаем значение из данных тарифа
-                  }
-                  // ... и значение кэшбака, если его значение ненулевое (для API ver2)
-                  if ( response.data.transactionsByFilter.totalInfo.cashback ) {
-                    let tmp = response.data.transactionsByFilter.totalInfo.cashback.incomeAmount - 
-                              response.data.transactionsByFilter.totalInfo.cashback.outcomeAmount;
-                    if ( tmp > 0 ) {
-                      if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                        MBResult = { Balance2: parseFloat( tmp.toFixed(2) ) }
-                      else                          // Если в объекте уже есть значения
-                        MBResult.Balance2 = parseFloat( tmp.toFixed(2) );
-                    }
                   }
                 })
                 .catch( function( err ) { console.log( err ) })
@@ -692,9 +701,9 @@ async function getData() {
 
         // Формируем строку состава услуг в формате: 'количество бесплатных' / 'количество платных' / (сумма по платным)
         if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-          MBResult = { UslugiOn: `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})` }
+          MBResult = { UslugiOn: `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed( 2 )})` }
         else                          // Если в объекте уже есть значения
-          MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;
+          MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed( 2 )})`;
 
         initLogout(); // Инициируем завершение сеанса работы с личным кабинетом и уходим с его страницы
       }
