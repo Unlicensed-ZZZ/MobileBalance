@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2026.02.14
+ * Редакция:  2026.02.27
  *
 */
 
@@ -1497,7 +1497,7 @@ chrome.runtime.onMessage.addListener(
             await chrome.tabs.update( workTab.id, { active: true } ); // Активируем вкладку результатов опроса
             // Восстанавливаем окно результатов опроса и позиционируем его в минимально видимой области экрана
             await chrome.windows.update( workWin.id, { state: 'normal', focused: false, height: 1, width: 1,
-                                                       top: ( window.screen.height - 35 ), left: ( window.screen.width / 4 ) } );
+                                                       top: ( window.screen.height - 35 ), left: Math.trunc( window.screen.width / 4 ) } );
             showWorkWin = true;
           }
           await provider[ idx ].helperFunc( provider[ idx ], request.args ) // Выполняем default-функцию вспомогательного модуля
