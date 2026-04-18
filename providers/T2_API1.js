@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи T2 (ранее Tele2) через API
- * Редакция:  2025.08.07
+ * Редакция:  2026.04.09
  *
 */
 
@@ -174,8 +174,9 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
               }
               else { // Закрываем текущую сессию удалением токенов в cookie
                 fetchError( `Рrevious session for '${prevAccount}' was not closed. Closing it now...` );
-                await cookieStore.delete( { name: 'access_token', domain: 't2.ru', path: '/' } );
-                await cookieStore.delete( { name: 'refresh_token', domain: 't2.ru', path: '/' } );
+                await cookieStore.delete( { name: 'access_token', domain: 't2.ru' } )
+                await cookieStore.delete( { name: 'refresh_token', domain: 't2.ru' } );
+                await localStorage.clear(); // Очищаем записи статистики в Local Storage
                 // При завершении этапа расширение выполнит переход на страницу входа 'finishUrl' и страница загрузится без прежней сессии
                 chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
                 return true;
@@ -259,10 +260,10 @@ function sleep( ms ) {
 
 async function initLogout() {
 //       ----------
-  let dmn = window.location.origin.includes( 't2.ru' ) ? 't2.ru' : 'tele2.ru';
   // Закрываем текущую сессию удалением токенов в cookie (если они были)
-  await cookieStore.delete( { name: 'access_token', domain: dmn, path: '/' } );
-  await cookieStore.delete( { name: 'refresh_token', domain: dmn, path: '/' } );
+  await cookieStore.delete( { name: 'access_token', domain: 't2.ru' } )
+  await cookieStore.delete( { name: 'refresh_token', domain: 't2.ru' } );
+  await localStorage.clear(); // Очищаем записи статистики в Local Storage
   // Передаём результаты зароса расширению
   chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError,
                                                data: (MBResult === undefined) ? undefined : MBResult,

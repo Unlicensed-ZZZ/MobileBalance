@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2025.11.14
+ * Редакция:  2026.03.17
  *
 */
 
@@ -138,9 +138,9 @@ async function authInput( login, passw ) {
     response.json()
     .then( function( response ) { // Проверяем попытку авторизации на наличие ошибок
       if ( response.code !== undefined ) { // Если в структуре присутствует код ошибки, то выходим
-        fetchError( `Authtorization error ${response.code}: ${response.message}` )
+        fetchError( `Authtorization error ${response.code}: ${response.message}. Canceling remaining requests` )
         chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
-                                                     status: requestStatus, error: requestError, data: undefined }, null );
+                                                     status: requestStatus, error: requestError, data: 'StopPooling' }, null );
       }
       else { // Авторизация успешно выполнена. Прогружаем страницу, чтобы расширение инициировало следующий шаг
         window.location.reload();   // Данный экземпляр скрипта при этом будет утрачен

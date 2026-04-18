@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2026.02.14
+ * Редакция:  2026.04.01
  *
 */
 
@@ -675,6 +675,44 @@ optionsPage.addEventListener( 'click', async function( evnt ) {
         }
       }
       prevPooling.disabled = false; // Снимаем блокировку с кнопки перехода к предыдущему значению
+      break; }
+    case 'historyOpen': { // Открыть окно истории запросов
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      let historyUrl        = chrome.runtime.getURL( `content/history.html` );
+      let historyPerDateUrl = chrome.runtime.getURL( `content/historyPerDate.html` );
+      // Ищем вкладку с адресом страницы истории запросов в текущем окне ...
+      chrome.tabs.query( { currentWindow: true, url: historyUrl } )
+      .then( function( result ) {
+        if ( result.length > 0 )                              // Если нашлась в текущем окне - переходим к ней
+          chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } )
+        else {
+          chrome.tabs.query( { currentWindow: false, url: historyUrl } )
+          .then( function( result ) {
+            if ( result.length > 0 ) {                        // Если нашлась в другом окне - переходим к ней
+              chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+              chrome.windows.update( result[ 0 ].windowId, { focused: true } );
+            }
+            else {
+              chrome.tabs.query( { currentWindow: true, url: historyPerDateUrl } )
+              .then( function( result ) {
+                if ( result.length > 0 )                      // Если нашлась в текущем окне - переходим к ней
+                  chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } )
+                else {
+                  chrome.tabs.query( { currentWindow: false, url: historyPerDateUrl } )
+                  .then( function( result ) {
+                    if ( result.length > 0 ) {                // Если нашлась в другом окне - переходим к ней
+                      chrome.tabs.highlight( { windowId: result[ 0 ].windowId, tabs: result[ 0 ].index } );
+                      chrome.windows.update( result[ 0 ].windowId, { focused: true } );
+                    }
+                    else                                      // Если страницы истории запросов нет - открываем её
+                      chrome.tabs.create( { url: historyUrl } );
+                  })
+                }
+              })
+            }
+          })
+        }
+      })
       break; }
     case 'historyDelete': { // Очистить историю запросов в хранилище 'Phones' indexedDb
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше

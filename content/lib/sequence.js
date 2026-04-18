@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2026.02.27
+ * Редакция:  2026.04.13
  *
 */
 
@@ -1366,7 +1366,11 @@ chrome.runtime.onMessage.addListener(
             await dbAddRecord( pollingCycle[ currentNumber ].result );  // Записываем результат в indexedDB
             console.log( `[MB] ${( sameRecordsFound ) ? 'History record updated' : 'New history record added'} in object store` );
           }
-          else { // Если запрос неуспешен, то отображаем его статус и оставшиеся попытки запросов
+          else { // Если запрос неуспешен, то отображаем его статус и оставшиеся попытки запроса
+            if ( request.data === 'StopPooling' ) {               // Если плагином запрошено прекращение дальнейших запросов по учётным
+              pollingCycle[ currentNumber ].repeatAttempts = 0;   //   данным, то обнуляем количество оставшихся попыток запроса
+              console.log( `[MB] Plugin "${provider[ idx ].description}" demanded to stop requests for "${pollingCycle[ currentNumber ].description}"` );
+            }
             let ra = ( pollingCycle[ currentNumber ].repeatAttempts > 0 ) ?
                      String(pollingCycle[ currentNumber ].repeatAttempts) : '';
             pollingCycle[ currentNumber ].lastState = ( pollingCycle[ currentNumber ].repeatAttempts > 0 ) ?
@@ -1472,14 +1476,7 @@ chrome.runtime.onMessage.addListener(
           });
         // Направляем запрос на выполнение действий вспомогательному модулю
         if ( idx >= 0 ) { // Если это запрос от вкладки, открытой в этом экземпляре опроса
-          console.log( `[MB] Plugin "${provider[ idx ].description}" calaimed helper for "${pollingCycle[ currentNumber ].description}"` );
-          // В минимизированном окне или на неактивной вкладке результатов окна опроса браузер определяет загруженные вспомогательные
-          //   модули и вызываемые ими модули-библиотекм как 'iframe' и останавливает в них работу скриптов
-          // Для отработки этих скриптов если окно опроса минимизировано, то временно изменяем для него статус 'minimized' на 'normal',
-          //   задаём минимально возможный размер (1x1) и помещаем в видимой области экрана (на 35 пикселей выше нижней границы экрана
-          //   (меньше не срабатывает), отступ слева - на четверть от ширины экрана). Вкладку результатов опроса делаем активной (чтобы
-          //   исключить ситуацию, когда в окне была выбрана активной вкладка, отличная от вкладки результатов опроса, а потом
-          //   пользователь окно свернул)
+          console.log( `[MB] Plugin "${provider[ idx ].description}" requested helper for "${pollingCycle[ currentNumber ].description}"` );
           // Вызов вспомогательного модуля проводится из файла, указанного для провайдера в 'helperFile'
           // Если модуль не импортирован при предыдущих вызовах, то делаем это
           if ( provider[ idx ].helperFunc === null ) {
@@ -1491,7 +1488,18 @@ chrome.runtime.onMessage.addListener(
           //   args     - объект с параметрами, переданными плагином-родителем для выполнения действий
           //              вспомогательным модулем или функциями импортированных библиотек
           let tmpWin = await chrome.windows.get( workWin.id, { populate: true } );
+/*
+//   !!!  Такое поведение браузера обнаружено при реализации импортируемых вспомогательных модулей в июле 2025 года
+//   !!!  В марте-апреле 2026 года обнаружено, что выделение браузером импортированных модулей как 'iframe' и остановка в них
+//   !!!  скриптов исчезло. С какого из релизов (Chrome 139, 05.08.2025 - Chrome 146, 10.03.2026) это было изменено - не выявлено
           let showWorkWin = false;
+          // В минимизированном окне или на неактивной вкладке результатов окна опроса браузер определяет загруженные вспомогательные
+          //   модули и вызываемые ими модули-библиотекм как 'iframe' и останавливает в них работу скриптов
+          // Для отработки этих скриптов если окно опроса минимизировано, то временно изменяем для него статус 'minimized' на 'normal',
+          //   задаём минимально возможный размер (1x1) и помещаем в видимой области экрана (на 35 пикселей выше нижней границы экрана
+          //   (меньше не срабатывает), отступ слева - на четверть от ширины экрана). Вкладку результатов опроса делаем активной (чтобы
+          //   исключить ситуацию, когда в окне была выбрана активной вкладка, отличная от вкладки результатов опроса, а потом
+          //   пользователь окно свернул)
           // Если работа проходит в свёрнутом (минимизированном) окне, то 
           if ( tmpWin.state === 'minimized' ) {
             await chrome.tabs.update( workTab.id, { active: true } ); // Активируем вкладку результатов опроса
@@ -1500,7 +1508,9 @@ chrome.runtime.onMessage.addListener(
                                                        top: ( window.screen.height - 35 ), left: Math.trunc( window.screen.width / 4 ) } );
             showWorkWin = true;
           }
-          await provider[ idx ].helperFunc( provider[ idx ], request.args ) // Выполняем default-функцию вспомогательного модуля
+*/
+          // Выполняем default-функцию вспомогательного модуля
+          await provider[ idx ].helperFunc( provider[ idx ], request.args )
           .then( async function( result ) {
             if ( result !== undefined ) {   // Если нет ошибок в работе вспомогательного модуля ...
               if ( result.respond ) {       // ... и есть необходимость направления данных плагину-родителю
@@ -1523,8 +1533,9 @@ chrome.runtime.onMessage.addListener(
               console.log( `[MB] Error sending result from "${provider[ idx ].description}" helper: ${err}` );
             })
           })
-
-          if ( showWorkWin === true ) { // Если окно результатов опроса было свёрнуто (минимизировано), то 
+/*
+          // Если окно результатов опроса было свёрнуто (минимизировано), то 
+          if ( showWorkWin === true ) {
             await chrome.windows.update( workWin.id, { height: tmpWin.height, width: tmpWin.width, top: tmpWin.top, left: tmpWin.left } )
             .catch( async function( err ) {
               console.log( `Error restoring window size: ${err}` );
@@ -1534,7 +1545,7 @@ chrome.runtime.onMessage.addListener(
               console.log( `Error restoring window state: ${err}` );
             })
           }
-
+*/
         }
         break;
       }

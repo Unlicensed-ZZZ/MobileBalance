@@ -2,7 +2,7 @@
  * ----------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для 'ВТБ Мобайл' через API
- * Редакция:  2026.01.29
+ * Редакция:  2026.04.16
 */
 
 let MBextentionId = undefined;
@@ -112,7 +112,10 @@ function initLogout() {
       // Передаём результаты опроса расширению MobileBalance
       chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
                                                    status: requestStatus, error: requestError,
-                                                   data: (MBResult === undefined) ? undefined : MBResult }, null );
+                                                         // Для заблокированного или 'чужого' номера прекращаем дальнейшие запросы
+                                                   data: ( requestError.includes( 'заблокирован' ) ||
+                                                             requestError.includes( 'не ВТБ Мобайл' ) ) ? 'StopPooling' :
+                                                           ( MBResult === undefined ) ? undefined : MBResult }, null );
       // Завершение сеанса работы с личным кабинетом и обновление страницы выполнит расширение переходом по 'finishUrl'
   })
   .catch( function( err ) {

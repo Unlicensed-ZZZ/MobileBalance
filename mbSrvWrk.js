@@ -381,7 +381,7 @@ chrome.runtime.onMessage.addListener(
     } /* switch */
     // Для сообщений, которые не обрабатываются в Service Worker, выводим в консоль уведомление об их появлении
     console.log( `[MB] Message in Service Worker: "${request.message}"` );
-    return true;
+    return false;
   }
 );
 

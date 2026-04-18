@@ -1,9 +1,9 @@
-/* MTS_v2_API.js
+/* MTS_v3_API.js
  * -------------
  * Проект:    MobileBalance
- * Описание:  Обработчик для оператора связи МТС через API (весь набор данных)
+ * Описание:  Обработчик для оператора связи МТС через API (весь набор данных) по учётным данным логин / пароль
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2026.02.15
+ * Редакция:  2026.04.09
  *
 */
 
@@ -12,8 +12,9 @@ let requestStatus = true;
 let requestError = '';
 let MBResult = undefined;
 let MBLogin = undefined;
-let MBcurrentNumber = undefined;    // Индекс позиции учётных данных в списке опроса
-let waitingCookiesRemove = false;   // Ожидание результата работы вспомогательного helper-модуля
+let MBcurrentNumber = undefined;        // Индекс позиции учётных данных в списке опроса
+let currentTokens = {};                 // Объект для обновления токенов через ответ раширению в 'detail'
+let waitingCookieRemove = undefined;    // Ожидание результата работы вспомогательного helper-модуля
 let tZone = (new Date( Date.now() )).toString().split( 'GMT' )[ 1 ].split( ' ' )[ 0 ];    // Часовой пояс в
 tZone = tZone.slice( 0, -2 ) + ':' + tZone.slice( -2 );                                   // формате '+03:00'
 // Переменные для фильтров дат начала-окончания периода. Для использования в запросе расходов API ver2
@@ -58,36 +59,38 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       MBextentionId = sender.id;
       if ( request.login  !== undefined ) MBLogin = request.login;
       if ( request.accIdx !== undefined ) MBcurrentNumber = request.accIdx;
+      if ( request.detail !== undefined ) currentTokens = request.detail;
       switch( request.action ) {
         case 'log&pass': {
           if ( !window.location.origin.includes( 'login.mts.ru' ) ) { // Если мы находимся не на странице входа, значит
-            // либо не был выполнен выход по предыдущим учётным данным и мы попали в личный кабинет по ним, либо ошибки на сервере
+            // либо личный кабинет открыт по сохранённной OTP-сесии, либо не был выполнен выход по предыдущим учётным
+            // данным и мы попали в личный кабинет по ним, либо ошибки на сервере
             // Проверяем соответствие учётных данных запрашиваемым. Вызов проходит как со страницы личного кабинета, так и со страницы профиля
             fetch( 'https://login.mts.ru/amserver/rest/widget', { method: 'GET', mode: 'cors', credentials: 'include' } )
             .then( function( response ) {
               response.json()
               .then( function( response ) {
-                if ( response[ 'mobile:phone' ] === MBLogin ) {  // Если личный кабинет открыт с информацией по нужным учётным данным, то переходим
-                  window.location.replace( 'https://lk.mts.ru' ) //   на страницу личного кабинета, чтобы расширение инициировало следующий шаг
-                }
-                else { // Инициируем завершение сеанса работы с личным кабинетом и уходим с его страницы
+                if ( response[ 'mobile:phone' ] === MBLogin )     // Если личный кабинет открыт для нужных учётных данных, то перезагружаем страницу
+                  window.location.replace( 'https://lk.mts.ru' )  //   личного кабинета, чтобы расширение инициировало следующий шаг запроса
+                else {                                            // Если это другие учётные данные, то завершаем работу в личном кабинете (или профиле)
                   requestStatus = false;
-                  requestError = 'Previous session was not finished or login page error';
-                  console.log( '[MB]' + requestError );
-                  initLogout();
+                  console.log( '[MB]' + ( requestError = 'Previous session was not finished or login page error' ) );
+                  waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
+                  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
+                  // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
                 }
               })
             })
           }
           else {
-            // Если заголовок страницы 'QRATOR', значит выполняется антибот-проверка. Антибот-токены устарели и/или удаленыю Скрипт 'QRATOR',
+            // Если заголовок страницы 'QRATOR', значит выполняется антибот-проверка. Антибот-токены устарели и/или удалены Скрипт 'QRATOR',
             //  формирующий актуальные токены, ещё не отработал или запрашивает ввод капчи
             if ( document.title.toUpperCase() === 'QRATOR' ) {
               // Устанвливаем контроль обновления страницы с 'passive = true' - не отменять поведение события по умолчанию
               // Отменять поведение события по умолчанию для 'beforeunload' нельзя - появится 'alert'-запрос подтверждения ухода со страницы
               window.addEventListener( 'beforeunload', beforeunloadListener, { passive: true } );
               do { // Ждём завершения формирования элементов капчи. Если проверка будет пройдена и ввод капчи не понадобится, то страница
-                   //  бцдет перезагружена и цикл разрушен вместе с плагином. При следующей загрузке должна быть загружена форма авторизации
+                   //  будет перезагружена и цикл разрушен вместе с плагином. При следующей загрузке должна быть загружена форма авторизации
                 await sleep( 100 ); // Пауза, чтобы не подвесить остальные ветки процессов
               } while( document.getElementById( 'wrapper-captcha' ) === null ||
                        document.getElementById( 'wrapper-captcha' ).style.display === 'none' );
@@ -95,44 +98,101 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
               chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { loadCBL: true } }, null );
               return;   // Выходим из функции и ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
             }
-            else {  // Если страница входа 'зависла' из-за неактуальных сессионных cookies, то запрашиваем у расширения их удаление через helper-модуль
+            else {  // Если страница входа 'зависла' из-за неактуальных сессионных cookie, то запрашиваем у расширения их удаление через helper-модуль
               if ( document.getElementsByTagName( 'html' )[ 0 ].classList.contains( 'initialize' ) ) {
-                chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookies: true } }, null );
-                waitingCookiesRemove = true;  // Обозначаем ожидание результата работы вспомогательного helper-модуля
+                waitingCookieRemove = true;   // Продолжим работу плагина после отработки вспомогательного helper-модуля
+                chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
                 return;   // Выходим из функции и ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
               }
             }
             // Проводим авторизацию по учётным данным
-            authInput( MBLogin, request.passw );
+            if ( request.passw !== '' )
+              authInput( MBLogin, request.passw )                   // Если есть пароль, то проводим авторизацию по паролю
+            else {                                                  // Если пароля нет, то проводим OTP-авторизацию (по коду из SMS)
+              if ( Object.keys( currentTokens ).length > 0 ) {      // Если есть сохранённые значения сессионных cookie ...
+                if ( request.phaseRepeated < 3 ) {                  // ... то восстанавливаем сессию
+                // Если плагин уже направлял запросы на повтор этапа (request.phaseRepeated > 0), значит были попытки восстановить
+                //   сессию, но она была отвергнута сервером авторизации. Сохранённые для учётных данных значения сессионных cookie
+                //   следует удалить и выполнить новую авторизацию. Повторы этапа могли быть также для прохождения антибот-проверки
+                //   и сброса 'чужих' cookie, поэтому допускаем 3 предыдущих повтора ( request.phaseRepeated < 3 )
+                  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { restoreCookie: currentTokens } }, null );
+                }
+                else {                                              // Сохранённые сессионные cookie неактуальны, инициируем их удаление 
+                  requestStatus = false;
+                  console.log( '[MB] ' + ( requestError = `Previous OTP-session denied, new authorization required` ) );
+                  currentTokens = { renew: true };  // Удалим сохранённые неактуальные сессионные cookie в данных расширения при ответе
+                  waitingCookieRemove = false;      // Завершим работу плагина после отработки вспомогательного helper-модуля
+                  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
+                }
+                return;   // Выходим из функции и ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
+              }
+              else
+                authInput( MBLogin, '' );                           // Предлагаем выполнить OTP-авторизацию
+            }
           }
+          break;
+        }
+        case 'polling': {
+          // Если авторизация проводилась по коду из SMS (OTP), а не по паролю, то должны быть сессионные cookie, ищем их в браузере
+          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { getCookie: true } }, null );
+          // Ожидаем от расширения сообщения с результатом работы вспомогательного helper-модуля
           break;
         }
         case 'helperResult': {
           // Формат структуры правильного ответа дочернего helper-модуля в 'request.helper': { data: <any data>, respond: <boolean> }
-          //  data = данные результата работы вспомогательного модуля, формат - необходимый для дальнейшей работы.
-          //  respond = true. Это флаг вспомогательного модуля 'направить ответ плагину-родителю'
+          //  data = данные результата работы вспомогательного модуля, формат - необходимый для дальнейшей работы плагина
+          //  respond = true. Флаг вспомогательного модуля 'направить ответ плагину-родителю', в плагине для работы не нужен
 
-          // Если waitingCookiesRemove не установлен (= false), значит вызов helper-модуля был сделан предыдущим (утраченным) экземпляром
-          //  плагина до перезагрузки страницы. Текущему экземпляру эти результаты уже/ещё не нужны, игнорируем их
-          if ( request.helper !== undefined ) {   // Если работа helper-модуля была успешной, то ...
-            // ... если требовалось удалить неактуальные сессионные cookie, то запрашиваем у расширения повтор текущего этапа запроса
-            if ( waitingCookiesRemove && request.helper.data.removeCookies ) {
-              console.log( requestError = `Irrelevant session cookies removed, reloading login page` );
-              waitingCookiesRemove = false;   // Снимаем флаг ожидания результата работы вспомогательного helper-модуля
-              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
-              window.location.reload();       // Перезагружаем страницу. Теперь сессионных cookies нет и формы авторизации должны загрузиться
+          if ( request.helper !== undefined ) {                   // Если работа helper-модуля была успешной, то ...
+            if ( request.helper.data.removeCookie === true ) {    // ... если требовалось удалить неактуальные сессионные cookie ...
+              // Если waitingCookieRemove не установлен (= undefined), значит вызов helper-модуля был сделан предыдущим (утраченным)
+              //  экземпляром плагина до перезагрузки страницы. Текущему экземпляру эти результаты уже / ещё не нужны, игнорируем их
+              if ( waitingCookieRemove !== undefined ) {
+                if ( waitingCookieRemove === true ) {             // ... и продолжить работу плагина
+                console.log( '[MB] ' + ( requestError = `Irrelevant session cookie removed, reloading login page` ) );
+                waitingCookieRemove = undefined;    // Снимаем флаг ожидания результата работы вспомогательного helper-модуля
+                chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase',
+                                                             error: requestError, accIdx: MBcurrentNumber }, null );
+                window.location.reload();   // Перезагружаем страницу. Теперь сессионных cookie нет и форма авторизации загрузится
+                }
+                else {                                            // ... и завершить работу плигина с передачей результата запроса расширению
+                  await localStorage.clear(); // Очищаем записи статистики в Local Storage
+                  chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
+                                                               status:  requestStatus, error: requestError,
+                                                               data:    ( MBResult === undefined ) ? undefined : MBResult,
+                                                               detail:  ( currentTokens.renew ) ? currentTokens : undefined
+                                                             }, null );
+                  return;   // Выходим из функции, страница будет обновлена расширением
+                }
+              }
             }
-            // ... если требовалось загрузить код для попытки решения капчи
-            if ( request.helper.data.loadCBL === true ) {
-              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_showInLog', text: '[MTS_v2_API plugin] Trying to solve captcha...' }, null );
+            if ( request.helper.data.restoreCookie !== undefined ) {        // ... если требовалось восстановить ранее сохранённые сессионные cookie
+              if ( request.helper.data.restoreCookie === true ) {           // ... и helper-модуль это успешно сделал ...
+                console.log( '[MB] ' + ( requestError = `OTP-session cookie restored, trying to load personal page` ) );
+                chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase',
+                                                             error: requestError, accIdx: MBcurrentNumber }, null );
+                window.location.replace( 'https://lk.mts.ru' );             // ... пробуем открыть страницу личного кабинета с восстановленной сессией
+              }
+              else                                                          // Если сохранённых cookie нет и восстанавливать было нечего,
+                authInput( MBLogin, '' );                                   //  то предлагаем выполнить OTP-авторизацию (по коду из SMS)
+            }
+            if ( request.helper.data.getCookie !== undefined ) {            // ... если требовалось считать сессионные cookie ...
+              if ( typeof request.helper.data.getCookie === 'object' ) {    //   и они были обнаружены, то в ответе - объект. Если нет, то ответ 'false'
+                currentTokens = request.helper.data.getCookie;              // Сохраним полученные сессионные cookie в данных расширения
+                currentTokens.renew = true;                                 //   при передаче результата запроса расширению
+              }
+              getData(); // Выполняем сбор данных для ответа по запросу
+            }
+            if ( request.helper.data.loadCBL === true ) {         // ... если требовалось загрузить код для попытки решения капчи
+              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_showInLog', text: '[MTS_v3_API plugin] Trying to solve captcha...' }, null );
             // ---- Однократная попытка решить капчу -------------------------------------------
               let inpElem = document.getElementById( 'captcha-input' );                         // Определяем поле ввода значения капчи
               let captchaOriginal = document.getElementById( 'captcha-img' );                   // Определяем оригинальный элемент изображения капчи
               let captchaElem = document.createElement( 'img' );                                // Подготавливаем копию объекта изображения капчи,
-              captchaElem.id = 'captcha';                                                       //   пригодную для обработки библиотекой cbl.js...
+              captchaElem.id = 'captcha';                                                       //   пригодную для обработки библиотекой cbl.js ...
               captchaElem.style.display = 'none';                                               //   (отображать её на странице нет необходимости)
               captchaElem.src = captchaOriginal.src;
-              document.body.append( captchaElem );                                              //   ...вставляем эту копию на страницу с формой
+              document.body.append( captchaElem );                                              //   ... вставляем эту копию на страницу с формой
               inpElem.setAttribute( 'value', '[MB] Подождите, пробуем решить капчу...' );       // В поле ввода значения капчи записываем текст ожидания
               await sleep( 100 );                                                               // Пауза, чтобы надпись в поле ввода успела отобразиться
               cbl = new CBL( {                                                                  // Задаём параметры для решения капчи
@@ -172,12 +232,6 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
           }
           break;
         }
-        case 'polling': {
-          setTimeout( function() {    // Задержка, чтобы виджеты успели прогрузиться и не забивали на сервере
-            getData();                //   очередь своими запросами - в неё пойдут и запросы от скрипта
-          }, 2000);
-          break;
-        }
       }
     }
     else return;
@@ -191,15 +245,37 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
 
 function beforeunloadListener( evnt ) {
 //       --------------------
-  window.removeEventListener( 'beforeunload', beforeunloadListener );                 // Снимаем контроль обновления страницы
-  console.log( requestError = `Bot-challenge seems to be passed, page reloading` );   // Запрашиваем у расширения повтор этапа запроса
+  window.removeEventListener( 'beforeunload', beforeunloadListener );                               // Снимаем контроль обновления страницы
+  console.log( '[MB] ' + ( requestError = `Bot-challenge seems to be passed, page reloading` ) );   // Запрашиваем у расширения повтор этапа запроса
   chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
 }
 
 
 function authInput( login, passw ) {
 //       ---------
-  // Авторизация через 'https://login.mts.ru/amserver/NUI/' проходит 4-мя последовательными запросами.
+  if ( passw === '' ) {   // Если пароля нет, то проводим OTP-авторизацию (по коду из SMS)
+    let inpElem = document.getElementById( 'login' );                     // Определяем элемент поля ввода логина ...
+    inpElem.setAttribute( 'value', login );                               // ... вносим значение логина в него ...
+    inpElem.nextElementSibling.setAttribute( 'value', login );            // ... и в последующее скрытое поле ввода
+    inpElem.dispatchEvent( new Event( 'change', { bubbles: true } ) );    // Инициируем приём значения генерацией события ввода
+    // Активируется кнопка 'Далее', ожидаем от пользователя её нажатия и ввода в появляющуюся форму кода из SMS
+    inpElem = document.getElementsByTagName( 'button' );
+    for ( let i = 0; i < inpElem.length; ++i ) {
+      if ( inpElem[ i ].dataset.variant === 'primary' ) {
+        inpElem[ i ].focus();                                             // Находим кнопку 'Далее' и переносим на неё фокус
+        break;
+      }
+    }
+    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_showInLog', text: '[MTS_v3_API plugin] Waiting for OTP-authorization...' } )
+    return;
+    // Если пользователь не выполнит этих действий до истечения 'respondTimeoutValue' = времени ожидания ответа от провайдера
+    //   на запрос, то расширение MobileBalance перезагрузит страницу, а запрос будет считаться неудачным
+    // При вводе правильного значения кода из SMS будет загружена другая страница, этот экземпляр скрипта будет утрачен и
+    //   расширение иннциирует следующий этап запроса. Если будет загружена не страница личного кабинета 'lk.mts.ru',
+    //   а страница профиля 'id.mts.ru', то личный кабинет откроем на следующем этапе работы плагина
+  }
+
+  // Авторизация по паролю в 'https://login.mts.ru/amserver/NUI/' проходит 4-мя последовательными запросами.
   const authUrl = 'https://login.mts.ru/amserver/wsso/authenticate?authIndexType=service&authIndexValue=login-spa';
   let i = 0;
 
@@ -211,7 +287,7 @@ function authInput( login, passw ) {
     .then( function( response ) {
       // Проверяем полученный ответ на отсутствие запроса ввода капчи
       if ( response.header === 'verify-captcha' ) { // Пришла капча. Её обработка не реализована
-        fetchError( '[MB] Need to solve captcha' );
+        fetchError( 'Need to solve captcha' );
         return;
       }
       // Вносим в структуру ответа подтверждение входа
@@ -246,98 +322,70 @@ function authInput( login, passw ) {
                   response.callbacks[ i ].input[ 0 ].value = passw;
                 // Если на предыдущем шаге в ответе возвращена ошибка - прекращаем процесс авторизации
                 if (( response.callbacks[ i ].type === 'MetadataCallback' ) && ( response.callbacks[ i ].output[ 0 ].value.error )) {
-                  console.log( `[MB] Login or account error. Code: ${response.callbacks[ i ].output[ 0 ].value.error}` );
+                  console.log( '[MB] ' + ( requestError = `Login or account error. Code: ${response.callbacks[ i ].output[ 0 ].value.error}` ) );
                   // Передаём расширению MobileBalance ошибку при авторизации
                   chrome.runtime.sendMessage( MBextentionId,
-                                              { message: 'MB_workTab_takeData', status: false, data: undefined,
-                                                error: `[MB] Login or account error. Code: ${response.callbacks[ i ].output[ 0 ].value.error}` }, null );
+                                              { message: 'MB_workTab_takeData', status: false,
+                                                data: undefined, error: requestError }, null );
                   return;
                 }
               }
               // Отсылаем форму серверу. При отсутствии ошибок авторизация успешно завершена
               fetch( authUrl, { method: 'POST', mode: 'cors', body: JSON.stringify( response ),
-                       headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
+                                headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
               .then( function( response ) {
                 response.json()
                 .then( function( response ) {
-                  if ( response.successUrl ) // Авторизация успешна. Прогружаем страницу, чтобы расширение инициировало следующий шаг
-                    window.location.replace( 'https://lk.mts.ru' )  // Данный экземпляр скрипта при этом будет утрачен
-                  else // Если были ошибки, то возвращена форма ввода пароля с 'callbacks'
+                  if ( response.successUrl ) {  // Авторизация успешна. Прогружаем страницу, чтобы расширение инициировало следующий шаг
+                    window.location.replace( 'https://lk.mts.ru' );   // Данный экземпляр скрипта при этом будет утрачен
+                    return;
+                  }
+                  else // Если запрошена авторизация по OTP (код из SMS) ( header === 'verify-otp' ) выдаём ошибку
+                    if ( response.header.includes( 'verify-otp' ) ) { // варианты значений "verify-otp", "pre-verify-otp", "verify-otp-pay", "verify-otp-mobile-id"
+                      console.log( '[MB] ' + ( requestError = 'Server clamed OTP authorization' ) );
+                      // Передаём расширению MobileBalance ошибку и требование прекращения дальнейших запросов (data: 'StopPooling')
+                      chrome.runtime.sendMessage( MBextentionId,
+                                                  { message: 'MB_workTab_takeData', status: false,
+                                                    data: 'StopPooling', error: requestError }, null );
+                      return;
+                    }
+                    // Если были ошибки, то возвращена форма ввода пароля с 'callbacks'
                     for ( i = 0; i < response.callbacks.length; i++ ) {
-                      // Если на предыдущем шаге (при отсылке пароля) в ответе возвращена ошибка - прекращаем процесс авторизации
-                      if (( response.callbacks[ i ].type === 'MetadataCallback' ) && ( response.callbacks[ i ].output[ 0 ].value.error )) {
-                        console.log( `[MB] Password or account error. Code: ${response.callbacks[ i ].output[ 0 ].value.error}` );
-                        // Передаём расширению MobileBalance ошибку при авторизации
+                      // Если на предыдущем шаге (при отсылке пароля) в ответе возвращена ошибка, то прекращаем процесс авторизации
+                      if ( ( response.callbacks[ i ].type === 'MetadataCallback' ) && ( response.callbacks[ i ].output[ 0 ].value.error ) ) {
+                        console.log( '[MB] ' + ( requestError = `Password or account error. Code: ${response.callbacks[ i ].output[ 0 ].value.error}` ) );
+                        // Передаём расширению MobileBalance ошибку и требование прекращения дальнейших запросов (data: 'StopPooling')
                         chrome.runtime.sendMessage( MBextentionId,
-                                                    { message: 'MB_workTab_takeData', status: false, data: undefined,
-                                                      error: `[MB] Password or account error. Code: ${response.callbacks[ i ].output[ 0 ].value.error}` }, null );
+                                                    { message: 'MB_workTab_takeData', status: false,
+                                                      data: 'StopPooling', error: requestError }, null );
                         return;
                       }
                     }
                 })
-                .catch( function( err ) { fetchError( '[MB] Response error getting PasswordValue form. Received: ' + err.message ) } )
+                .catch( function( err ) { fetchError( 'Response error getting PasswordValue form. Received: ' + err.message ) } )
               })
-              .catch( function( err ) { fetchError( '[MB] Error fetching PasswordValue form: ' + err.message ) } )
+              .catch( function( err ) { fetchError( 'Error fetching PasswordValue form: ' + err.message ) } )
             })
-            .catch( function( err ) { fetchError( '[MB] Response error getting PasswordValue form. Received: ' + err.message ) } )
+            .catch( function( err ) { fetchError( 'Response error getting PasswordValue form. Received: ' + err.message ) } )
           })
-          .catch( function( err ) { fetchError( '[MB] Error fetching LoginValue form: ' + err.message ) } )
+          .catch( function( err ) { fetchError( 'Error fetching LoginValue form: ' + err.message ) } )
         })
-        .catch( function( err ) { fetchError( '[MB] Response error getting LoginValue form. Received: ' + err.message ) } )
+        .catch( function( err ) { fetchError( 'Response error getting LoginValue form. Received: ' + err.message ) } )
       })
-      .catch( function( err ) { fetchError( '[MB] Error fetching LoginConfirmation form: ' + err.message ) } )
+      .catch( function( err ) { fetchError( 'Error fetching LoginConfirmation form: ' + err.message ) } )
     })
-    .catch( function( err ) { fetchError( '[MB] Response error getting LoginConfirmation form. Received: ' + err.message ) } )
+    .catch( function( err ) { fetchError( 'Response error getting LoginConfirmation form. Received: ' + err.message ) } )
   })
-  .catch( function( err ) { fetchError( '[MB] Error fetching InitLogin process: ' + err.message ) } )
+  .catch( function( err ) { fetchError( 'Error fetching InitLogin process: ' + err.message ) } )
 
   function fetchError( err ) {
   //       ----------
     requestStatus = false;
-    console.log( requestError = err );
-    initLogout();
+    console.log( '[MB] ' + ( requestError = err ) );
+    waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
+    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
+    // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
   }
-}
-
-
-async function initLogout() {
-//       ----------
-  // Маршруты процедур выхода из личного кабинета или профиля пользователя по состоянию на 22.10.2023
-  switch ( window.location.hostname.split( '.' )[ 0 ] ) { // Выделяем первую часть адреса Это должно оказаться...
-    case 'lk': {          // ...либо 'lk' для личного кабинета ('lk.mts.ru')
-      // Инициируем завершение сеанса работы
-      fetch( window.location.origin + '/api/login/logout', { method: 'GET', mode: 'no-cors' } )
-      .finally( async function( result ) {
-        // Воспроизводим цепочку переходов в процедуре выхода
-        fetch( 'https://login.mts.ru/amserver/UI/Logout?goto=https://united-auth.ssl.mts.ru/account/login?goto=https://lk.mts.ru&xClientId=LK',
-               { method: 'GET', mode: 'no-cors', credentials: 'include' } )
-        .then( function ( result ) {
-          // Передаём результаты опроса расширению MobileBalance
-          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
-                                                       status: requestStatus, error: requestError,
-                                                       data: (MBResult === undefined) ? undefined : MBResult }, null );
-        })
-        .catch( function() {} );
-      })
-      .catch( function() {} );
-      break;
-    }
-//    case 'profile': {     // ...либо 'profile' для профиля пользователя ('profile.mts.ru')  ~ до мая 2025
-    case 'id': {          // ...либо 'id' для профиля пользователя ('id.mts.ru') (до ~мая 2025 - 'profile.mts.ru')
-      // Инициируем завершение сеанса работы
-      fetch( window.location.origin + '/logout', { method: 'GET', mode: 'no-cors' } )
-      .finally( async function( result ) {
-        // Передаём результаты опроса расширению MobileBalance
-        chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
-                                                     status: requestStatus, error: requestError,
-                                                     data: (MBResult === undefined) ? undefined : MBResult }, null );
-
-      })
-      .catch( function() {} );
-      break;
-    }
-  }
-  // Расширение дополнительно выполнит переход на страницу входа по 'finishUrl'
 }
 
 
@@ -378,26 +426,22 @@ function countersSearch( inpStruct, packageType, partType ) {
 
 async function getData() {
 //             ---------
-  let freeCounter = 0, paidCounter = 0; // Счётчики услуг (бесплатных, платных)
-  let paidAmmount = 0, tarifPrice = 0;  // Сумма к оплате за период, стоимость тарифа (для API v2)
+  let freeCounter = 0, paidCounter = 0, // Счётчики услуг (бесплатных, платных)
+      paidAmmount = 0, tarifPrice = 0;  // Сумма к оплате за период, стоимость тарифа (для API v2)
   fetch( window.location.origin + '/api/login/profile', { method: 'GET', mode: 'no-cors' } )
   .then( async function( response ) {
     response.json()
     .then( async function( response ) {
-      if ( response.account.phone !== MBLogin ) { // Если личный кабинет открыт с информацией по неправильным учётным данным, то вероятно, что
-        requestError = `Wrong profile data '${response.account.phone}' instead of '${MBLogin}'`; // предыдущая сессия не была закрыта или закрыта неуспешно
-        console.log( '[MB] ' + requestError );
-        // Инициируем завершение сеанса работы с личным кабинетом - оно должно актуализировать в кабинете авторизацию по тем учётным данным, с которыми мы входили
-        fetch( window.location.origin + '/api/login/logout', { method: 'GET', mode: 'no-cors' } )
-        .finally( async function( result ) {
-          await sleep( 200 ); // Задержка чтобы успел отработать backend выхода из кабинета
-          // Запрашиваем у расширения повтор этого этапа запроса
-          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase', error: requestError, accIdx: MBcurrentNumber }, null );
-          // Перезагружаем страницу - она должна актуализироваться по учётным данным, с которыми мы авторизовались. Данный экземпляр скрипта при этом будет утрачен
-          window.location.reload();
-        })
-        .catch( function() {} );
-        return;
+      if ( response.account.phone !== MBLogin ) {
+        // Если личный кабинет открыт по неправильным учётным данным, то предыдущая сессия не была закрыта или закрыта неуспешно
+        requestStatus = false;
+        console.log( '[MB] ' + ( requestError = `Wrong profile data '${response.account.phone}' instead of '${MBLogin}'` ) );
+        // Если есть сохранённые значения сессионных cookie, значит OTP-сессия была восстановлена или создана по этим 'чужим' данным
+        if ( Object.keys( currentTokens ).length > 0 )
+          currentTokens = { renew: true };  // Удалим эти неактуальные сессионные cookie в данных расширения при ответе
+        waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
+        chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
+        return;   // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
       }
       else {
         // Будем находиться в цикле 'do-while' пока для каждого из опрашиваемых параметров не будет выполнено 'minSuccess' или более удачных запросов.
@@ -449,7 +493,7 @@ async function getData() {
                 }
               }
             })
-            .catch( function( err ) { console.log( err ) })
+            .catch( function( err ) { console.log( '[MB] ' + err ) })
           }
           if ( requestParam.accountBlocker.minSuccess > requestParam.accountBlocker.successRequests ) {
             await getDataAction( requestParam.accountBlocker, 'accountBlocker' )
@@ -473,7 +517,7 @@ async function getData() {
                 }
               }
             })
-            .catch( function( err ) { console.log( err ) })
+            .catch( function( err ) { console.log( '[MB] ' + err ) })
           }
           if ( requestParam.creditLimit.minSuccess > requestParam.creditLimit.successRequests ) {
             await getDataAction( requestParam.creditLimit, 'creditLimit' )
@@ -497,7 +541,7 @@ async function getData() {
                 }
               }
             })
-            .catch( function( err ) { console.log( err ) })
+            .catch( function( err ) { console.log( '[MB] ' + err ) })
           }
           if ( requestParam.userInfo.minSuccess > requestParam.userInfo.successRequests ) {
             await getDataAction( requestParam.userInfo, 'userInfo' )
@@ -521,7 +565,7 @@ async function getData() {
                 }
               }
             })
-            .catch( function( err ) { console.log( err ) })
+            .catch( function( err ) { console.log( '[MB] ' + err ) })
           }
           if ( requestParam.tarifInfo.minSuccess > requestParam.tarifInfo.successRequests ) {
             await getDataAction( requestParam.tarifInfo, 'tarifInfo' )
@@ -543,7 +587,9 @@ async function getData() {
                       MBResult = { TarifPlan: response.data.tariffInfo.name }
                     else
                       MBResult.TarifPlan = response.data.tariffInfo.name;
-                    if ( response.data.tariffInfo.tariffPricesInfo.mainPrice.date !== null )
+                    // Забираем дату следующего платежа, если ещё нет в ответе
+                    if ( ( response.data.tariffInfo.tariffPricesInfo.mainPrice.date !== null ) &&
+                         ( MBResult.TurnOffStr === undefined ) )
                       MBResult.TurnOffStr = `${response.data.tariffInfo.tariffPricesInfo.mainPrice.date.slice( 8, 10 )}.` +
                                             `${response.data.tariffInfo.tariffPricesInfo.mainPrice.date.slice( 5,  7 )}.` +
                                             `${response.data.tariffInfo.tariffPricesInfo.mainPrice.date.slice( 0,  4 )}`;
@@ -559,7 +605,7 @@ async function getData() {
                 }
               }
             })
-            .catch( function( err ) { console.log( err ) })
+            .catch( function( err ) { console.log( '[MB] ' + err ) })
           }
           if ( requestParam.dataCounters.minSuccess > requestParam.dataCounters.successRequests ) {
             // Забираем остатки пакетов минут, SMS и Интернета (если есть)
@@ -616,9 +662,14 @@ async function getData() {
                 }
               }
             })
-            .catch( function( err ) { console.log( err ) })
+            .catch( function( err ) { console.log( '[MB] ' + err ) })
           }
-          if ( requestParam.expensesInfo.minSuccess > requestParam.expensesInfo.successRequests ) {
+          // Расходы за период можно оценивать только после получения для API v2 данных об абонентсклй плате (стоимости
+          //   тарифа и дате следующего платежа, если она есть) и разбора остатков пакетов, где тоже может обнаружиться
+          //   дата следующего платежа. Если эти запросы ещё не обработаны, то ждём их завершения
+          if ( ( requestParam.tarifInfo.successRequests    >= requestParam.tarifInfo.minSuccess ) &&
+               ( requestParam.dataCounters.successRequests >= requestParam.dataCounters.minSuccess ) &&
+               ( requestParam.expensesInfo.minSuccess      >  requestParam.expensesInfo.successRequests ) ) {
             switch( requestParam.expensesInfo.verAPI ) {
               case 1: {
                 requestParam.expensesInfo.minSuccess = 0;
@@ -626,36 +677,43 @@ async function getData() {
                 break;
               }
               case 2: {
-                if ( dateFrom === '' ) { // Если дата начала периода для запроса ещё не была сформирована, то делаем это
-                  // Формируем дату начала периода в формате вида: '2025-07-03T00:00:00+03:00'
-                  let fromDate;
-                  if ( ( MBResult.TurnOffStr === undefined ) ||                         // Если дата следующего платежа не определена ...
-                       ( tarifPrice === 0 ) ) {                                         // ... или тариф без абонентской платы ...
-                    fromDate = ( new Date( Date.now() ) ).toJSON().split( 'T' )[ 0 ];   // ... то берём для запроса текущую дату
+                paidAmmount += tarifPrice;    // В качестве значения абонентской платы принимаем значение из данных тарифа
+                if ( dateFrom === '' ) {      // Если дата начала периода для запроса ещё не задана,
+                  let fromDate, tmp;          //   то создаём её в формате: '2025-07-03T00:00:00+03:00'
+                  if ( tarifPrice === 0 ) {   // Если тариф без абонентской платы, то для запроса берём текущую дату
+                    fromDate = new Date( `${new Date().toISOString().split( 'T' )[ 0 ]}T00:00:00${tZone}` );
                   }
-                  else {  // Для тарифов с абонентской платой берём дату начала оплаченного периода
-                    fromDate = MBResult.TurnOffStr.split( '.' );
-                    fromDate = new Date( `${fromDate[ 2 ]}-${fromDate[ 1 ]}-${fromDate[ 0 ]}T00:00:00${tZone}` );
-                    fromDate.setMonth( fromDate.getMonth() - 1 );
-                    fromDate = fromDate.toJSON().split( 'T' )[ 0 ];
+                  else {                      // Для тарифов с абонентской платой берём дату начала оплаченного периода
+                    if ( MBResult.TurnOffStr !== undefined ) {
+                      fromDate = MBResult.TurnOffStr.split( '.' );    // Формируем начало суток даты оплаченного периода
+                      fromDate = new Date( `${fromDate[ 2 ]}-${fromDate[ 1 ]}-${fromDate[ 0 ]}T00:00:00${tZone}` );
+                      fromDate.setMonth( fromDate.getMonth() - 1 );   // Формируем дату начала оплаченного периода (- месяц)
+                    }
+                    else
+                      break;
                   }
-                  dateFrom = `${fromDate}T00:00:00${tZone}`;
+                  // Формат ISO изменит значение на часовой пояс, поэтому учитываем значение часовой пояса в самой дате
+                  tmp = ( parseInt( tZone.slice( 1 ).split( ':' )[ 0 ]) * 60 * 60 * 1000 ) +  // Вычисляем в миллисекундах
+                        ( parseInt( tZone.slice( 1 ).split( ':' )[ 1 ]) * 60 * 1000 );        //   сумму часов и минут ...
+                  tmp = ( tZone.split( ':' )[ 0 ] < 0 ) ? -tmp : tmp;                 // ... и учитываем знак ('+' или '-')
+                  fromDate = new Date( Number( fromDate ) + tmp );  // Формируем дату с учётом значения часового пояса
+                  fromDate = fromDate.toISOString().split( '.' )[  0 ]; // Дата и время в нужном формате 'гггг-мм-ддThh:mm:ss'
+                  dateFrom = fromDate + tZone;
                   // Заносим полученную дату в переменную фильтра 'dateFrom' объекта запроса
                   requestParam.expensesInfo.api2Part.variables.filter.dateFrom = dateFrom;
                 }
                 await getDataAction( requestParam.expensesInfo, 'expensesInfo' )
                 .then( function( response ) {
-                  // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
-                  // то забираем расходы за период (для API ver2)
+                  // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа
+                  //   ещё не было), то забираем расходы за период
                   if ( requestParam.expensesInfo.successRequests >= requestParam.expensesInfo.minSuccess ) {
                     response.data.transactionsByFilter.categories.forEach( function( item ) {
-                      if ( item.alias !== 'abonent_charging' )
+                      if ( item.alias !== 'abonent_charging' )  // Не берём текущий расход по тарифу - возьмём его полную сумму
                         paidAmmount += item.amount;
                     })
-                    paidAmmount += tarifPrice; // В качестве значения абонентской платы принимаем значение из данных тарифа
                   }
                 })
-                .catch( function( err ) { console.log( err ) })
+                .catch( function( err ) { console.log( '[MB] ' + err ) })
                 break;
               }
             }
@@ -687,7 +745,7 @@ async function getData() {
                 }
               }
             })
-            .catch( function( err ) { console.log( err ) })
+            .catch( function( err ) { console.log( '[MB] ' + err ) })
           }
         } while ( ( requestParam.dataBalance.minSuccess    > requestParam.dataBalance.successRequests )    ||
                   ( requestParam.accountBlocker.minSuccess > requestParam.accountBlocker.successRequests ) ||
@@ -705,21 +763,25 @@ async function getData() {
         else                          // Если в объекте уже есть значения
           MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed( 2 )})`;
 
-        initLogout(); // Инициируем завершение сеанса работы с личным кабинетом и уходим с его страницы
+        waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
+        chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
+        // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
       }
     }) /* .then response.json() */
     .catch( function( err ) {  // Если получения и разбора ответа были ошибки,
       requestStatus = false;
-      requestError = `[MB] Error getting JSON for '/api/login/profile': ${err}`;
-      console.log( requestError );
-      initLogout();         //   то инициируем завершение сеанса работы с личным кабинетом и уходим с его страницы
+      console.log( '[MB] ' + ( requestError = `Error getting JSON for '/api/login/profile': ${err}` ) );
+      waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
+      chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
+      // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
     }) /* .then response.json() */
   }) /* /auth/profile/full/legacy */
   .catch( function( err ) {  // Если были ошибки в ходе получения запроса,
     requestStatus = false;
-    requestError = `[MB] Fetch error getting '/api/login/profile': ${err}`;
-    console.log( requestError );
-    initLogout();         //   то инициируем завершение сеанса работы с личным кабинетом и уходим с его страницы
+    console.log( '[MB] ' + ( requestError = `Fetch error getting '/api/login/profile': ${err}` ) );
+    waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
+    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
+    // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
   }) /* /api/login/profile */
 }
 
@@ -734,11 +796,11 @@ async function getRequestToken( dest ) {
         resolve( response );
       })
       .catch( function( err ) {
-        reject( `[MB] Error getting JSON for requestToken: ${err}` );
+        reject( `Error getting JSON for requestToken: ${err}` );
       })
     })
     .catch( function( err ) {
-      reject( `[MB] Fetch error getting requestToken: ${err}` );
+      reject( `Fetch error getting requestToken: ${err}` );
     })
   });
 }
@@ -757,7 +819,7 @@ async function urlsPrepare( param ) {
           })
           .catch( function( err ) { // Токен не получен, ссылка не сформирована, нужно повторить
             ++i;                    // !!! Есть риск бесконечного цикла при отказе API-функции выдачи токена !!!
-            console.log( err );
+            console.log( '[MB] ' + err );
           })
         }
         else                                 // Подготавливаем массив ссылок для запросов без токенов

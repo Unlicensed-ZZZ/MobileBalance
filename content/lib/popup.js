@@ -82,7 +82,7 @@ btnHistory.addEventListener( 'click', async () => {
           chrome.windows.update( result[ 0 ].windowId, { focused: true } );
           self.close();                                   // popup-окно закрываем
         }
-        else {                                            //
+        else {
           chrome.tabs.query( { currentWindow: true, url: historyPerDateUrl } )
           .then( function( result ) {
             if ( result.length > 0 ) {                    // Если нашлась в текущем окне - переходим к ней

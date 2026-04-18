@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Yota через API
- * Редакция:  2025.12.07
+ * Редакция:  2026.04.09
  *
 */
 
@@ -43,7 +43,10 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                 }
                 else {                                                                          // Если сессия открыта для других учётных данных ...
                   fetchError( `Рrevious session for '${prevAccount}' was not closed. Closing it now...` );
-                  await cookieStore.delete( { name: 'token', path: '/' } );                     // ... то закрываем сессию удалением токена в cookie
+                  await cookieStore.delete( 'token' );                                          // ... то закрываем сессию удалением токенов в cookie
+                  await cookieStore.delete( { name: 'x-token-public', domain: 'yota.ru' } );
+                  await localStorage.clear();                                                   //   и очищаем записи статистики в Local Storage
+
                   // При завершении этапа расширение выполнит переход на страницу входа 'finishUrl' и страница загрузится без прежней сессии
                   chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
                   return;
@@ -54,7 +57,12 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
               if ( window.location.pathname === '/login' ) {                                      // Должны находиться на странице '/login'
                 if ( inputToken !== undefined ) {                                                 // Если передан ранее сохранённый токен, то ...
                   console.log( `[MB] Attempting to authorize as '${MBLogin}' ...` );
-                  await cookieStore.set( { 'name': 'token', 'value': inputToken, path: '/' } );   // ... записываем его в cookie (восстанавливаем сессию)
+                  await cookieStore.set( { name: inputToken.name, value: inputToken.value,        // ... записываем его в cookie (восстанавливаем сессию)
+                                           expires:  ( inputToken.expires === null )  ? undefined : inputToken.expires,
+                                           domain:   ( inputToken.domain === null )   ? undefined : inputToken.domain,
+                                           path:     ( inputToken.domain === null )   ? undefined : inputToken.path,
+                                           sameSite: ( inputToken.sameSite === null ) ? 'none'    : inputToken.sameSite  } );
+//                  await cookieStore.set( { 'name': 'token', 'value': inputToken, path: '/' } );   // ... записываем его в cookie (восстанавливаем сессию)
                   window.location.replace( window.location.origin + '/profile' );                 // Переходим на страницу личного кабинета, этот экземпляр скрипта будет утрачен
                   return;
                 }
@@ -110,11 +118,13 @@ async function initLogout() {
 //       ----------
   let Tkn = await cookieStore.get( 'token' );                     // Получаем токен (на случай, если он изменился в ходе запроса)
   if ( Tkn !== null ) {                                           // Токен есть (авторизация активна)
-    if ( Tkn.value !== inputToken ) {                             // Токен изменился (или был получен в ходе запроса)
+    if ( Tkn.value !== inputToken.value ) {                       // Токен изменился (или был получен в ходе запроса)
       currentToken.renew = true;                                  // Нужно записать / обновить его значение в учётных данных
-      currentToken.token = Tkn.value;
+      currentToken.token = Tkn;
     }
-    await cookieStore.delete( { name: 'token', path: '/' } );     // Закрываем текущую сессию удалением токена в cookie (если он был)
+    await cookieStore.delete( 'token' );                          // Закрываем текущую сессию удалением токенов в cookie (если они были)
+    await cookieStore.delete( { name: 'x-token-public', domain: 'yota.ru' } );
+    await localStorage.clear();                                   //   и очищаем записи статистики в Local Storage
   }
   else
     currentToken.renew = true;                                    // Токена нет, нужно удалить его неактуальное значение в учётных данных
