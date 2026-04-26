@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Yota через API
- * Редакция:  2026.04.09
+ * Редакция:  2026.04.25
  *
 */
 
@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       switch ( request.action ) {
         case 'log&pass': {
           //  При входе на 'web.yota.ru' при отсутствии авторизации попадаем на страницу '/login', при активной авторизации - на страницу '/profile'.
-          //  При авктивной авторизации на странице есть меню перехода / выхода - элемент кнопки с классом 'authorized-menu__btn'. В нём - вложенный
+          //  При активной авторизации на странице есть меню перехода / выхода - элемент кнопки с классом 'authorized-menu__btn'. В нём - вложенный
           //  элемент 'span' с innerText = номеру текущих учётных данных. При отсутствии авторизации элемента с классом 'authorized-menu__btn' нет.
           if ( window.location.origin.includes( 'web.yota.ru' ) ) {                             // Если стартовая страница сайта открылась ...
             if ( window.location.pathname === '/profile' ) {                                    // ... и есть текущая авторизация в личном кабинете
@@ -46,7 +46,6 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                   await cookieStore.delete( 'token' );                                          // ... то закрываем сессию удалением токенов в cookie
                   await cookieStore.delete( { name: 'x-token-public', domain: 'yota.ru' } );
                   await localStorage.clear();                                                   //   и очищаем записи статистики в Local Storage
-
                   // При завершении этапа расширение выполнит переход на страницу входа 'finishUrl' и страница загрузится без прежней сессии
                   chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus, error: requestError, data: undefined }, null );
                   return;
@@ -54,25 +53,29 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
               }
             }
             else { // Активной авторизации нет
-              if ( window.location.pathname === '/login' ) {                                      // Должны находиться на странице '/login'
-                if ( inputToken !== undefined ) {                                                 // Если передан ранее сохранённый токен, то ...
+              if ( window.location.pathname === '/login' ) {                                      // Если находимся на странице авторизации '/login' ...
+                if ( inputToken !== undefined ) {                                                 // ... и есть ранее сохранённый токен, то ...
                   console.log( `[MB] Attempting to authorize as '${MBLogin}' ...` );
-                  await cookieStore.set( { name: inputToken.name, value: inputToken.value,        // ... записываем его в cookie (восстанавливаем сессию)
-                                           expires:  ( inputToken.expires === null )  ? undefined : inputToken.expires,
-                                           domain:   ( inputToken.domain === null )   ? undefined : inputToken.domain,
-                                           path:     ( inputToken.domain === null )   ? undefined : inputToken.path,
-                                           sameSite: ( inputToken.sameSite === null ) ? 'none'    : inputToken.sameSite  } );
-//                  await cookieStore.set( { 'name': 'token', 'value': inputToken, path: '/' } );   // ... записываем его в cookie (восстанавливаем сессию)
+                  await cookieStore.set( inputToken );                                            // ... записываем его в cookie (восстанавливаем сессию)
                   window.location.replace( window.location.origin + '/profile' );                 // Переходим на страницу личного кабинета, этот экземпляр скрипта будет утрачен
                   return;
                 }
-                else { // Вносим в поле ввода учётные данные, ожидаем их отправку и последующий ввод пароля (код из SMS) пользователем
-                  let phoneNumber = document.getElementsByTagName( 'form' )[ 0 ].getElementsByTagName( 'input' )[ 0 ];  // Получаем поле ввода с формы авторизации
+                else { // Если ранее сохранённого токена нет, то вносим в поле ввода учётные данные и ожидаем чтобы пользователь провёл авторизацию
+                  let phoneNumber = document.getElementsByTagName( 'form' )[ 0 ].getElementsByTagName( 'input' )[ 0 ];  // Получаем поле ввода на форме авторизации ...
                   phoneNumber.dispatchEvent( new Event( 'focusin', { bubbles: true } ) );
-                  phoneNumber.value = MBLogin;
+                  phoneNumber.value = MBLogin;                                                                          // ... и вносим в него значение логина
                   phoneNumber.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+                  // При успешной авторизации Yota страницу не перезагружает, а формирует личный кабинет на текущей
+                  //   Но 'window.location.pathname' всё же меняется с '/login' на '/profile'. Контролируем это изменение и перезагружаем
+                  //   страницу, чтобы расширение инициировало следующий этап работы плагина. Этот экземпляр скрипта будет утрачен
+                  let timerId = setInterval( async function() {
+                    if ( window.location.href.includes( '/profile' ) ) {  // Если открылась страница личного кабинета,
+                      clearInterval( timerId );                           //   то прекращаем интервальные вызовы
+                      window.location.reload();                           //   и перезагружаем страницу
+                    }
+                    await sleep( 10 );                                    // Пауза, чтобы не подвесить параллельные процессы
+                  }, 500 );
                   return;
-                  // После успешной авторизации должна быть открыта страница личного кабинета (то есть страница обновится и этот экземпляр скрипта будет утрачен)
                 } // При отсутствии действий пользователя, ошибках авторизаци = превышении времени ожидания авторизации, расширение прекратит опрос по этим учётным данным
               }
             }
@@ -116,10 +119,11 @@ function sleep( ms ) {
 
 async function initLogout() {
 //       ----------
-  let Tkn = await cookieStore.get( 'token' );                     // Получаем токен (на случай, если он изменился в ходе запроса)
-  if ( Tkn !== null ) {                                           // Токен есть (авторизация активна)
-    if ( Tkn.value !== inputToken.value ) {                       // Токен изменился (или был получен в ходе запроса)
-      currentToken.renew = true;                                  // Нужно записать / обновить его значение в учётных данных
+  let Tkn = await cookieStore.get( 'token' );                     // Получаем токен
+  if ( Tkn !== null ) {                                           // Если токен есть (авторизация активна) ...
+    if ( ( inputToken === undefined ) ||                          // ... и он был получен в ходе запроса ...
+         ( Tkn.value !== inputToken.value ) ) {                   // ... или изменился, то ...
+      currentToken.renew = true;                                  // ... нужно записать / обновить его значение в учётных данных
       currentToken.token = Tkn;
     }
     await cookieStore.delete( 'token' );                          // Закрываем текущую сессию удалением токенов в cookie (если они были)

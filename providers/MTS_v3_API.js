@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных) по учётным данным логин / пароль
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2026.04.09
+ * Редакция:  2026.04.27
  *
 */
 
@@ -279,57 +279,139 @@ function authInput( login, passw ) {
   const authUrl = 'https://login.mts.ru/amserver/wsso/authenticate?authIndexType=service&authIndexValue=login-spa';
   let i = 0;
 
-  // Запрашиваем структуру данных формы подтверждения входа с 'header': 'trusted-network' или 'device-match-hold'
+  // С 23.04.2026 структура запросов-ответов для взаимодействия с серверами МТС изменилась
+  // Запрашиваем исходную структуру данных формы подтверждения входа с 'header': 'trusted-network' или 'device-match-hold'
   fetch( authUrl, { method: 'POST', mode: 'cors',
                     headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
-    .then( function( response ) {
-    response.json()
-    .then( function( response ) {
+  .then( function( response ) {
+  response.json()
+    .then( async function( response ) {
       // Проверяем полученный ответ на отсутствие запроса ввода капчи
       if ( response.header === 'verify-captcha' ) { // Пришла капча. Её обработка не реализована
         fetchError( 'Need to solve captcha' );
         return;
       }
-      // Вносим в структуру ответа подтверждение входа
-      for ( i = 0; i < response.callbacks.length; i++ ) {
-        if ( response.callbacks[ i ].type === 'ConfirmationCallback' )
-          response.callbacks[ i ].input[ 0 ].value = 1;
-      }
-      // Отсылаем форму серверу. Получаем в ответ структуру формы ввода учётных данных (логина) с 'header': 'enter-phone'
+      // В исходной значение 'authId' пустое. Чтобы его получить нужно направить серверу параметры устройства
+      // В элементе 'output' одного из блоков 'TextInputCallback' присылается код функции сбора параметров браузера
+      //   В 'output' этого блока присутствуют структуры { name: 'prompt', value: 'function' } и
+      //                                                 { name: 'defaultText', value: 'код_функции' }
+      //   Результат выполнения этого кода помещается в глобальную переменную 'window.devicePrint' и из неё в
+      //   элемент 'value' 'input'-структуры с 'name': 'IDToken1' в блоке 'HiddenValueCallback'
+      // Функцию из текста (строки) не позволяют выполнить ограничения браузера, поэтому воспроизводим её
+      //   непосредственно здесь в скрипте, как функцию 'devicePrintFn()'
+
+      // Вносим данные в значения структур для отсылки серверу, сообщая что работаем в Yandex Browser
+      let devicePrint = await response.callbacks.findIndex( function( item ) {
+        if ( item.type === 'HiddenValueCallback' )  return true;
+      });
+      devicePrint = await response.callbacks[ devicePrint ].input.find( function( item ) {
+        if ( item.name === 'IDToken1' )  return true;
+      });
+      devicePrint.value = devicePrintFn();
+      // Проставляем значения в 'input'-структуры блоков
+      await response.callbacks.forEach( async function( item_1 ) {
+        let result;
+        if ( item_1.type === 'ReferrerCallback' ) {
+          await item_1.input.forEach( async function( item_2 ) {
+            if ( item_2.name === 'referrer' )
+              item_2.value = 'https://lk.mts.ru/';
+          });
+        }
+        if ( item_1.type === 'TextInputCallback' ) {
+          await item_1.input.forEach( async function( item_2 ) {
+            switch( item_2.name ) {
+              case 'IDToken3':  { item_2.value = 'true'; break; }
+              case 'IDToken4':  { item_2.value = 'windows'; break; }
+              case 'IDToken5':  { item_2.value = 'Ключ на Windows в Yandex'; break; }   // Будем сообщать, что работаем в Yandex Browser
+              case 'IDToken7':  { item_2.value = await localStorage.getItem( 'uuid' ); break; }
+              case 'IDToken9':  { item_2.value = 'Windows, Yandex'; break; }            // Будем сообщать, что работаем в Yandex Browser
+              case 'IDToken10': { item_2.value = 'false'; break; }
+            }
+          });
+        }
+      });
+      // Отсылаем форму серверу. При отсутствии ошибок получаем структуру формы ввода учётных данных (логина) с 'header': 'enter-phone'
       fetch( authUrl, { method: 'POST', mode: 'cors', body: JSON.stringify( response ),
                         headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
       .then( function( response ) {
         response.json()
-        .then( function( response ) {
-          // Вносим в структуру ответа значение логина
-          for ( i = 0; i < response.callbacks.length; i++ ) {
-            if ( response.callbacks[ i ].type === 'ConfirmationCallback' )
-              response.callbacks[ i ].input[ 0 ].value = 1;
-            if ( response.callbacks[ i ].type === 'NameCallback' )
-              response.callbacks[ i ].input[ 0 ].value = '7' + login;
+        .then( async function( response ) {
+          // Проверяем, нужная ли структура ('header': 'enter-phone') была получена в ответе
+          if ( response.header !== 'enter-phone' ) { // Если нет, то завершаем работу с ошибкой
+            fetchError( '"enter-phone" structure was not recieved' );
+            return;
           }
+          // Вносим в структуру ответа значение логина и подтверждение ввода
+          await response.callbacks.forEach( async function( item_1 ) {
+            if ( item_1.type === 'NameCallback' ) {                     // Значение логина
+              await item_1.input.forEach( async function( item_2 ) {
+                if ( item_2.name === 'IDToken1' )   item_2.value = '7' + login;
+              });
+            }
+            if ( item_1.type === 'ConfirmationCallback' ) {             // Подтверждение ввода
+              await item_1.input.forEach( async function( item_2 ) {
+                if ( item_2.name === 'IDToken2' )   item_2.value = 1;
+              });
+            }
+            if ( item_1.type === 'MetadataCallback' ) {                 // Снимаем флаг принудительной отправки SMS
+              await item_1.input.forEach( async function( item_2 ) {
+                if ( item_2.name === 'cid' )        item_2.value = 'mts-w-payment';
+              });
+              await item_1.output.forEach( async function( item_2 ) {
+                if ( item_2.name === 'data' )       item_2.value.forcedSms = false;
+              });
+            }
+          });
           // Отсылаем форму серверу. При отсутствии ошибок получаем в ответ структуру формы ввода пароля с 'header': 'verify-password'
           fetch( authUrl, { method: 'POST', mode: 'cors', body: JSON.stringify( response ),
                             headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
           .then( function( response ) {
             response.json()
-            .then( function( response ) {
-              // Вносим в структуру ответа значение пароля
-              for ( i = 0; i < response.callbacks.length; i++ ) {
-                if ( response.callbacks[ i ].type === 'ConfirmationCallback' )
-                  response.callbacks[ i ].input[ 0 ].value = 1;
-                if ( response.callbacks[ i ].type === 'PasswordCallback' )
-                  response.callbacks[ i ].input[ 0 ].value = passw;
-                // Если на предыдущем шаге в ответе возвращена ошибка - прекращаем процесс авторизации
-                if (( response.callbacks[ i ].type === 'MetadataCallback' ) && ( response.callbacks[ i ].output[ 0 ].value.error )) {
-                  console.log( '[MB] ' + ( requestError = `Login or account error. Code: ${response.callbacks[ i ].output[ 0 ].value.error}` ) );
-                  // Передаём расширению MobileBalance ошибку при авторизации
-                  chrome.runtime.sendMessage( MBextentionId,
-                                              { message: 'MB_workTab_takeData', status: false,
-                                                data: undefined, error: requestError }, null );
-                  return;
-                }
+            .then( async function( response ) {
+              // Если в ответ на запрос сервер прислал структуру для OTP-авторизации (по коду из SMS) ( header === 'verify-otp' ) выдаём ошибку
+              if ( response.header.includes( 'verify-otp' ) ) { // варианты значений "verify-otp", "pre-verify-otp", "verify-otp-pay", "verify-otp-mobile-id"
+                console.log( '[MB] ' + ( requestError = 'Server clamed OTP authorization' ) );
+                // Передаём расширению MobileBalance ошибку и требование прекращения дальнейших запросов (data: 'StopPooling')
+                chrome.runtime.sendMessage( MBextentionId,
+                                            { message: 'MB_workTab_takeData', status: false,
+                                              data: 'StopPooling', error: requestError }, null );
+                return;
               }
+              // Вносим в структуру ответа значение пароля и подтверждение ввода
+              await response.callbacks.forEach( async function( item_1 ) {
+                if ( item_1.type === 'MetadataCallback' ) {                 // Снимаем флаг принудительной отправки SMS
+                  await item_1.output.forEach( async function( item_2 ) {
+                    // Если на предыдущем шаге в ответе возвращена ошибка - прекращаем процесс авторизации
+                    if ( item_2.value.error != undefined ) {
+                      console.log( '[MB] ' + ( requestError = `Login or account error. Code: ${item_2.value.error}` ) );
+                      // Передаём расширению MobileBalance ошибку авторизации и выходим
+                      chrome.runtime.sendMessage( MBextentionId,
+                                                  { message: 'MB_workTab_takeData', status: false,
+                                                    data: undefined, error: requestError }, null );
+                      return;
+                    }
+                    if ( item_2.name === 'data' )       item_2.value.forcedSms = false;
+                  });
+                  await item_1.input.forEach( async function( item_2 ) {
+                    if ( item_2.name === 'cid' )        item_2.value = 'mts-w-payment';
+                  });
+                }
+                if ( item_1.type === 'TextInputCallback' ) {                // Устанавливаем флаг 'Save Persistent Cookie' (MTSWebSSOPersistent)
+                  await item_1.input.forEach( async function( item_2 ) {
+                    if ( item_2.name === 'IDToken4' )   item_2.value = 'true';
+                  });
+                }
+                if ( item_1.type === 'PasswordCallback' ) {                 // Значение пароля
+                  await item_1.input.forEach( async function( item_2 ) {
+                    if ( item_2.name === 'IDToken1' )   item_2.value = passw;
+                  });
+                }
+                if ( item_1.type === 'ConfirmationCallback' ) {             // Подтверждение ввода
+                  await item_1.input.forEach( async function( item_2 ) {
+                    if ( item_2.name === 'IDToken2' )   item_2.value = 1;
+                  });
+                }
+              });
               // Отсылаем форму серверу. При отсутствии ошибок авторизация успешно завершена
               fetch( authUrl, { method: 'POST', mode: 'cors', body: JSON.stringify( response ),
                                 headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
@@ -362,21 +444,21 @@ function authInput( login, passw ) {
                       }
                     }
                 })
-                .catch( function( err ) { fetchError( 'Response error getting PasswordValue form. Received: ' + err.message ) } )
+                .catch( function( err ) { fetchError( 'Error getting final password response: ' + err.message ) } )
               })
-              .catch( function( err ) { fetchError( 'Error fetching PasswordValue form: ' + err.message ) } )
+              .catch( function( err ) { fetchError( 'Error sending final password structure: ' + err.message ) } )
             })
-            .catch( function( err ) { fetchError( 'Response error getting PasswordValue form. Received: ' + err.message ) } )
+            .catch( function( err ) { fetchError( 'Error getting "verify-password" response: ' + err.message ) } )
           })
-          .catch( function( err ) { fetchError( 'Error fetching LoginValue form: ' + err.message ) } )
+          .catch( function( err ) { fetchError( 'Error sending "verify-password" structure: ' + err.message ) } )
         })
-        .catch( function( err ) { fetchError( 'Response error getting LoginValue form. Received: ' + err.message ) } )
+        .catch( function( err ) { fetchError( 'Error getting "enter-phone" response: ' + err.message ) } )
       })
-      .catch( function( err ) { fetchError( 'Error fetching LoginConfirmation form: ' + err.message ) } )
+      .catch( function( err ) { fetchError( 'Error sending "enter-phone" structure: ' + err.message ) } )
     })
-    .catch( function( err ) { fetchError( 'Response error getting LoginConfirmation form. Received: ' + err.message ) } )
+    .catch( function( err ) { fetchError( 'Error getting "device-match-hold" response: ' + err.message ) } )
   })
-  .catch( function( err ) { fetchError( 'Error fetching InitLogin process: ' + err.message ) } )
+  .catch( function( err ) { fetchError( 'Error fetching "device-match-hold" structure: ' + err.message ) } )
 
   function fetchError( err ) {
   //       ----------
@@ -385,7 +467,151 @@ function authInput( login, passw ) {
     waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
     chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
     // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
-  }
+  } // fetchError()
+
+  function devicePrintFn() {  // Функция сбора параметров браузера, переданная для выполнениея в блоке 'TextInputCallback'
+  //       -------------      //   исходной структуры с "header": "device-match-hold"
+    var fontDetector = ( function () {
+      var detector = {}, baseFonts, testString, testSize, h, s, defaultWidth = {}, defaultHeight = {}, index;
+        baseFonts = [ 'monospace', 'sans-serif', 'serif' ];
+        testString = "mmmmmmmmmmlli";
+        testSize = '72px';
+        h = document.getElementsByTagName( "body" )[ 0 ];
+        s = document.createElement( "span" );
+        s.style.fontSize = testSize;
+        s.innerHTML = testString;
+        for ( index in baseFonts ) {
+          s.style.fontFamily = baseFonts[ index ];
+          h.appendChild( s );
+          defaultWidth[ baseFonts[ index ] ] = s.offsetWidth;
+          defaultHeight[ baseFonts[ index ] ] = s.offsetHeight;
+          h.removeChild( s );
+        }
+        detector.detect = function( font ) {
+          var detected = false, index, matched;
+          for ( index in baseFonts ) {
+            s.style.fontFamily = font + ',' + baseFonts[ index ];
+            h.appendChild( s );
+            matched = ( s.offsetWidth !== defaultWidth[ baseFonts[ index ] ] ||
+                        s.offsetHeight !== defaultHeight[ baseFonts[ index ] ] );
+            h.removeChild( s );
+            detected = detected || matched;
+          }
+          return detected;
+        };
+        return detector; }() );
+    var collectScreenInfo = function () {
+      var screenInfo = {};
+      if ( screen ) {
+        if ( screen.width ) {
+          screenInfo.screenWidth = screen.width;
+        }
+        if ( screen.height ) {
+          screenInfo.screenHeight = screen.height;
+        }
+        if ( screen.pixelDepth ) {
+          screenInfo.screenColourDepth = screen.pixelDepth;
+        }
+      }
+      else {
+        console.warn( "Cannot collect screen information. screen is not defined." );
+      }
+      return screenInfo;
+    },
+    collectTimezoneInfo = function () {
+      var timezoneInfo = {}, offset = new Date().getTimezoneOffset();
+      if ( offset ) {
+        timezoneInfo.timezone = offset;
+      }
+      else {
+        console.warn( "Cannot collect timezone information. timezone is not defined." );
+      }
+      return timezoneInfo;
+    },
+    collectBrowserPluginsInfo = function () {
+      if ( navigator && navigator.plugins ) {
+        var pluginsInfo = {}, i, plugins = navigator.plugins; pluginsInfo.installedPlugins = "";
+        for ( i = 0; i < plugins.length; i++ ) {
+          pluginsInfo.installedPlugins = pluginsInfo.installedPlugins + plugins[i].filename + ";";
+        }
+        return pluginsInfo;
+      }
+      else {
+        console.warn( "Cannot collect browser plugin information. navigator.plugins is not defined." );
+      return {};
+      }
+    },
+    collectBrowserFontsInfo = function () {
+      var fontsInfo = {}, i, fontsList = [ "cursive", "monospace", "serif", "sans-serif", "fantasy", "default", "Arial", "Arial Black", "Arial Narrow", "Arial Rounded MT Bold", "Bookman Old Style", "Bradley Hand ITC", "Century", "Century Gothic", "Comic Sans MS", "Courier", "Courier New", "Georgia", "Gentium", "Impact", "King", "Lucida Console", "Lalit", "Modena", "Monotype Corsiva", "Papyrus", "Tahoma", "TeX", "Times", "Times New Roman", "Trebuchet MS", "Verdana", "Verona"];
+      fontsInfo.installedFonts = "";
+      for ( i = 0; i < fontsList.length; i++ ) {
+        if ( fontDetector.detect( fontsList[ i ] ) ) {
+          fontsInfo.installedFonts = fontsInfo.installedFonts + fontsList[ i ] + ";";
+        }
+      }
+      return fontsInfo;
+    },
+    devicePrint = {};
+    devicePrint.screen = collectScreenInfo();
+    if ( navigator.userAgent ) {
+      devicePrint.userAgent = navigator.userAgent;
+    }
+    if ( navigator.platform ) {
+      devicePrint.platform = navigator.platform;
+    }
+    if ( navigator.language ) {
+      devicePrint.language = navigator.language.substr( 0, 2 );
+    }
+    if ( navigator.userAgent && !navigator.userAgent.includes( "Mobile" ) ) {
+      devicePrint.timezone = collectTimezoneInfo();
+      devicePrint.plugins = collectBrowserPluginsInfo();
+      devicePrint.fonts = collectBrowserFontsInfo();
+      if ( navigator.appName ) {
+        devicePrint.appName = navigator.appName;
+      }
+      if ( navigator.appCodeName ) {
+        devicePrint.appCodeName = navigator.appCodeName;
+      }
+      if ( navigator.appVersion ) {
+        devicePrint.appVersion = navigator.appVersion;
+      }
+      if ( navigator.appMinorVersion ) {
+        devicePrint.appMinorVersion = navigator.appMinorVersion;
+      }
+      if ( navigator.buildID ) {
+        devicePrint.buildID = navigator.buildID;
+      }
+      if ( navigator.cpuClass ) {
+        devicePrint.cpuClass = navigator.cpuClass;
+      }
+      if ( navigator.oscpu ) {
+        devicePrint.oscpu = navigator.oscpu;
+      }
+      if ( navigator.product ) {
+        devicePrint.product = navigator.product;
+      }
+      if ( navigator.productSub ) {
+        devicePrint.productSub = navigator.productSub;
+      }
+      if ( navigator.vendor ) {
+        devicePrint.vendor = navigator.vendor;
+      }
+      if ( navigator.vendorSub ) {
+        devicePrint.vendorSub = navigator.vendorSub;
+      }
+      if ( navigator.userLanguage ) {
+        devicePrint.userLanguage = navigator.userLanguage;
+      }
+      if ( navigator.browserLanguage ) {
+        devicePrint.browserLanguage = navigator.browserLanguage;
+      }
+      if ( navigator.systemLanguage ) {
+        devicePrint.systemLanguage = navigator.systemLanguage;
+      }
+    }
+//    window.devicePrint = JSON.stringify( devicePrint );
+    return JSON.stringify( devicePrint );
+  } // devicePrintFn()
 }
 
 
