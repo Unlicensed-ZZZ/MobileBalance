@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна истории запросов расширения MobileBalance по датам
- * Редакция:  2025.11.11
+ * Редакция:  2026.05.05
  *
 */
 
@@ -80,7 +80,11 @@ function calcBoundDates( inpDate ) {
 async function dbGetTotalBounds( dir ) {
 //             -----------------------
   return new Promise((resolve, reject) => {
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); // Открываем хранилище 'Phones'
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      reject( err );
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
     dbObjStorMB.onerror = function( evnt ) {
       console.log( `[MB] ${evnt.target.error}` );
@@ -103,7 +107,11 @@ async function dbGetTotalBounds( dir ) {
 async function dbGetBoundRecords() {
 //             -------------------
   return new Promise((resolve, reject) => {
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' );  // Открываем хранилище 'Phones'
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      reject( err );
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
     dbObjStorMB.onerror = function( evnt ) {
       console.log( `[MB] ${evnt.target.error}` );

@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для кошелька карты 'Тройка' в 'mosmetro.ru' через API
  *            Логин - номер карты, пароль не используется
- * Редакция:  2026.01.08
+ * Редакция:  2026.05.16
  *
 */
 
@@ -91,8 +91,13 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                 console.log( `[MB] Attempting to authorize...` );
                 // Восстанавливаем ранее сохранённые токены = проводим авторизацию
                 await window.localStorage.setItem( 'passenger_access_token',  request.detail.access_token );
-                await window.localStorage.setItem( 'passenger_refresh_token', request.detail.refresh_token );
-                // Предпринимаем попытку обновить страницу личного кабинета, он должн открыться с авторизацией
+                if ( ( request.detail.refresh_token !== undefined ) && ( request.detail.refresh_token !== '' ) )
+                  await window.localStorage.setItem( 'passenger_refresh_token', request.detail.refresh_token );
+                // Поытка (вероятно бесполезня) задаёть окончание времени действия токена +10 суток с текущего момента
+                let tmp = new Date( Number(Date.now()) + (1000 * 60 * 60 * 24 * 10) )
+                tmp = Math.floor( Number(tmp) / 1000 )
+                await window.localStorage.setItem( 'passenger_expire_at', tmp );
+                // Обновляем страницу личного кабинета, при прянитии токенов он должн открыться с авторизацией
                 // Этот экземпляр плагина будет утрачен, расширение инициирует для него следующий этап - приём данных
                 window.location.reload();
               }

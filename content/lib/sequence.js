@@ -89,7 +89,11 @@ dbRequest.onupgradeneeded = function( evnt ) {
 function dbAddRecord( item ) {
 //       -------------------
   return new Promise( (resolve, reject) => {
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); } // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      reject( err );
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
     dbObjStorMB.onerror = function( evnt ) {
       console.log( `[MB] ${evnt.target.error}` );
@@ -129,7 +133,11 @@ function dbAddRecord( item ) {
 function dbGetLastRecord( item ) {
 //       -----------------------
   return new Promise( function( resolve, reject ) {
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); // Открываем хранилище 'Phones'
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      reject( err );
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
     dbObjStorMB.onerror = function( evnt ) {
       console.log( `[MB] ${evnt.target.error}` );
@@ -161,8 +169,11 @@ function dbDeleteSameDateRecords( item ) {
       let deletePeriod = delSameDateRecordTime * 3600000;
       // Определяем порог даты: значение текущей даты в 00:00:00
       let thresholdDate = new Date().setHours( 0, 0, 0, 0 );
-
-      dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+      try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); } // Открываем хранилище 'Phones'
+      catch( err ) {
+        console.log( `[MB] ${err}` );
+        reject( err );
+      }
       dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
       dbObjStorMB.onerror = function( evnt ) {
         console.log( `[MB] ${evnt.target.error}` );

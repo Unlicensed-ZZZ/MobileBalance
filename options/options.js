@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2026.04.01
+ * Редакция:  2026.05.05
  *
 */
 
@@ -39,7 +39,11 @@ dbRequest.onsuccess = function( evnt ) {
 //        ---------
   dbMB = evnt.target.result;
   console.log( `[MB] IndexedDB '${dbMB.name}' opened successfully` );
-  dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); // Открываем хранилище 'Phones'
+  try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+  catch( err ) {
+    console.log( `[MB] ${err}` );
+    return;
+  }
   dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
   dbObjStorMB.onerror = function( evnt ) {
     console.log( `[MB] ${evnt.target.error}` );
@@ -56,7 +60,11 @@ dbRequest.onupgradeneeded = function( evnt ) {
                                           { keyPath: 'QueryDateTime', autoIncrement: false } );
   }
   else {                                               // Если оно было - открываем хранилище 'Phones'
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); } // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      return;
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
   }
   if (!dbObjStorMB.indexNames.contains( 'PhoneNumber' ) ) // Если индекса 'PhoneNumber' не было - создаём его
@@ -69,7 +77,11 @@ dbRequest.onupgradeneeded = function( evnt ) {
 function dbRecordsCount() {
 //       ----------------
   return new Promise((resolve, reject) => {
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' );
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      reject( err );
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
     dbObjStorMB.onerror = function( evnt ) {
       console.log( `[MB] ${evnt.target.error}` );
@@ -720,7 +732,11 @@ optionsPage.addEventListener( 'click', async function( evnt ) {
         document.body.style.cursor = 'wait';
         historyDelete.disabled = historySave.disabled = historyLoad.disabled = true;
 
-        dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+        try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); } // Открываем хранилище 'Phones'
+        catch( err ) {
+          console.log( `[MB] ${err}` );
+          return;
+        }
         dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
         dbObjStorMB.onerror = function( evnt ) {
           console.log(`[MB] ${evnt.target.error}`);
@@ -753,7 +769,11 @@ optionsPage.addEventListener( 'click', async function( evnt ) {
       historyDelete.disabled = historySave.disabled = historyLoad.disabled = true;
       infoWin.style.display = 'block'; // Выдаём на время операции модальное информационное окно
 
-      dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' );
+      try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+      catch( err ) {
+        console.log( `[MB] ${err}` );
+        return;
+      }
       dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
       dbObjStorMB.onerror = function( evnt ) {
         historyLoad.disabled = false;
@@ -1575,7 +1595,11 @@ function getLoadedFile( btnId, fsHandle ) {
           let allTextLines = rawFile.result.split( /\r\n|\n/ );
           let headerArr = allTextLines[ 0 ].split( ';' );
           for ( let i = 1; i < allTextLines.length; i++ ) {
-            dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+            try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); } // Открываем хранилище 'Phones'
+            catch( err ) {
+              console.log( `[MB] ${err}` );
+              return;
+            }
             dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
 
             dbObjStorMB.onerror = function( evnt ) {

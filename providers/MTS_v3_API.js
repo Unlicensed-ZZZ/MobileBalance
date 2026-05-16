@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных) по учётным данным логин / пароль
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2026.04.27
+ * Редакция:  2026.05.16
  *
 */
 
@@ -276,12 +276,12 @@ function authInput( login, passw ) {
   }
 
   // Авторизация по паролю в 'https://login.mts.ru/amserver/NUI/' проходит 4-мя последовательными запросами.
-  const authUrl = 'https://login.mts.ru/amserver/wsso/authenticate?authIndexType=service&authIndexValue=login-spa';
+  const authUrl = 'https://login.mts.ru/amserver/wsso/authenticate?client_id=LK&authIndexType=service&authIndexValue=login-spa';
   let i = 0;
 
   // С 23.04.2026 структура запросов-ответов для взаимодействия с серверами МТС изменилась
   // Запрашиваем исходную структуру данных формы подтверждения входа с 'header': 'trusted-network' или 'device-match-hold'
-  fetch( authUrl, { method: 'POST', mode: 'cors',
+  fetch( authUrl, { method: 'POST', mode: 'cors', credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
   .then( function( response ) {
   response.json()
@@ -331,7 +331,7 @@ function authInput( login, passw ) {
         }
       });
       // Отсылаем форму серверу. При отсутствии ошибок получаем структуру формы ввода учётных данных (логина) с 'header': 'enter-phone'
-      fetch( authUrl, { method: 'POST', mode: 'cors', body: JSON.stringify( response ),
+      fetch( authUrl, { method: 'POST', mode: 'cors', credentials: 'include', body: JSON.stringify( response ),
                         headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
       .then( function( response ) {
         response.json()
@@ -363,7 +363,7 @@ function authInput( login, passw ) {
             }
           });
           // Отсылаем форму серверу. При отсутствии ошибок получаем в ответ структуру формы ввода пароля с 'header': 'verify-password'
-          fetch( authUrl, { method: 'POST', mode: 'cors', body: JSON.stringify( response ),
+          fetch( authUrl, { method: 'POST', mode: 'cors', credentials: 'include', body: JSON.stringify( response ),
                             headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
           .then( function( response ) {
             response.json()
@@ -413,7 +413,7 @@ function authInput( login, passw ) {
                 }
               });
               // Отсылаем форму серверу. При отсутствии ошибок авторизация успешно завершена
-              fetch( authUrl, { method: 'POST', mode: 'cors', body: JSON.stringify( response ),
+              fetch( authUrl, { method: 'POST', mode: 'cors', credentials: 'include', body: JSON.stringify( response ),
                                 headers: { 'Content-Type': 'application/json', 'Accept-API-Version': 'resource=4.0, protocol=1.0' } } )
               .then( function( response ) {
                 response.json()

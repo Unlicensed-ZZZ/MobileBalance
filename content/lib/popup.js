@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2025.11.11
+ * Редакция:  2026.05.05
  *
 */
 
@@ -460,7 +460,11 @@ function getItemList() {
 function dbGetLastRecord( item ) {
 //       -----------------------
   return new Promise( (resolve, reject) => {
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); // Открываем хранилище 'Phones'
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      reject( err );
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
     dbObjStorMB.onerror = function( evnt ) {
       console.log( `[MB] ${evnt.target.error}` );

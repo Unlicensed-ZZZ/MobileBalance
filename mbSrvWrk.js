@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Сервисный (фоновый) обработчик расширения MobileBalance (Service Worker)
- * Редакция:  2025.10.20
+ * Редакция:  2026.05.05
  *
 */
 
@@ -43,7 +43,11 @@ chrome.runtime.onInstalled.addListener( async ( details ) => {   // Fired when t
                                                   { keyPath: 'QueryDateTime', autoIncrement: false } );
           }
           else {                                                  // Если хранилище 'Phones' было - открываем его
-            dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+            try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); } // Открываем хранилище 'Phones'
+            catch( err ) {
+              console.log( `[MB] ${err}` );
+              reject( err );
+            }
             dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
           }
           if (!dbObjStorMB.indexNames.contains( 'PhoneNumber' ) ) // Если индекса 'PhoneNumber' не было - создаём его

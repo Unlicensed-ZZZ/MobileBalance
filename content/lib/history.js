@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна истории запросов расширения MobileBalance по учётным данным
- * Редакция:  2025.11.11
+ * Редакция:  2026.05.05
  *
 */
 
@@ -44,7 +44,11 @@ dbRequest.onsuccess = function( evnt ) {
 async function dbRecordsCount( item = '' ) {
 //             ---------------------------
   return new Promise( (resolve, reject) => {
-    dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' );
+    try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+    catch( err ) {
+      console.log( `[MB] ${err}` );
+      reject( err );
+    }
     dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
 
     dbObjStorMB.onerror = function( evnt ) {
@@ -360,7 +364,11 @@ async function showHistoryForLogin( rowId, rowLoginValue ) {
 // Формирование таблицы истории запросов по указанным учётным данным
 async function makeHistoryData( rowIdx, loginDecription, loginValue, bodyTag ) {
 //             ---------------------------------------------------------------
-  dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' );
+  try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readonly' ); }  // Открываем хранилище 'Phones'
+  catch( err ) {
+    console.log( `[MB] ${err}` );
+    return;
+  }
   dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
   dbObjStorMB.onerror = function( evnt ) {
     console.log( `[MB] ${evnt.target.error}` );
@@ -581,7 +589,11 @@ historyItems.addEventListener( 'click', async function( evnt ) {
           document.getElementById( `${rowId}-(${rowLoginValue})-collapse` ).style.display = 'none';
           hideHistoryForLogin( rowId, rowLoginValue );
         }
-        dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+        try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); }  // Открываем хранилище 'Phones'
+        catch( err ) {
+          console.log( `[MB] ${err}` );
+          return;
+        }
         dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
         dbObjStorMB.onerror = function( evnt ) {
           console.log( `[MB] ${evnt.target.error}` );
@@ -625,7 +637,11 @@ historyItems.addEventListener( 'click', async function( evnt ) {
       hideHistoryForLogin( rowId, rowLoginValue );
       break; }
     case 'delete': {
-      dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' );
+      try { dbTrnsMB = dbMB.transaction( [ 'Phones' ], 'readwrite' ); }  // Открываем хранилище 'Phones'
+      catch( err ) {
+        console.log( `[MB] ${err}` );
+        return;
+      }
       dbObjStorMB = dbTrnsMB.objectStore( 'Phones' );
       dbObjStorMB.onerror = function( evnt ) {
         console.log( `[MB] ${evnt.target.error}` );
