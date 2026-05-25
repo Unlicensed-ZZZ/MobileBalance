@@ -2,6 +2,7 @@
   "popupShortInfo":             true,
   "cycleOrder":                 "sequence",
   "maintainPooling":            true,
+  "poolingWinMinimized":        true,
   "maintainStartTime":          "16:00",
   "maintainDays":               [ 1, 1, 1, 1, 1, 1, 1 ],
   "maintainRepeat":             false,

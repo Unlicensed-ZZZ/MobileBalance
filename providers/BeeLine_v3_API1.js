@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2026.05.03
+ * Редакция:  2026.05.25
  *
 */
 
@@ -323,17 +323,22 @@ async function initLogout() {
     // Определяем в меню кнопку пункта выхода из личного кабинета
     let menuItems = Array.from( document.getElementsByTagName( 'button' ) );
     let exitButton = menuItems.find( (item) => { return ( item.classList.contains( 'login-button' ) === true ) });
-    exitButton.click(); // 'Нажимаем' на кнопку вывода формы меню профиля
-    do { // Ждём завершения формирования формы меню профиля с кнопкой выхода
-      await sleep( 100 ); // Пауза, чтобы успела сформироваться форма меню профиля
-      menuItems = Array.from( document.getElementsByTagName( 'button' ) );
-      exitButton = menuItems.find( (item) => { return (item.innerText.toUpperCase() === 'ВЫЙТИ') });
-    } while( exitButton === undefined );
+    if ( exitButton !== undefined ) {
+      exitButton.click(); // 'Нажимаем' на кнопку вывода формы меню профиля (если она обнаружилась)
+      let i = 0;  // Счётчик контроля отсутствия формы меню профиля
+      do { // Ждём завершения формирования формы меню профиля с кнопкой выхода
+        await sleep( 100 ); // Пауза, чтобы успела сформироваться форма меню профиля в течение не более ~5 сек
+        ++i;
+        menuItems = Array.from( document.getElementsByTagName( 'button' ) );
+        exitButton = menuItems.find( (item) => { return (item.textContent.toUpperCase() === 'ВЫЙТИ') });
+      } while( ( exitButton === undefined ) && ( i <= 50 ) );
+    }
     // Передаём результаты опроса расширению
     chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
                                                  status: requestStatus, error: requestError,
                                                  data: (MBResult === undefined) ? undefined : MBResult }, null );
-    exitButton.click(); // 'Нажимаем' на кнопку пункта выхода из личного кабинета
+    if ( exitButton !== undefined )
+      exitButton.click(); // 'Нажимаем' на кнопку пункта выхода из личного кабинета (если она обнаружилась)
   }
   else { // Выход для ещё более раннего личного кабинета ('https://my.beeline.ru/c/pre/index.xhtml') или при ошибках авторизации
     // Передаём результаты опроса расширению

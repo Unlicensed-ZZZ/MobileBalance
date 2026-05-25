@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2026.05.05
+ * Редакция:  2026.05.25
  *
 */
 
@@ -18,8 +18,8 @@ import('./../vars.mjs').then( (module) => { // Глобальные переме
 let dbMB, dbTrnsMB, dbObjStorMB, dbCrsrMB;
 let providerRecords = [], loginRecords = [];
 let alarmPoolingTime, testPoolingTime, testPoolingTimeArr = [];
-let cycleOrder = '', rptAttempts = 0, poolWinAlive = false, paintNegative = false, poolResult = false,
-    delSameDateRecord = false, delSameDateRecordTime = 0, mntnPooling = false, mntnStartTime = '',
+let cycleOrder = '', rptAttempts = 0, poolWinAlive = false, poolWinMinimized = true, paintNegative = false,
+    poolResult = false, delSameDateRecord = false, delSameDateRecordTime = 0, mntnPooling = false, mntnStartTime = '',
     mntnDays = [ 1, 1, 1, 1, 1, 1, 1 ], mntnRepeat = false, mntnRepeatTime =  0;
 const dayNames = { 0: 'вс.', 1: 'пн.', 2: 'вт.', 3: 'ср.', 4: 'чт.', 5: 'пт.', 6: 'сб.' };
 let fileClamedBy = ''; // Идентификатор кнопки, которой инициирована функция загрузки файла
@@ -108,6 +108,7 @@ async function getOptionsFromStorage() {
   await chrome.storage.local.get( null, function( fromStorage ) {
     cycleOrder = fromStorage.cycleOrder;
     mntnPooling = fromStorage.maintainPooling;
+    poolWinMinimized = fromStorage.poolingWinMinimized;
     mntnStartTime = fromStorage.maintainStartTime;
     mntnDays = fromStorage.maintainDays;
     mntnRepeat = fromStorage.maintainRepeat;
@@ -199,9 +200,9 @@ async function initFromStorage( tabId, changeInfo, tab ) {
 // Установка недоступности органов управления расписанием опросов
 async function disableSchedule() {
 //             -----------------
-  maintainStartTime.disabled = maintainMon.disabled = maintainTue.disabled = maintainWed.disabled =
-  maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled =
-  maintainRepeat.disabled = maintainRepeatTime.disabled = prevPooling.disabled = nextPooling.disabled = true;
+  maintainStartTime.disabled = maintainWinMin.disabled = maintainMon.disabled = maintainTue.disabled = maintainWed.disabled =
+  maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled = maintainRepeat.disabled =
+  maintainRepeatTime.disabled = prevPooling.disabled = nextPooling.disabled = true;
 }
 
 
@@ -232,6 +233,7 @@ async function drawOptions() {
 //             -------------
   document.querySelector( `[id^='cycleOrder_${cycleOrder}']` ).checked = true;
   maintainPooling.checked = ( mntnPooling ) ? true : false;
+  maintainWinMin.checked = ( poolWinMinimized ) ? true : false;
   maintainStartTime.value = mntnStartTime;
   maintainMon.checked = mntnDays[ 1 ] === 1;
   maintainTue.checked = mntnDays[ 2 ] === 1;;
@@ -243,8 +245,8 @@ async function drawOptions() {
   maintainRepeat.checked = ( mntnRepeat ) ? true : false;
   maintainRepeatTime.value = mntnRepeatTime;
   if ( maintainPooling.checked ) { // Доступность элементов расписания
-    maintainStartTime.disabled = maintainMon.disabled = maintainTue.disabled = maintainWed.disabled =
-    maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled = false;
+    maintainStartTime.disabled = maintainWinMin.disabled = maintainMon.disabled = maintainTue.disabled =
+    maintainWed.disabled = maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled = false;
     maintainRepeat.disabled = nextPooling.disabled = false;
     maintainRepeatTime.disabled = ( mntnRepeat ) ? false : true;
     maintainInfo.textContent = await poolingTimeText( alarmPoolingTime );
@@ -625,11 +627,12 @@ optionsPage.addEventListener( 'click', async function( evnt ) {
       await chrome.storage.local.remove( 'workWin' ); // Удаляем запись об ID окна результатов опроса
       await chrome.storage.local.set( { inProgress: false } ); // Сбрасываем статус опроса - он не идёт
       optionsRepair.disabled = true; // Блокируем кнопку восстановления исходных значений
+      alert( 'Технологический сброс выполнен' );
       break; }
     case 'optionsSave': { // Сохранить основные параметры из local storage в файл
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
       chrome.storage.local.get( [ 'popupShortInfo', 'historyShowMaintained', 'cycleOrder',
-                                  'maintainPooling', 'maintainStartTime', 'maintainDays', 'maintainRepeat', 'maintainRepeatTime', 'repeatAttempts', 
+                                  'maintainPooling', 'poolingWinMinimized', 'maintainStartTime', 'maintainDays', 'maintainRepeat', 'maintainRepeatTime', 'repeatAttempts', 
                                   'notificationsEnable', 'notificationsOnError', 'notificationsOnProcess', 'notificationsOnUpdateDelay',
                                   'poolingWinAlive', 'markNegative', 'poolingLogSave', 'poolingResultSave', 
                                   'deleteSameDateRecord', 'deleteSameDateRecordTime' ] )
@@ -1048,13 +1051,17 @@ optionsPage.addEventListener( 'change', async function( evnt ) {
         chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );
       });
       if ( mntnPooling ) { // Доступность элементов расписания
-        maintainStartTime.disabled = maintainMon.disabled = maintainTue.disabled = maintainWed.disabled =
-        maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled = false;
+        maintainStartTime.disabled = maintainWinMin.disabled = maintainMon.disabled = maintainTue.disabled =
+        maintainWed.disabled = maintainThu.disabled = maintainFri.disabled = maintainSat.disabled = maintainSun.disabled = false;
         maintainRepeat.disabled = nextPooling.disabled = false;
         maintainRepeatTime.disabled = ( mntnRepeat ) ? false : true;
       }
       else
         disableSchedule();
+      break; }
+    case 'maintainWinMin': {  // Опрос по расписанию выполнять в свёрнутом окне
+      evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
+      chrome.storage.local.set( { poolingWinMinimized: poolWinMinimized = maintainWinMin.checked } );
       break; }
     case 'maintainStartTime': { // Время начала опроса по расписанию
       evnt.stopPropagation(); // Это событие нужно только здесь, не разрешаем ему всплывать дальше
@@ -1479,6 +1486,9 @@ function getLoadedFile( btnId, fsHandle ) {
         }
         if ( jsonFile.maintainPooling !== undefined ) {
           chrome.storage.local.set( { maintainPooling: mntnPooling = jsonFile.maintainPooling } );
+        }
+        if ( jsonFile.poolingWinMinimized !== undefined ) {
+          chrome.storage.local.set( { poolingWinMinimized: poolWinMinimized = jsonFile.poolingWinMinimized } );
         }
         if ( jsonFile.maintainStartTime !== undefined ) {
           chrome.storage.local.set( { maintainStartTime: mntnStartTime = jsonFile.maintainStartTime } )

@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Сервисный (фоновый) обработчик расширения MobileBalance (Service Worker)
- * Редакция:  2026.05.05
+ * Редакция:  2026.05.24
  *
 */
 
@@ -292,17 +292,17 @@ chrome.runtime.onMessage.addListener(
         if ( sendResponse ) sendResponse( 'done' ); // Ответ в popup для для поддержания канала связи
         if ( !await getParamFromStorage( 'inProgress' ) ) { // Если нет текущего, то запускаем опрос
           try { // Открываем в новом окне страницу для проведения опроса и передаём ей параметром тип опроса
-            let cycleOrder, workWin, workTab;
-            getParamFromStorage( 'cycleOrder' ) // Выясняем порядок опроса
-            .then( function( result ) {         // Открываем новое окно для выполнения опроса
+            let cycleOrder, workWin, workTab, poolingWinMinimized;
+            getParamFromStorage( 'cycleOrder' )   // Выясняем порядок опроса
+            .then( function( result ) {           // Открываем новое окно для выполнения опроса
               cycleOrder = result;
-              // По кнопке из popup открываем окно активным в нормальном режиме, по таймеру - минимизированным
+              // По кнопке из popup открываем окно активным и в нормальном режиме, по таймеру - исходно свёрнутым
               let createData = { type: 'normal' };
               switch ( request.init ) {
                 case 'fromPopUp': { createData.state = 'normal';    createData.focused = true; 
                   break; }
                 case 'byTimer':   { createData.state = 'minimized'; createData.focused = false;
-                  calcNextPoollingTime()    // Получаем время следующего опроса по расписанию и ...
+                  calcNextPoollingTime()        // Получаем время следующего опроса по расписанию и ...
                   .then( async function( alarmTime ) {
                     await updatePoollingTimer( alarmTime );     // ... обновляем таймер таймер опроса
                     // Выясняем, есть ли открытые страницы настроек расширения для обновления на них времени следующего опроса
@@ -328,38 +328,46 @@ chrome.runtime.onMessage.addListener(
                   })
                   break; }
               };
-              chrome.windows.create( createData ) // Создаём новое окно для страницы для проведения опроса
-              .then( function( result ) {
-                workWin = result;
-                // Некоторые браузеры отказываются создавать минимизированное окно, пробуем установить нужный статус иначе
-                chrome.windows.update( workWin.id, { state: createData.state } )
-                .then( function() {                                  // Сохраняем id окна опроса и id рабочей вкладки опроса
+              getParamFromStorage( 'poolingWinMinimized' )
+              .then( function( result ) {           // Считываем настройку режима открытия окна при опросе по таймеру
+                poolingWinMinimized = result;
+                chrome.windows.create( createData ) // Создаём новое окно для страницы проведения опроса
+                .then( function( result ) {
+                  workWin = result;                 // Сохраняем id окна опроса и id рабочей вкладки опроса
                   chrome.storage.local.set( { workWin: workWin.id, workTab: workWin.tabs[ 0 ].id } )
-                  .then( function() {                                // Устанавливаем статус опроса - он запущен
+                  .then( function() {               // Устанавливаем статус опроса - он запущен
                     chrome.storage.local.set( { inProgress: true } )
-                    .then( function() {                              // Открываем в окне страницу опроса
+                    .then( async function() {
+                      // Браузеры отказываются создавать окно свёрнутым (минимизированным). Сворачиваем его после создания,
+                      //   если опрос запускается по таймеру и в настройках указан режим свёрнутого окна опроса
+                      if ( request.init === 'byTimer' ) {
+                        await chrome.windows.update( workWin.id, { state: createData.state, focused: createData.focused } );
+                        if ( !poolingWinMinimized )
+                          await chrome.windows.update( workWin.id, { state: 'normal', focused: false } );
+                      }
+                      // Открываем в созданном окне страницу опроса
                       chrome.tabs.update( workWin.tabs[ 0 ].id, { autoDiscardable: false,
                                           url: chrome.runtime.getURL( `content/poolingCycle.html?co=${cycleOrder}` ) } )
                       .then( function() {
-                        // Актуализируем (если окна открыты) доступность кнопок запуска опроса в popup-окне и
-                        //   восстановления исходных значений расширения в окне options
+                        // Если есть открытые окна popup или options, то актуализируем в popup-окне доступность кнопок
+                        //   запуска опроса, а в окне настроек - кнопки восстановления исходных значений расширения
                         chrome.runtime.sendMessage( { message: 'MB_actualizeControls' } ) // Если открытых окон нет,
                         .catch( function() {} ); // то нет и кода обработки приёма сообщений - снимаем ошибку канала связи
                         // Выдаём оповещение о начале опроса
                         console.log( `[MB] Polling started in ${cycleOrder} order` );
                         getParamFromStorage( 'notificationsEnable' ) // Если разрешены уведомления вообще
                         .then( function( result ) {                  // и уведомления о начале опроса, в частности,
-                          if ( result )                              // то выдаём уведомление
+                          if ( result ) {                            // то выдаём уведомление
                             getParamFromStorage( 'notificationsOnProcess' )
                             .then( function( result ) {
                               if ( result ) {
                                 let d = new Date();
                                 let timeStr =
-                                    `${(d.getHours() < 10) ? '0' + String(d.getHours()) : String(d.getHours())}:` +
-                                    `${(d.getMinutes() < 10) ? '0' + String(d.getMinutes()) : String(d.getMinutes())}:` +
-                                    `${(d.getSeconds() < 10) ? '0' + String(d.getSeconds()) : String(d.getSeconds())} - ` +
-                                    `${(d.getDate() < 10) ? '0' + String(d.getDate()) : String(d.getDate())}.` +
-                                    `${(d.getMonth() < 9) ? '0' + String(d.getMonth() + 1) : String(d.getMonth() + 1)}.` +
+                                    `${(d.getHours() < 10)   ? '0' + String(d.getHours())     : String(d.getHours())}:` +
+                                    `${(d.getMinutes() < 10) ? '0' + String(d.getMinutes())   : String(d.getMinutes())}:` +
+                                    `${(d.getSeconds() < 10) ? '0' + String(d.getSeconds())   : String(d.getSeconds())} - ` +
+                                    `${(d.getDate() < 10)    ? '0' + String(d.getDate())      : String(d.getDate())}.` +
+                                    `${(d.getMonth() < 9)    ? '0' + String(d.getMonth() + 1) : String(d.getMonth() + 1)}.` +
                                     `${String(d.getFullYear())}`;
                                 self.registration.showNotification( 'Опрос начат', { body: timeStr, dir: 'ltr',
                                                                                      requireInteraction: false,
@@ -367,17 +375,24 @@ chrome.runtime.onMessage.addListener(
                                                                                      icon:  '/images/MB.png' } );
                               }
                             })
+                            .catch( function( err ) { console.log( `[MB] ${err}` ); })
+                          }
                         })
+                        .catch( function( err ) { console.log( `[MB] ${err}` ); })
                       })
+                      .catch( function( err ) { console.log( `[MB] ${err}` ); })
                     })
+                    .catch( function( err ) { console.log( `[MB] ${err}` ); })
                   })
+                  .catch( function( err ) { console.log( `[MB] ${err}` ); })
                 })
+                .catch( function( err ) { console.log( `[MB] ${err}` ); })
               })
-            });
+              .catch( function( err ) { console.log( `[MB] ${err}` ); })
+            })
+            .catch( function( err ) { console.log( `[MB] ${err}` ); })
           }
-          catch( err ) {
-            console.log( `[MB] ${err}` );
-          }
+          catch( err ) { console.log( `[MB] ${err}` ); }
         }
         return true;
         break;
