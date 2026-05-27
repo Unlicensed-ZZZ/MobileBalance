@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Страница настроек расширения MobileBalance
- * Редакция:  2026.05.24
+ * Редакция:  2026.05.27
  *
 -->
 
@@ -125,7 +125,7 @@
                     </div>
                     <input type='time' id='maintainStartTime' title='Показать выбор времени'>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
-                      <label for='maintainWinMin' style='margin-inline: 2.2em 6px; text-wrap-mode:nowrap;'>в свёрнутом окне</label>
+                      <label for='maintainWinMin' style='margin-inline: 2.2em 6px; text-wrap:nowrap;'>в свёрнутом окне</label>
                       <div style='display:inline-flex; align-items:center; position:relative;'>
                         <input type='checkbox' class='chkbox' id='maintainWinMin'>
                         <div class='chkbox_pseudo'></div>
@@ -150,44 +150,46 @@
                 </td>
               </tr>
               <tr>
-                <td></td>
+                <td style='text-align:right'>
+                  <span style='margin-right:6px'>каждый</span>
+                </td>
                 <td colspan='2'>
                   <div style='display:flex; text-align:left; align-items:center; justify-content:space-between'>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
                       <input type='checkbox' class='chkbox' id='maintainMon'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainMon' style='text-wrap-mode:nowrap;'>пн.&nbsp;&nbsp;</label>
+                    <label for='maintainMon' style='text-wrap:nowrap;'>пн.&nbsp;&nbsp;</label>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
                       <input type='checkbox' class='chkbox' id='maintainTue'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainTue' style='text-wrap-mode:nowrap;'>вт.&nbsp;&nbsp;</label>
+                    <label for='maintainTue' style='text-wrap:nowrap;'>вт.&nbsp;&nbsp;</label>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
                       <input type='checkbox' class='chkbox' id='maintainWed'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainWed' style='text-wrap-mode:nowrap;'>ср.&nbsp;&nbsp;</label>
+                    <label for='maintainWed' style='text-wrap:nowrap;'>ср.&nbsp;&nbsp;</label>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
                       <input type='checkbox' class='chkbox' id='maintainThu'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainThu' style='text-wrap-mode:nowrap;'>чт.&nbsp;&nbsp;</label>
+                    <label for='maintainThu' style='text-wrap:nowrap;'>чт.&nbsp;&nbsp;</label>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
                       <input type='checkbox' class='chkbox' id='maintainFri'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainFri' style='text-wrap-mode:nowrap;'>пт.&nbsp;&nbsp;</label>
+                    <label for='maintainFri' style='text-wrap:nowrap;'>пт.&nbsp;&nbsp;</label>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
                       <input type='checkbox' class='chkbox' id='maintainSat'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainSat' style='text-wrap-mode:nowrap;'>сб.&nbsp;&nbsp;</label>
+                    <label for='maintainSat' style='text-wrap:nowrap;'>сб.&nbsp;&nbsp;</label>
                     <div style='display:inline-flex; align-items:center; position:relative;'>
                       <input type='checkbox' class='chkbox' id='maintainSun'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainSun' style='text-wrap-mode:nowrap;'>вс.</label>
+                    <label for='maintainSun' style='text-wrap:nowrap;'>вс.</label>
                   </div>
                 </td>
               </tr>
@@ -199,7 +201,7 @@
                       <input type='checkbox' class='chkbox' id='maintainRepeat'>
                       <div class='chkbox_pseudo'></div>
                     </div>
-                    <label for='maintainRepeat' style='text-wrap-mode:nowrap;'>повторять опрос до конца суток каждые&nbsp;(час)&nbsp;&nbsp;</label>
+                    <label for='maintainRepeat' style='text-wrap:nowrap;'>повторять опрос до конца суток каждые&nbsp;(час)&nbsp;&nbsp;</label>
                     <input type='number' id='maintainRepeatTime' min='0' max='23.5' step='0.5' pattern='^[0-9]' placeholder='повторов нет (или укажите значение > 0)'>
                     <div class='toolTip'>
                       <svg width='20' height='20' style='vertical-align:middle; padding-inline:0.3em;' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>

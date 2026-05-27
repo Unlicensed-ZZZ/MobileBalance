@@ -42,7 +42,7 @@
                   "requestDelay":         false,
                   "requestDelayValue":    3,
                   "onUpdateDelay":        true,
-                  "onUpdateDelayValue":   5,
+                  "onUpdateDelayValue":   3,
                   "respondTimeout":       true,
                   "respondTimeoutValue":  60,
                   "inetUnits":            "A",
