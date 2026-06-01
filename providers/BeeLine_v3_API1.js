@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2026.05.25
+ * Редакция:  2026.05.31
  *
 */
 
@@ -74,7 +74,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
                    ( prevAuth.SSODetectionState.content === 'Detected' ) ) {    //   страница личного кабинета с активной авторизацией
                 // Если авторизация выполнена с учётными данными, по которым проводится запрос, то открываем страницу личного кабинета и проводим его
                 if ( (await (await fetch( window.location.origin + '/api/profile/common/settings/', { method: 'GET' } )).json()).selectedLogin === MBLogin ) {
-                  // Переходим на страницу нового личного кабинета. Она должна открыться по учётным данным с которыми мы авторизовались
+                  // Переходим на страницу нового личного кабинета. Расширение инициирует следующий этап запроса
                   window.location.replace( window.location.origin + '/customers/products/elk/' );
                   return;
                 }
@@ -83,10 +83,11 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
             requestStatus = false;    // Подготваливаем для расширения аттрибуты сообщения об ошибке ...
             console.log( requestError = `[MB] Didn't find authorization form on the page` );
             initLogout();             // ... и завершаем сеанс работы в личном кабинете
+            return;
           }
-          else {  // Загружена страница авторизаци, на ней присутствует форма ввода учётных данных
+          if ( [ 'Old', 'New' ].includes( loginForm ) ) {  // Загружена страница авторизаци, нужна библиотека для решения на ней капчи
             chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { loadCBL: true } }, null );
-            return;   // Выходим из функции и ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
+            // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
           }
           break;
         }
@@ -97,7 +98,12 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
           if ( request.helper !== undefined ) {   // Если работа helper-модуля была успешной, то ...
             if ( request.helper.data.loadCBL === true )
               authInput( MBLogin, MBPassw, loginForm ); // Пробуем выполнить авторизацию
-            return;
+            else {
+              requestStatus = false; // Выдаём расширению MobileBalance ошибку и выходим
+              console.log( requestError = `[MB] "CAPTCHA Breaking Library" wasn't loaded` );
+              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus,
+                                                           error: requestError, data: undefined }, null );
+            }
           }
           break;
         }
@@ -123,8 +129,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
             }
             else { // Открылась стартовая страница Beeline - неправильное значение капчи при попытке авторизации или ошибки загрузки страницы
               requestStatus = false; // Выдаём расширению MobileBalance ошибку и выходим
-              console.log( requestError );
-              requestError = `[MB] Incorrect captcha solution, authorization failed`;
+              console.log( requestError = `[MB] Incorrect captcha solution, authorization failed` );
               chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus,
                                                            error: requestError, data: undefined }, null );
             }
@@ -178,25 +183,48 @@ async function authInput( login, passw, pageVersion ) {
       break;
     } // Old //
     case 'New': { // Авторизация на странице новой (с 13.04.2025) формы
-      let idx, inpElem;
-      let buttonsArray = document.getElementsByTagName( 'button' );                     // На форме авторизации находим все кнопки
-      for ( idx = 0; idx < buttonsArray.length; ++idx ) {                               // Находим кнопку входа по логину/паролю (должна оказаться 2-ая)
-        if ( buttonsArray[ idx ].childNodes[ 0 ].innerText.includes( 'паролю' ) ) {     // В дочернем элементе <span> кнопки - текст 'по логину и паролю'
-          buttonsArray[ idx ].click();                                                  // 'Нажимем' её для загрузки формы авторизации логин / пароль
-          await sleep( 100 );                                                           // Даём время на подгрузку скрипта формы с сервера
-          break;
+      let idx, buttonsArray, inpElem = undefined, i = 0;
+      do {
+        await sleep( 100 );                                                             // Пауза, чтобы завершилось формирование кнопки на форме
+        ++i;
+        buttonsArray = document.getElementsByTagName( 'button' );                       // На форме авторизации находим все кнопки
+        for ( idx = 0; idx < buttonsArray.length; ++idx ) {                             // Находим кнопку входа по логину/паролю (должна оказаться 2-ая)
+          if ( buttonsArray[ idx ].childNodes[ 0 ].textContent.includes( 'паролю' ) ) { // В дочернем элементе <span> кнопки - текст 'по логину и паролю'
+            inpElem = buttonsArray[ idx ];
+            break;
+          }
         }
+      } while ( ( inpElem === undefined ) && ( i <= 50 ) );                             // Ждём появления кнопки в течение не более ~5 сек
+      if ( i > 50 ) {                                         // Если кнопка 'по логину и паролю' не обнаружилась, значит она на форме не сформировалась
+        requestStatus = false;                                // Выдаём расширению MobileBalance ошибку и выходим
+        console.log( requestError = `[MB] Authorization form wasn't completely loaded` );
+        chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus,
+                                                     error: requestError, data: undefined }, null );
+        return;
       }
-      do { await sleep( 10 );                                                           // Ждём прогрузку формы ввода логина / пароля
-      } while ( document.getElementsByName( 'login' ).length === 0 );
-      inpElem = document.getElementsByName( 'login' )[ 0 ];                             // ... определяем поле ввода логина
+      else
+        inpElem.click();                                                                // 'Нажимем' кнопку для загрузки формы авторизации логин / пароль
+      i = 0;
+      do {                                                                              // Ждём прогрузку формы ввода логина / пароля ...
+        await sleep( 100 );
+        ++i;
+      } while ( ( document.getElementsByName( 'login' ).length === 0 ) && ( i <= 50 ) );  // ... в течение не более ~5 сек
+      if ( i > 50 ) {                                         // Если поле ввода пароля не обнаружилось, значит оно на форме не сформировалось
+        requestStatus = false;                                // Выдаём расширению MobileBalance ошибку и выходим
+        console.log( requestError = `[MB] Login-password form wasn't completely loaded` );
+        chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: requestStatus,
+                                                     error: requestError, data: undefined }, null );
+        return;
+      }
+      inpElem = document.getElementsByName( 'login' )[ 0 ];                             // Определяем поле ввода логина
       inpElem.setAttribute( 'value', login );                                           // Вводим значение в поле ввода
       inpElem.dispatchEvent( new Event( 'change', { bubbles: true } ) );                // Инициируем приём значения генерацией события ввода
-      inpElem = document.getElementsByName( 'password' )[ 0 ];                          // ... определяем поле ввода пароля
+      inpElem = document.getElementsByName( 'password' )[ 0 ];                          // Определяем поле ввода пароля
       inpElem.setAttribute( 'value', passw );                                           // Вводим значение в поле ввода
       inpElem.dispatchEvent( new Event( 'change', { bubbles: true } ) );                // Инициируем приём значения генерацией события ввода
+      buttonsArray = document.getElementsByTagName( 'button' );                         // На форме авторизации находим все кнопки
       for ( idx = 0; idx < buttonsArray.length; ++idx ) {                               // Находим кнопку подтверждения ввода учётных данных
-        if ( buttonsArray[ idx ].childNodes[ 0 ].innerText.includes( 'войти' ) ) {      // В дочернем элементе <p> кнопки - текст 'войти'
+        if ( buttonsArray[ idx ].childNodes[ 0 ].textContent.includes( 'войти' ) ) {    // В дочернем элементе <p> кнопки - текст 'войти'
           buttonsArray[ idx ].click();                                                  // 'Нажимем' её для загрузки формы авторизации логин / пароль
           await sleep( 100 );                                                           // Даём время на подгрузку скрипта формы с сервера
           break;
