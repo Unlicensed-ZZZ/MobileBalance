@@ -1,8 +1,9 @@
-/* popup.js
+/*
+ * popup.js
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2026.05.05
+ * Редакция:  2026.06.08
  *
 */
 
@@ -14,36 +15,63 @@ import('./../../vars.mjs').then( (module) => {
   sleep = module.sleep;
 })
 .catch( (err) => { console.log( `[MB] Error: ${err}` ) } );
-
-async function importAwait() {  // Ожидание завершения импорта значений и функций из модуля
+// Ожидание завершения импорта значений и функций из модуля
+(async function() {
   do {                          // Нужно вызвать в первой инициализируемой функци с await
-    await new Promise( resolve => setTimeout( resolve, 50 ) );
-  } while ( sleep === undefined );
+    await new Promise( resolve => setTimeout( resolve, 10 ) );
+  } while( sleep === undefined );
 }
+)()
 
 // Отображение наименования и версии расширения
 aboutName.innerHTML = chrome.runtime.getManifest().name + '&nbsp;&nbsp;' + chrome.runtime.getManifest().version;
-// Отображение даты-времени следующего опроса
-checkNextPoolingTime().then( function (timeStr) { nextPoolingTime.innerHTML = timeStr } )
-.catch((err) => { nextPoolingTime.innerHTML = 'Следующий опрос:&nbsp;&nbsp;Ошибка чтения значений' });
+
+// Отображение даты-времени следующего опроса, проверка и восстановление (если нужно) в браузере таймера опроса
+chrome.alarms.get( 'poolingTimer' )
+.then( async function( alarm ) {
+  if ( alarm === undefined ) {               // Таймера в браузере нет
+    await chrome.storage.local.get( [ 'maintainPooling', 'maintainStartTime' ] )
+    .then( async function( timerOptions ) {
+      if ( timerOptions.maintainPooling )   // Если таймер должен быть установлен (опрос по расписанию включён),
+        await chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );  // ... то восстанавливаем его
+        await sleep( 50 );                  // Пауза, чтобы отработали функции в Service Worker
+    })
+  }
+})
+.finally( function() {                      // Отображение даты-времени следующего опроса
+  nextPoolingTime.innerHTML = 'Следующий опрос:&nbsp;';
+  checkNextPoolingTime()
+  .then( function ( timeStr ) {
+    nextPoolingTime.innerHTML += timeStr;
+  })
+  .catch( function( err ) {
+    nextPoolingTime.innerHTML += '&nbsp;Ошибка чтения значений';
+  })
+})
+.catch( function( err ) {
+  console.log( `[MB] Error getting timer: ${err}` );
+})
+
 // Актуализация состояния кнопки запуска опроса при обновлении popup-окна / открытии его вновь
 chrome.storage.local.get( 'inProgress' )
 .then( function( result ) { 
   btnStartPooling.disabled = result.inProgress;
-});
+})
 
 // Начать опрос в новом окне
 btnStartPooling.addEventListener( 'click', async () => {
+//              ----------------
   chrome.runtime.sendMessage( { message: 'MB_startPooling', init: 'fromPopUp' }, await function (response) {
     if ((response != undefined) && (response === 'done')) {
       btnStartPooling.disabled = true; // Блокируем, чтобы не запустили ещё экземпляр опроса
       self.close(); // popup-окно закрываем
     }
   })
-});
+})
 
 // Актуализация popup-окна по сообщениям
 chrome.runtime.onMessage.addListener(
+//                       -----------
   async function( request, sender, sendResponse ) {
     switch( request.message ) {
       case 'MB_actualizeControls': {
@@ -60,11 +88,11 @@ chrome.runtime.onMessage.addListener(
     };
     return true;
   }
-);
-
+)
 
 // Открыть страницу истори запросов
 btnHistory.addEventListener( 'click', async () => {
+//         ----------------
   let historyUrl        = chrome.runtime.getURL( `content/history.html` );
   let historyPerDateUrl = chrome.runtime.getURL( `content/historyPerDate.html` );
   // Ищем вкладку с адресом страницы истории запросов в текущем окне ...
@@ -108,11 +136,11 @@ btnHistory.addEventListener( 'click', async () => {
       })
     }
   })
-});
-
+})
 
 // Открыть страницу настроек
 btnOptions.addEventListener( 'click', async () => {
+//         ----------------
   chrome.management.getSelf()                            // Получаем параметры расширения
   .then( function( extnData ) {                          // Ищем вкладку с адресом страницы настроек расширения
   // Ищем вкладку с адресом страницы истории запросов в текущем окне ...
@@ -138,11 +166,11 @@ btnOptions.addEventListener( 'click', async () => {
       }
     })
   })
-});
-
+})
 
 // Открыть сайт провайдера
-function providerOpenSite ( event ) {
+function providerOpenSite( event ) {
+//       ----------------
   if ( !event.type === 'click' || (( event.type === 'keypress' ) && ![ 'Space', 'Enter', 'NumpadEnter' ].includes( event.code )) )
     return; // Реагируем только на клик кнопки мыши и нажатие клавиши пробела или Enter
   let tabId = undefined;
@@ -159,11 +187,10 @@ function providerOpenSite ( event ) {
     winId =    response.windowId;
     chrome.tabs.update( tabId, { url: startUrl, autoDiscardable: false } )
     .then( async function ( response ) {
-      await importAwait();                                                              // Ожидание завершения импорта значений и функций из модуля
       if ( startUrlClearCookies || startUrlBypassCache ) {
         let pageResponse = undefined;
         do { // Ждём завершения загрузки страницы
-          await sleep ( 200 );                                                          // Пауза для завершения загрузки страницы
+          await sleep( 100 );                                                           // Пауза для завершения загрузки страницы
           pageResponse = await chrome.tabs.get( tabId );                                // Получаем параметры вкладки,
         } while ( pageResponse !== undefined && pageResponse.status !== 'complete' );   //   контролируем в них статаус загрузки страницы
 
@@ -201,11 +228,11 @@ function providerOpenSite ( event ) {
     })
     .catch( function( err ) { console.log( `[MB] Error occured: ${err}` ) });
   })
-};
-
+}
 
 // Обработка изменений состояния флага отображения данных кратко / полно
 infoState.addEventListener( 'change', async () => {
+//        ----------------
   let totalCells = popupTable.getElementsByTagName( 'td' );
   for ( let i = 0; i < totalCells.length; ++i ) {
     if ( totalCells[ i ].classList.contains( 'infoStateSensitive' ) )
@@ -213,11 +240,9 @@ infoState.addEventListener( 'change', async () => {
   };
   popupTable.style.display = 'table'; // В html таблица исходно скрыта. Теперь она сформирована, режим отображения данных определён - показываем её
   await chrome.storage.local.set( { popupShortInfo: infoState.checked } ); // Сохраняем значение режима отображения данных в хранилище
-});
-
+})
 
 // Отображение статуса текущих значений для учётных данных
-
 let dbMB, dbTrnsMB, dbObjStorMB; // Переменные для работы со структурами indexedDB
 let dbRequest = indexedDB.open( 'BalanceHistory', dbVersion );
 dbRequest.onerror = function( evnt ) {
@@ -432,7 +457,7 @@ dbRequest.onsuccess = async function( evnt ) {
       await chrome.storage.local.set( { popupShortInfo: true } );
       infoState.checked = true;
     }
-    infoState.dispatchEvent( new Event('change') ); // Актуализируем вид текущих значений для учётных данных
+    infoState.dispatchEvent( new Event( 'change' ) ); // Актуализируем вид текущих значений для учётных данных
   })
 }
 
@@ -487,7 +512,7 @@ function dbGetLastRecord( item ) {
 // Проверка даты запроса записи хранилища на равенство текущей дате
 function checkOutdated( item ) {
 //       ---------------------
-  return new Promise( (resolve, reject) => {
+  return new Promise( ( resolve, reject ) => {
     if ( item ) {
       // Определяем порог даты: значение текущей даты в 00:00:00
       let thresholdDate = new Date().setHours( 0, 0, 0, 0 );
@@ -508,11 +533,11 @@ function checkOutdated( item ) {
 // Подготовка строки даты-времени следующего запроса
 function checkNextPoolingTime() {
 //       ----------------------
-  return new Promise( (resolve, reject) => {
+  return new Promise( ( resolve, reject ) => {
     chrome.alarms.get( 'poolingTimer' )
     .then( function( alarm ) {
       if ( alarm === undefined )
-        resolve( 'Следующий опрос:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;не определён' )
+        resolve( '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;не определён' )
       else {
         let d = new Date( alarm.scheduledTime );
         let timeStr = `${(d.getDate() < 10)    ? '0' + String(d.getDate())      : String(d.getDate())}.` +
@@ -520,7 +545,7 @@ function checkNextPoolingTime() {
                       `${String(d.getFullYear())} ` + `(${dayNames[ d.getDay() ]}) в ` +
                       `${(d.getHours() < 10)   ? '0' + String(d.getHours())     : String(d.getHours())}:` +
                       `${(d.getMinutes() < 10) ? '0' + String(d.getMinutes())   : String(d.getMinutes())}`;
-        resolve( 'Следующий опрос:&nbsp;' + timeStr );
+        resolve( timeStr );
       }
     })
   });

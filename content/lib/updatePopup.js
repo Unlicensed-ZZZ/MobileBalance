@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна сообщения о составе обновления расширения
- * Редакция:  2026.06.01
+ * Редакция:  2026.06.07
  *
  */
 
@@ -11,6 +11,20 @@
 
   chrome.action.setBadgeText( { text: '' } ); // Убрать надпись об обновлении
   chrome.action.setPopup( { popup: chrome.runtime.getManifest().action.default_popup } ) // Вернуть popup-окно по умолчанию
+
+  // Проверка и восстановление в браузере таймера опроса по расписанию
+  chrome.alarms.get( 'poolingTimer' )
+  .then( async function( alarm ) {
+    if ( alarm === undefined )                // Таймера в браузере нет
+      await chrome.storage.local.get( [ 'maintainPooling', 'maintainStartTime' ] )
+      .then( function( timerOptions ) {
+        if ( timerOptions.maintainPooling )   // Если таймер должен быть установлен (опрос по расписанию включён),
+          chrome.runtime.sendMessage( { message: 'MB_poolingTimerReset' } );  // ... то восстанавливаем его
+      })
+  })
+  .catch( function( err ) {
+    console.log( `[MB] Error getting timer: ${err}` );
+  })
   
   // Формируем текст состава обновления, из фрагмента текста между символами '^' из файла 'MB_ChangeLog.txt'
   let msgText, captionText = '', messageText = '';

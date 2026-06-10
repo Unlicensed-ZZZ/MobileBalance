@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Сервисный (фоновый) обработчик расширения MobileBalance (Service Worker)
- * Редакция:  2026.05.24
+ * Редакция:  2026.06.07
  *
 */
 
@@ -265,7 +265,8 @@ chrome.runtime.onMessage.addListener(
         if ( request.alarmTime !== undefined )
           calcNextPoollingTime( request.alarmTime )
           .then( function( alarmTime ) {
-            chrome.tabs.sendMessage( sender.tab.id, { message: 'MB_nextPoollingTime', alarmTime: alarmTime, command: request.message } );
+            if ( sender.tab !== undefined ) // Если запрос пришёл от вкладки (popup-окно не вкладка), то направляем ответ с параметрами
+              chrome.tabs.sendMessage( sender.tab.id, { message: 'MB_nextPoollingTime', alarmTime: alarmTime, command: request.message } );
           });
         else
           console.log( `[MB] Undefined value for pooling time calculation` );
@@ -277,7 +278,8 @@ chrome.runtime.onMessage.addListener(
         calcNextPoollingTime()
         .then( async function( alarmTime ) {
           updatePoollingTimer( alarmTime );
-          chrome.tabs.sendMessage( sender.tab.id, { message: 'MB_nextPoollingTime', alarmTime: alarmTime, command: request.message } );
+          if ( sender.tab !== undefined ) // Если запрос пришёл от вкладки (popup-окно не вкладка), то направляем ответ с параметрами
+            chrome.tabs.sendMessage( sender.tab.id, { message: 'MB_nextPoollingTime', alarmTime: alarmTime, command: request.message } );
         });
         return true;
         break;

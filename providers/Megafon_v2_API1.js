@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2026.03.17
+ * Редакция:  2026.06.10
  *
 */
 
@@ -92,12 +92,19 @@ async function initLogout() {
   // На странице личного кабинета сразу есть позиция меню выхода с классом 'menu-dropdown__leave'
   let exitButton = document.getElementsByClassName( 'menu-dropdown__leave' );
   if ( exitButton.length > 0 )  exitButton[ 0 ].click();  // Если кнопка выхода нашлась, то 'нажимаем' её
+  await sleep( 200 );                                     // Задержка для инициализации структур 'модального окна' подтверждения выхода
+/*
   // С 20.05.2025 при выборе этого пункта меню появляется 'модальное окно' подтверждения выхода
   // 'Модальное окно' формируется в 'div' с классом 'mfui-modal-desktop'
-  await sleep( 200 );                                     // Задержка для инициализации структур 'модального окна' подтверждения выхода
-  let exitConfirm = document.getElementsByClassName( 'mfui-modal-desktop' );
-  // В 'модальном окне' две кнопки с классом 'mfui-button' (подтверждение и отмена)? определяем их
+  let exitConfirm = document.getElementsByClassName( 'mfui-modal-desktop' ); 
+  // В 'модальном окне' две кнопки с классом 'mfui-button' (подтверждение и отмена), определяем их
   exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-button' );
+*/
+  // С 10.06.2026 'модальное окно' подтверждения выхода изменилось (Подтвердите, что хотите выйти на этом устройстве)
+  // 'Модальное окно' формируется в 'div' с классом 'mfui-9-modal-desktop'
+  let exitConfirm = document.getElementsByClassName( 'mfui-9-modal-desktop' ); 
+  // В 'модальном окне' две кнопки с классом 'mfui-9-button' ("Подтвердить" и "Не выходить"), определяем их
+  exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-9-button' );
   // Передаём результаты опроса расширению MobileBalance с задержкой, чтобы успели отработать вызовы завершения сессии
   setTimeout( function() {
     chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
