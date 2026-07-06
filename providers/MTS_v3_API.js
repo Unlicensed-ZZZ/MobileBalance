@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных) по учётным данным логин / пароль
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2026.05.16
+ * Редакция:  2026.06.29
  *
 */
 
@@ -708,12 +708,8 @@ async function getData() {
                     //           баланс - собств.средства = 80 - 100 = -20
                     // Пример 2: собств.средства = 100 руб., кэшбэк = 40 руб., расход за период = -20 руб., баланс = 120 руб.
                     //           баланс - собств.средства = 120 - 100 = 20
-                    if ( ( MBResult.Balance !== undefined ) && ( ( MBResult.Balance - tmp ) > 0 ) ) {
-                      if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
-                        MBResult = { Balance2: parseFloat( MBResult.Balance - tmp ) }
-                      else                          // Если в объекте уже есть значения
-                        MBResult.Balance2 = MBResult.Balance - tmp
-                    }
+                    if ( ( MBResult.Balance !== undefined ) && ( ( MBResult.Balance - tmp ) > 0 ) )
+                      MBResult.Balance2 = MBResult.Balance - tmp;
                     break;
                   }
                 }
@@ -797,28 +793,22 @@ async function getData() {
             await getDataAction( requestParam.tarifInfo, 'tarifInfo' )
             .then( function( response ) {
               // Если получено 'minSuccess' или более ответов по удачным запросам (то есть разбора и приёма ответа ещё не было),
-              // то забираем брэнд-наименование тарифного плана (для API v2 + абонентскую плату (стоимость тарифа) и дату
-              // следующего платежа, если она есть)
+              // то забираем брэнд-наименование тарифного плана (для API v2 + абонентскую плату (стоимость тарифа))
               if ( requestParam.tarifInfo.successRequests >= requestParam.tarifInfo.minSuccess ) {
                 switch( requestParam.tarifInfo.verAPI ) {
                   case 1: {
                     if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
                       MBResult = { TarifPlan: response.userProfile.tariff }
-                    else
+                    else                          // Если в объекте уже есть значения
                       MBResult.TarifPlan = response.userProfile.tariff;
                     break;
                   }
                   case 2: {
                     if ( MBResult === undefined ) // Если помещаем в объект ответа 1-ое значение
                       MBResult = { TarifPlan: response.data.tariffInfo.name }
-                    else
+                    else                          // Если в объекте уже есть значения
                       MBResult.TarifPlan = response.data.tariffInfo.name;
-                    // Забираем дату следующего платежа, если ещё нет в ответе
-                    if ( ( response.data.tariffInfo.tariffPricesInfo.mainPrice.date !== null ) &&
-                         ( MBResult.TurnOffStr === undefined ) )
-                      MBResult.TurnOffStr = `${response.data.tariffInfo.tariffPricesInfo.mainPrice.date.slice( 8, 10 )}.` +
-                                            `${response.data.tariffInfo.tariffPricesInfo.mainPrice.date.slice( 5,  7 )}.` +
-                                            `${response.data.tariffInfo.tariffPricesInfo.mainPrice.date.slice( 0,  4 )}`;
+                    // Забираем значение абонентской платы (стоимость тарифа)
                     if ( response.data.tariffInfo.tariffPricesInfo.mainPrice.price !== null ) {
                       // Формат значения "xxx ₽/мес". Вероятно может быть и "xxx ₽/день", в этом случае умножаем сумму на 30 дней
                       let tmp = response.data.tariffInfo.tariffPricesInfo.mainPrice.price.split( ' ' );

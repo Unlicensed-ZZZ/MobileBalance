@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2026.06.10
+ * Редакция:  2026.07.06
  *
 */
 
@@ -94,14 +94,15 @@ async function initLogout() {
   if ( exitButton.length > 0 )  exitButton[ 0 ].click();  // Если кнопка выхода нашлась, то 'нажимаем' её
   await sleep( 200 );                                     // Задержка для инициализации структур 'модального окна' подтверждения выхода
 /*
-  // С 20.05.2025 при выборе этого пункта меню появляется 'модальное окно' подтверждения выхода
-  // 'Модальное окно' формируется в 'div' с классом 'mfui-modal-desktop'
-  let exitConfirm = document.getElementsByClassName( 'mfui-modal-desktop' ); 
-  // В 'модальном окне' две кнопки с классом 'mfui-button' (подтверждение и отмена), определяем их
-  exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-button' );
+  С 20.05.2025 при выборе этого пункта меню появляется 'модальное окно' подтверждения выхода
+  'Модальное окно' формируется в 'div' с классом 'mfui-modal-desktop'
+    let exitConfirm = document.getElementsByClassName( 'mfui-modal-desktop' ); 
+  В 'модальном окне' две кнопки с классом 'mfui-button' (подтверждение и отмена), определяем их
+    exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-button' );
+
+  С 10.06.2026 'модальное окно' подтверждения выхода изменилось (Подтвердите, что хотите выйти на этом устройстве)
+    'Модальное окно' формируется в 'div' с классом 'mfui-9-modal-desktop'
 */
-  // С 10.06.2026 'модальное окно' подтверждения выхода изменилось (Подтвердите, что хотите выйти на этом устройстве)
-  // 'Модальное окно' формируется в 'div' с классом 'mfui-9-modal-desktop'
   let exitConfirm = document.getElementsByClassName( 'mfui-9-modal-desktop' ); 
   // В 'модальном окне' две кнопки с классом 'mfui-9-button' ("Подтвердить" и "Не выходить"), определяем их
   exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-9-button' );
@@ -168,11 +169,30 @@ async function getData() {
   let i = 1;                                              // Сведения о вызовах API взяты из новой версии личного кабинета
   let response, jsonResult;                               //   lk.megafon.ru/public/rwlk/app.18eacca0.js (23.11.2024)
   let payment = null;                                     // Стоимость месячных затрат (тариф + платные услуги)
-
+/*
+  С 06.07.2026 Мегафон стал требовать запросах наличие заголовков, без которых раньше обходился (подставлял нужное на своей стороне ?)
+  Кроме заголовка 'X-App-Type': 'react_lk', дополнительно требуется наличие JWT-токена. Он формируется при авторизации и записывается в localStorage
+   в 'JWT_TOKEN'. Также требуется набор заголовков, которые жёстко заданы (генерируются ?) в файле 'https://lk.megafon.ru/public/rwlk/app.<id>.js'
+  Карта сгенерированных идентификаторов для файлов сайта есть в файле 'https://lk.megafon.ru/public/stats.json'. id для 'app'-файла - в элементе 'app'
+*/
+  // Формируем для запросов структуру с первыми заголовками - 'X-App-Type' и 'X-Cabinet-Authorization'
+  let hdrs = { 'X-App-Type': 'react_lk',
+               'X-Cabinet-Authorization': 'Bearer ' + await localStorage.getItem( 'JWT_TOKEN' ) };
+  // Получаем id, сгенерированный для 'app'-файла
+  let appId = ( await( await fetch( 'https://lk.megafon.ru/public/stats.json', { method: 'GET', mode: 'cors', credentials: 'include' } ) ).json() ).app;
+  // Считываем файл 'app.<id>.js'
+  let appText = await( await fetch( `https://lk.megafon.ru/public/rwlk/app.${appId}.js`, { method: 'GET', mode: 'cors', credentials: 'include' } ) ).text();
+  // Находим в тексте файла значения для остальных заголовков и вносим их в структуру для запросов
+  regexp = /X-Cabinet-Id-Param":"(.*?)"/i;
+  hdrs['X-Cabinet-Id-Param'] = regexp.exec( appText )[ 1 ];
+  regexp = /X-Cabinet-Check-Info":"(.*?)"/i;
+  hdrs['X-Cabinet-Check-Info'] = regexp.exec( appText )[ 1 ];
+  regexp = /X-Cabinet-Validation-Param":"(.*?)"/i;
+  hdrs['X-Cabinet-Validation-Param'] = regexp.exec( appText )[ 1 ];
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем значение текущего баланса, кредитного лимита
     response = await fetch( apiUrl + '/api/main/balance',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       MBResult = { Balance: parseFloat( jsonResult.balance.toFixed(2) ) }; // Создаём 1-ое значение объекта ответа
@@ -193,7 +213,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем ФИО владельца, номер лицевого счёта
     response = await fetch( apiUrl + '/api/profile/info',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       MBResult.UserName = jsonResult.oApiName; // ФИО владельца
@@ -212,7 +232,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем состав услуг ( формат: 'бесплатные' / 'платные' ), собираем стоимость услуг для платных
     response = await fetch( apiUrl + '/api/services/currentServices/list',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.free !== undefined )
@@ -237,7 +257,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем наименование тарифа, дату следующего платежа и сумму по тарифу (если они есть)
     response = await fetch( apiUrl + '/api/tariff/2019-3/current',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       MBResult.TarifPlan = jsonResult.name; // Наименование тарифа
@@ -270,7 +290,7 @@ async function getData() {
   if ( payment === null ) { // Если в данных о тарифе не было суммы следующего платежа, то пробуем собрать её из данных о расходах
     for ( i = 1; i <= maxRetries; ++i ) {
       response = await fetch( apiUrl + '/api/reports/expenses',
-                              { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                              { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
       if ( response.ok && ( response.status === 200 ) ) {
         jsonResult = await response.json();
         if ( jsonResult.expenseGroups !== undefined ) {                 // Если в ответе есть раздел 'expenseGroups', то собираем из его объектов ...
@@ -297,7 +317,7 @@ async function getData() {
 
   for ( i = 1; i <= maxRetries; ++i ) { // Получаем остатки пакетов
     response = await fetch( apiUrl + '/api/options/v2/remainders/mini',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       // Получаем остаток пакета голосовых минут (если есть в составе тарифа)
@@ -357,7 +377,7 @@ async function getData() {
   // Если ранее не была принята дата следующего платежа и есть остаток пакета голосовых минут, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.Minutes )) {
     response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=VOICE',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
@@ -371,7 +391,7 @@ async function getData() {
   // Если ранее не была принята дата следующего платежа и есть остаток пакета сообщений, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.SMS )) {
     response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=MESSAGE',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
@@ -385,7 +405,7 @@ async function getData() {
   // Если ранее не была принята дата следующего платежа и есть остаток пакета интернета, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.Internet )) {
     response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=INTERNET',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: { 'X-App-Type': 'react_lk' } } );
+                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
     if ( response.ok && ( response.status === 200 ) ) {
       jsonResult = await response.json();
       if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,

@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2026.05.31
+ * Редакция:  2026.07.04
  *
 */
 
@@ -85,9 +85,39 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
             initLogout();             // ... и завершаем сеанс работы в личном кабинете
             return;
           }
-          if ( [ 'Old', 'New' ].includes( loginForm ) ) {  // Загружена страница авторизаци, нужна библиотека для решения на ней капчи
-            chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { loadCBL: true } }, null );
-            // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
+          if ( [ 'Old', 'New' ].includes( loginForm ) ) {
+            let idx, buttonsArray, inpElem = undefined, i = 0;
+            do {  // Убеждаемся, что формирование формы завершилось
+              await sleep( 100 );                                                             // Пауза, чтобы завершилось формирование формы
+              ++i;
+              // На странице находим все кнопки и ищем среди них содержащую текст 'войти' в дочернем элементе <p>
+              buttonsArray = document.getElementsByTagName( 'button' );
+              // При штатной загрузке формы на ней есть кнопка 'войти', при срабатывании защиты на странице есть кнопка 'войти по-другому'
+              for ( idx = 0; idx < buttonsArray.length; ++idx ) {
+                if ( buttonsArray[ idx ].childNodes[ 0 ].textContent.includes( 'войти' ) ) {
+                  inpElem = buttonsArray[ idx ];
+                  break;
+                }
+              }
+            } while ( ( inpElem === undefined ) && ( i <= 50 ) );                             // Ждём появления кнопки в течение не более ~5 сек
+            if ( i > 50 ) {                                         // Если кнопка с текстом 'войти' не обнаружилась, значит форма не загрузилась
+              console.log( requestError = `[MB] Authorization form wasn't completely loaded` );
+              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData', status: false,   // Выдаём расширению ошибку и выходим
+                                                           error: requestError, data: undefined }, null );
+              return;
+            }
+            inpElem = document.getElementsByTagName( 'section' );   // При срабатывании защиты на странице присутствует тэг <section>, в дочерних
+                                                                    //   элементах которого присутствует текст ошибки: 'слишком много попыток входа'
+            if ( ( inpElem.length > 0 ) && ( inpElem[ 0 ].textContent.includes( 'слишком много попыток входа' ) ) ) {
+              // В этом случае передаём расширению ошибку и требование прекращения дальнейших запросов (data: 'StopPooling')
+              console.log( requestError = `[MB] Authtorization error "${inpElem[ 0 ].textContent}". Canceling remaining requests` );
+              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
+                                                           status: false, error: requestError, data: 'StopPooling' }, null );
+            }
+            else {  // Загружена страница авторизаци, нужна библиотека для решения на ней капчи
+              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { loadCBL: true } }, null );
+              // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
+            }
           }
           break;
         }
@@ -164,7 +194,7 @@ async function authInput( login, passw, pageVersion ) {
       loginForm.submit();                                                               // ... и отправляем форму на сервер для авторизации
       // В результате должна быть открыта страница личного кабинета и этот экземпляр скрипта будет утрачен
       break;
-    } // UL
+    } // UL //
     case 'Old': { // Авторизация на странице старой (до 03.04.2024) формы
       let loginForm = document.getElementsByClassName( 'initial-form' );                // На форме авторизации ...
       let tabsArray = loginForm[ 0 ].getElementsByClassName( 'tabs__item--secondary' )  // ... находим все 'Tab'-ы с кнопками для перехода на вкладки
