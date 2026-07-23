@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Yota через API
- * Редакция:  2026.04.25
+ * Редакция:  2026.07.13
  *
 */
 
@@ -167,7 +167,7 @@ async function getData() {
       console.log( `[MB] Response for '.../profile': ${JSON.stringify( response )}` );
 
       // Получаем значение текущего баланса
-      MBResult = { Balance: parseFloat( response.carrierProfile.balance.toFixed(2) ) }; // Создаём 1-ое значение объекта ответа
+      MBResult = { Balance: parseFloat( response.carrierProfile.balance.toFixed( 2 ) ) }; // Создаём 1-ое значение объекта ответа
       // Получаем статус блокировки
       MBResult.BlockStatus = ( response.context.features.carrierClientStatus.toUpperCase() !== 'ACTIVE' ) ? 'Blocked' : '';
 
@@ -183,7 +183,7 @@ async function getData() {
         .then( async function( response ) {
           console.log( `[MB] Response for '.../carrierProductsProfile': ${JSON.stringify( response )}` );
 
-          // Если есть блоки параметров в разделе 'products', то разбираем пакеты остатков
+          // Если в блоке 'currentProductConfiguration' есть значения в подразделе 'products', то разбираем их - это пакеты остатков основного тарифа
           if ( ( response.currentProductConfiguration.products !== undefined ) && ( response.currentProductConfiguration.products.length > 0 ) ) {
             response.currentProductConfiguration.products.forEach( function( item0 ) {
               // Забираем дату следующего платежа в формате 'DD.MM.YYYY', если это ещё не сделано в предыдущих циклах
@@ -192,17 +192,128 @@ async function getData() {
                 MBResult.TurnOffStr = `${endDayStr[ 2 ]}.${endDayStr[ 1 ]}.${endDayStr[ 0 ]}`;
                 // Если в текущем блоке определена стоимость услуг, то берём её для вывода в строке состава услуг (далее)
                 if ( item0.cost.finalCost !== undefined )
-                  paidAmmount = parseFloat( item0.cost.finalCost.toFixed(2) );
+                  paidAmmount = parseFloat( item0.cost.finalCost.toFixed( 2 ) );
               }
-              // Собираем значения остатков в пакетах
-              item0.resources.forEach( function( item1 ) {
-                switch (item1.resourceType.toUpperCase() ) {
-                  case 'DATA': { // Остатки пакета интернет. Исходное значение для расширения - мегабайты
+              item0.resources.forEach( function( item1 ) {  // Собираем значения остатков основного тарифа
+                switch ( item1.resourceType.toUpperCase() ) {
+                  case 'VOICE': { // Остатки пакета минут
                     item1.characteristicsList.forEach( function( item1_1 ) {
-                      if ( item1_1.fixedValue.accumulator.isUnlim )  MBResult.Internet = -1     // Если опция безлимитная, то возвращаем значение -1
+                      if ( item1_1.fixedValue.accumulator.isUnlim )  MBResult.Minutes = -1      // Если опция безлимитная, то возвращаем значение -1
+                      else {
+                        MBResult.Minutes = item1_1.fixedValue.accumulator.value;                // Стандартная размерность в минутах = 'TIME_MINUTE'
+                        if ( item1_1.fixedValue.accumulator.unit === 'TIME_DAY' )               // Если значение в днях, то приводим его к минутам
+                          MBResult.Minutes *= 1440
+                      }
+                    })
+                    break; }
+                  case 'DATA': { // Остатки пакета интернет. Исходное значение для расширения - мегабайты
+                    item1.characteristicsList.forEach( function( item1_2 ) {
+                      if ( item1_2.fixedValue.accumulator.isUnlim )  MBResult.Internet = -1     // Если опция безлимитная, то возвращаем значение -1
                       else {
                         let ratio = 1; // Приводим значение к мегабайтам (размерность для ответа расширению)
-                        switch ( item1_1.fixedValue.accumulator.unit ) {
+                        switch ( item1_2.fixedValue.accumulator.unit ) {
+                          case 'BYTES': {
+                            ratio = 0.00000095367431640625; // Приводим значение к мегабайтам. Множитель = 1 / 1024 / 1024 = 0.0009765625
+                            break; }
+                          case 'KB': {
+                            ratio = 0.0009765625;           // Приводим значение к мегабайтам. Множитель = 1 / 1024 = 0.0009765625
+                            break; }
+                          case 'MB': {
+                            ratio = 1;                      // Входное значение для расширения - мегабайты. Множитель = 1
+                            break; }
+                          case 'GB': {
+                            ratio = 1024;                   // Приводим значение к мегабайтам. Множитель = 1024
+                            break; }
+                        }
+                        MBResult.Internet = parseFloat( ( item1_2.fixedValue.accumulator.value * ratio ).toFixed( 3 ) );
+                      }
+                    })
+                    break; }
+                  case 'UNIT': { // Остатки пакета SMS. У Yota их здесь обычно нет, SMS добавляются в опциях категории 'Мессенджеры'
+                    item1.characteristicsList.forEach( function( item1_3 ) {
+                      if ( item1_3.fixedValue.accumulator.isUnlim )  MBResult.SMS = -1          // Если опция безлимитная, то возвращаем значение -1
+                      else
+                        MBResult.SMS = item1_3.fixedValue.accumulator.value;
+                    })
+                    break; }
+                } // switch //
+              })
+              // Если в блоке 'currentProductConfiguration' есть значения в подразделе 'options', то разбираем их - это опции к основному тарифу
+              item0.options.forEach( function( item1 ) {  // Добавляем значения остатков из опций к остаткам основного тарифа
+                switch ( item1.optionType.toUpperCase() ) {
+                  case 'PROLONG_VOICE':         // Если есть опция дополнительных минут, то добавляем значение остатков опции к остаткам основного тарифа
+                  case 'PAG_VOICE':
+                  case 'PAG_VOICE_BLOCK': {
+                    if ( ( MBResult.Minutes !== undefined ) && ( MBResult.Minutes === -1 ) )
+                      break;                                // Если в основном тарифе указаны безлимитные минуты, то изменения не вносим
+                    item1.resources.forEach( function( item2 ) {
+                      if ( ( item2.characteristicsList ) && ( item2.characteristicsList.fixedValue ) && ( item2.characteristicsList.fixedValue.accumulator ) ) {
+                        if ( item2.characteristicsList.fixedValue.accumulator.isUnlim )
+                          MBResult.Minutes = -1               // Если опция безлимитная, то устанавливаем значение -1
+                        else
+                          MBResult.Minutes += item2.characteristicsList.fixedValue.accumulator.value;
+                      }
+                    })
+                    break; }
+                  case 'PROLONG_TRAFFIC':       // Если есть опция дополнительного трафика, то добавляем значение остатков опции к остаткам основного тарифа
+                  case 'PAG_TRAFFIC': {
+                    if ( ( MBResult.Internet !== undefined ) && ( MBResult.Minutes === -1 ) )
+                      break;                                // Если в основном тарифе указан безлимитный трафик, то изменения не вносим
+                    item1.resources.forEach( function( item2 ) {
+                      if ( ( item2.characteristicsList ) && ( item2.characteristicsList.fixedValue ) && ( item2.characteristicsList.fixedValue.accumulator ) ) {
+                        if ( item2.characteristicsList.fixedValue.accumulator.isUnlim )
+                          MBResult.Internet = -1              // Если опция безлимитная, то устанавливаем значение -1
+                        else {
+                          let ratio = 1; // Приводим значение к мегабайтам (размерность для ответа расширению)
+                          switch ( item2.characteristicsList.fixedValue.accumulator.unit ) {
+                            case 'BYTES': {
+                              ratio = 0.00000095367431640625; // Приводим значение к мегабайтам. Множитель = 1 / 1024 / 1024 = 0.0009765625
+                              break; }
+                            case 'KB': {
+                              ratio = 0.0009765625;           // Приводим значение к мегабайтам. Множитель = 1 / 1024 = 0.0009765625
+                              break; }
+                            case 'MB': {
+                              ratio = 1;                      // Входное значение для расширения - мегабайты. Множитель = 1
+                              break; }
+                            case 'GB': {
+                              ratio = 1024;                   // Приводим значение к мегабайтам. Множитель = 1024
+                              break; }
+                          }
+                          MBResult.Internet += parseFloat( ( item2.characteristicsList.fixedValue.accumulator.value * ratio ).toFixed( 3 ) );
+                        }
+                      }
+                    })
+                    break; }
+                  case 'UNLIMITED_SMS': {       // Если есть опция безлимитных SMS, то устанавливаем значение -1
+                    MBResult.SMS = -1
+                    break; }
+                } // switch //
+
+              })
+            })
+          }
+          // Если в блоке 'currentProductConfiguration' есть значения в подразделе 'options', то разбираем их - это остатки по бонусным пакетам
+          if ( ( response.currentProductConfiguration.options !== undefined ) && ( response.currentProductConfiguration.options.length > 0 ) ) {
+            response.currentProductConfiguration.options.forEach( function( item0 ) {
+              item0.resources.forEach( function( item1 ) {  // Добавляем значения остатков в бонусных пакетах к значениям пакетов основного тарифа
+                switch ( item1.resourceType.toUpperCase() ) {
+                  case 'VOICE': {            // Если есть опция дополнительных минут, то добавляем значение остатков опции к остаткам основного тарифа
+                    if ( ( MBResult.Minutes !== undefined ) && ( MBResult.Minutes === -1 ) )
+                      break;                                // Если в основном тарифе указаны безлимитные минуты, то изменения не вносим
+                    item1.characteristicsList.forEach( function( item1_1 ) {
+                      if ( item1_1.fixedValue.accumulator.isUnlim )  MBResult.Minutes = -1      // Если опция безлимитная, то замещаем значением -1
+                      else
+                        MBResult.Minutes += item1_1.fixedValue.accumulator.value;
+                    })
+                    break; }
+                  case 'DATA': { // Остатки пакета интернет. Исходное значение для расширения - мегабайты
+                    if ( ( MBResult.Internet !== undefined ) && ( MBResult.Internet === -1 ) )
+                      break;                                          // Если в основном тарифе указан безлимитный интернет, то изменения не вносим
+                    item1.characteristicsList.forEach( function( item1_2 ) {
+                      if ( item1_2.fixedValue.accumulator.isUnlim )  MBResult.Internet = -1     // Если опция безлимитная, то замещаем значением -1
+                      else {
+                        let ratio = 1; // Приводим значение к мегабайтам (размерность для ответа расширению)
+                        switch ( item1_2.fixedValue.accumulator.unit ) {
                           case 'KB': {
                             ratio = 0.0009765625; // Приводим значение к мегабайтам. Множитель = 1 / 1024 = 0.0009765625
                             break; }
@@ -213,26 +324,20 @@ async function getData() {
                             ratio = 1024;         // Приводим значение к мегабайтам. Множитель = 1024
                             break; }
                         }
-                        MBResult.Internet = parseFloat( ( item1_1.fixedValue.accumulator.value * ratio ).toFixed(3) );
+                        MBResult.Internet += parseFloat( ( item1_2.fixedValue.accumulator.value * ratio ).toFixed( 3 ) );
                       }
                     })
                     break; }
-                  case 'VOICE': { // Остатки пакета минут
-                    item1.characteristicsList.forEach( function( item1_2 ) {
-                      if ( item1_2.fixedValue.accumulator.isUnlim )  MBResult.Minutes = -1      // Если опция безлимитная, то возвращаем значение -1
-                      else
-                        MBResult.Minutes = item1_2.fixedValue.accumulator.value;
-                    })
-                    break; }
- /* --- !!! В тестируемом тарифе блока SMS не было, не проверено !!! --- */
                   case 'UNIT': { // Остатки пакета SMS
+                    if ( ( MBResult.SMS !== undefined ) && ( MBResult.SMS === -1 ) )
+                      break;                                              // Если в основном тарифе указаны безлимитные SMS, то изменения не вносим
                     item1.characteristicsList.forEach( function( item1_3 ) {
-                      if ( item1_3.fixedValue.accumulator.isUnlim )  MBResult.SMS = -1          // Если опция безлимитная, то возвращаем значение -1
+                      if ( item1_3.fixedValue.accumulator.isUnlim )  MBResult.SMS = -1          // Если опция безлимитная, то замещаем значением -1
                       else
-                        MBResult.SMS = item1_3.fixedValue.accumulator.value;
+                        MBResult.SMS += item1_3.fixedValue.accumulator.value;
                     })
                     break; }
-                } // switch
+                } // switch //
               })
             })
           }
@@ -254,14 +359,14 @@ async function getData() {
                 if ( item.status.toUpperCase() == 'SUBSCRIBED' ) {
                   if ( item.cost.finalCost > 0 ) {
                     ++paidCounter;
-                    paidAmmount += parseFloat( item.cost.finalCost.toFixed(2) );
+                    paidAmmount += parseFloat( item.cost.finalCost.toFixed( 2 ) );
                   }
                   else
                     ++freeCounter;
                 }
               })
               // Формируем строку в формате: 'бесплатные' / 'платные' / (сумма по платным)
-              MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;
+              MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed( 2 )})`;
 
               initLogout(); // Выходим из личного кабинета. Страницу на следующем шаге перезагрузит расширение
 

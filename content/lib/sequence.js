@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для последовательного режима опроса учётных записей
- * Редакция:  2026.04.13
+ * Редакция:  2026.07.19
  *
 */
 
@@ -687,7 +687,7 @@ async function setRequestDelay( pIdx ) {
         });
         chrome.runtime.onMessage.dispatch( { message: 'MB_requestDelayComplete', pIdx: pIdx },
                                            { tab: null, id: self.location.origin }, null );
-      }, Delay * ( ( provider[ pIdx ].requestDelayValue === '' ) ? 0 : provider[ pIdx ].requestDelayValue )
+      }, Delay * ( ( provider[ pIdx ].requestDelayValue === 0 ) ? 0 : provider[ pIdx ].requestDelayValue )
     );
   try {
     await chrome.scripting.insertCSS( { target: { tabId: provider[ pIdx ].pullingTab },
@@ -1463,12 +1463,18 @@ chrome.runtime.onMessage.addListener(
         break;
       }
       case 'MB_giveRequestDelay': { // Сообщаем рабочей вкладке время задержки между запросами для её провайдера
+        if ( sendResponse ) sendResponse( 'done' );
         let idx = provider.findIndex( function( item ) {                      // Если запрос пришёл от рабочей вкладки
-          if (sender.tab.id === item.pullingTab)                              // провайдера, открытой в этом экземпляре
-            sendResponse( { requestDelayValue:                                // окна опроса (могут быть ещё окна опроса)
-                            ( item.requestDelayValue === '' ) ? 0 : item.requestDelayValue } );
-        });
-        return (idx < 0) ? false : true; // Если запрос от вкладки открытой в этом экземпляре опроса - это "наше" событие
+              if ( sender.tab.id === item.pullingTab )                        // провайдера, открытой в этом экземпляре
+                return true                                                   // окна опроса (могут быть ещё окна опроса)
+              else return false; // Если запрос от "чужой" вкладки, то будет возвращено значение -1
+            });
+        if ( idx >= 0 ) {                             // Если запрос пришёл от вкладки, открытой в этом экземпляре опроса,
+            chrome.tabs.sendMessage( sender.tab.id,   //   то направляем ей значение задержки между запросами к провайдеру
+                                     { message: 'MB_takeRequestDelay', requestDelayValue: provider[ idx ].requestDelayValue } );
+            return true;
+        }
+        else return false;
         break;
       }
       case 'MB_requestDelayComplete': { // Закончилась задержка между запросами для провайдера

@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для страницы настроек расширения MobileBalance
- * Редакция:  2026.05.25
+ * Редакция:  2026.07.19
  *
 */
 
@@ -1250,7 +1250,7 @@ providersPage.addEventListener( 'change', async function( evnt ) {
           return ( chooseProvider.value === item.name )
         });
         if ( pIdx >= 0 ) {
-          providerRecords[ pIdx ].requestDelayValue = ( requestDelayValue.value === '' ) ? '' : parseInt( requestDelayValue.value );
+          providerRecords[ pIdx ].requestDelayValue = ( requestDelayValue.value === '' ) ? 0 : parseInt( requestDelayValue.value );
           chrome.storage.local.set( { provider: providerRecords } );
         }
       }
@@ -1564,7 +1564,7 @@ function getLoadedFile( btnId, fsHandle ) {
           newProvider.scriptActions = ( jsonFile.scriptActions ) ? jsonFile.scriptActions : [];
           newProvider.scriptFiles = ( jsonFile.scriptFiles ) ? jsonFile.scriptFiles : [];
           newProvider.requestDelay = ( jsonFile.requestDelay === true );
-          newProvider.requestDelayValue = ( jsonFile.requestDelayValue ) ? Number(jsonFile.requestDelayValue) : '';
+          newProvider.requestDelayValue = ( jsonFile.requestDelayValue ) ? Number(jsonFile.requestDelayValue) : 0;
           newProvider.onUpdateDelay = ( jsonFile.onUpdateDelay === true );
           newProvider.onUpdateDelayValue = ( jsonFile.onUpdateDelayValue ) ? Number(jsonFile.onUpdateDelayValue) : 0;
           newProvider.respondTimeout = ( jsonFile.respondTimeout === true );

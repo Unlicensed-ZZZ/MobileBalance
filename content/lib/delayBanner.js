@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для отображения на рабочей вкладке запросов к провайдеру сообщения о паузе перед запросом
- * Редакция:  2025.10.20
+ * Редакция:  2026.07.19
  *
 */
 
@@ -53,16 +53,16 @@ relationElement.insertAdjacentElement( 'beforeend', loginElement );
 
 delayWin.style.display = 'block';
 
-chrome.runtime.sendMessage( { message: 'MB_giveRequestDelay' },
-  async function ( response ) {                           // Получаем заданное значение задержки (в миллисекундах)
-    let timeLeft = ( response.requestDelayValue === '' ) ? 0 : response.requestDelayValue;
-    let delayStart = Date.now();                          // Фиксируем время начала задержки (миллисекунды с 01.01.1970)
+chrome.runtime.onMessage.addListener( async function( request, sender, sendResponse ) {
+  if ( request.message === 'MB_takeRequestDelay' ) {
+    if ( sendResponse ) sendResponse( 'done' );
+    let timeLeft = Date.now() + ( request.requestDelayValue * 1000 );     // Получаем время завершения заданной задержки (в миллисекундах)
     do {
-      delayTimer.textContent = ( timeLeft ).toFixed( 0 );
-      await sleep ( 1000 );                               // Следующий замер и отрисовку делаем через 1 секунду
-      timeLeft = delayStart + ( response.requestDelayValue * 1000 ) - Date.now();
-      timeLeft = ( timeLeft <= 0 ) ? 0 : timeLeft / 1000; // Переводим значение в секунды для отображения
-    } while ( timeLeft > 0 );
-    delayTimer.textContent = '0';
+      delayTimer.textContent = Math.abs( Math.round( ( timeLeft - Date.now() ) / 1000 ) );
+      await sleep ( 1000 );                                               // Следующий замер и отрисовку делаем через 1 секунду
+    } while ( delayTimer.textContent !== '0' );
   }
-);
+})
+                                                                          // Запрашиваем значение задержки между запросами к провайдеру
+chrome.runtime.sendMessage( chrome.runtime.id, { message: 'MB_giveRequestDelay' } );
+

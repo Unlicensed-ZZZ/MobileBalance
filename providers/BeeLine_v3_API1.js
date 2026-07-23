@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2026.07.04
+ * Редакция:  2026.07.13
  *
 */
 
@@ -247,10 +247,10 @@ async function authInput( login, passw, pageVersion ) {
         return;
       }
       inpElem = document.getElementsByName( 'login' )[ 0 ];                             // Определяем поле ввода логина
-      inpElem.setAttribute( 'value', login );                                           // Вводим значение в поле ввода
+      inpElem.setAttribute( 'value', inpElem.value = login );                           // Вносим значение в поле ввода двумя способами
       inpElem.dispatchEvent( new Event( 'change', { bubbles: true } ) );                // Инициируем приём значения генерацией события ввода
       inpElem = document.getElementsByName( 'password' )[ 0 ];                          // Определяем поле ввода пароля
-      inpElem.setAttribute( 'value', passw );                                           // Вводим значение в поле ввода
+      inpElem.setAttribute( 'value', inpElem.value = passw );                           // Вносим значение в поле ввода двумя способами
       inpElem.dispatchEvent( new Event( 'change', { bubbles: true } ) );                // Инициируем приём значения генерацией события ввода
       buttonsArray = document.getElementsByTagName( 'button' );                         // На форме авторизации находим все кнопки
       for ( idx = 0; idx < buttonsArray.length; ++idx ) {                               // Находим кнопку подтверждения ввода учётных данных
