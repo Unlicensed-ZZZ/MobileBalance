@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2026.07.06
+ * Редакция:  2026.07.30
  *
 */
 
@@ -174,14 +174,30 @@ async function getData() {
   Кроме заголовка 'X-App-Type': 'react_lk', дополнительно требуется наличие JWT-токена. Он формируется при авторизации и записывается в localStorage
    в 'JWT_TOKEN'. Также требуется набор заголовков, которые жёстко заданы (генерируются ?) в файле 'https://lk.megafon.ru/public/rwlk/app.<id>.js'
   Карта сгенерированных идентификаторов для файлов сайта есть в файле 'https://lk.megafon.ru/public/stats.json'. id для 'app'-файла - в элементе 'app'
+  
+  С 30.07.2026 Мегафон убрал файл карты сгенерированных идентификаторов для файлов 'https://lk.megafon.ru/public/stats.json'. Теперь ссылки на файлы
+   с полным путём обнаруживаются в тексте файла 'service-worker.js', в массиве объектов вида { 'revision': 'xxx', 'url': 'xxx' }, в элементе 'url'
+   Пример объекта: ... { 'revision': null, 'url': '/public/rwlk/app.65ef6f9c.js' }, ...
 */
   // Формируем для запросов структуру с первыми заголовками - 'X-App-Type' и 'X-Cabinet-Authorization'
   let hdrs = { 'X-App-Type': 'react_lk',
                'X-Cabinet-Authorization': 'Bearer ' + await localStorage.getItem( 'JWT_TOKEN' ) };
-  // Получаем id, сгенерированный для 'app'-файла
-  let appId = ( await( await fetch( 'https://lk.megafon.ru/public/stats.json', { method: 'GET', mode: 'cors', credentials: 'include' } ) ).json() ).app;
+  // Получаем имя файла 'app.<id>.js' из массива объектов в тексте 'service-worker.js'
+  let appText = await ( await fetch( 'https://lk.megafon.ru/public/rwlk/service-worker.js', { method: 'GET', mode: 'cors', credentials: 'include' } )).text()
+  regexp = /\[{'revision':.*?}\]/i
+  appText = regexp.exec( appText );                   // Забираем из текста фала фрагмент с массивом объектов путей к файлам
+  appText = JSON.stringify( appText );                // Трансформируем полученный объект в строку
+  appText = appText.slice( 2, appText.length - 2 );   // Обрезаем символы массива-обёртки, оставшиеся после запроса ( `["` в начале и `"]` в конце )
+  appText = appText.replaceAll( `'`, `"` );           // Заменяем символы `'` на `"` для преобразования строки в объект (для JSON.parse разделители `"`)
+  appText = JSON.parse( appText );                    // Преобразоваовываем строку в массив объектов
+  appText = appText.find( function( item ) {          // Находим объект с путём к файлу 'app.<id>.js'
+    if ( item.url.includes( '/public/rwlk/app.' ) && item.url.includes( '.js' ) )
+      return item.url
+  })
+  appText = appText.url                               // Сохраняем путь к файлу 'app.<id>.js'
+
   // Считываем файл 'app.<id>.js'
-  let appText = await( await fetch( `https://lk.megafon.ru/public/rwlk/app.${appId}.js`, { method: 'GET', mode: 'cors', credentials: 'include' } ) ).text();
+  appText = await( await fetch( window.location.origin + appText, { method: 'GET', mode: 'cors', credentials: 'include' } ) ).text();
   // Находим в тексте файла значения для остальных заголовков и вносим их в структуру для запросов
   regexp = /X-Cabinet-Id-Param":"(.*?)"/i;
   hdrs['X-Cabinet-Id-Param'] = regexp.exec( appText )[ 1 ];
