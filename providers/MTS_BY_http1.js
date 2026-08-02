@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера МТС-Беларусь сбором данных с http-страниц
- * Редакция:  2026.02.10
+ * Редакция:  2026.08.02
  *
 */
 
@@ -143,6 +143,7 @@ function initLogout() {
 
 async function getData() {
 //             ---------
+  let tmp = '';
   fetch( window.location.origin + '/account-status.aspx', { method: 'GET', credentials: 'include' } )
   .then( function( response ) {
     response.text()
@@ -160,7 +161,7 @@ async function getData() {
       result[ 0 ] = result[ 1 ].split( '</li>' );         // Замещаем первый элемент массива на массив позиций списка с данными пользователя
       result[ 0 ].forEach( function( item ) {
         regexp = /<strong>(.*?)<\/strong>/ig;             // Задаём шаблон для значения в позиции списка с данными пользователя
-        let tmp = regexp.exec( item );
+        tmp = regexp.exec( item );
         if ( item.includes( 'Тарифный план' ) )           // Получаем тарифный план
           MBResult.TarifPlan = tmp[ 1 ];
         if ( item.includes( 'Лицевой счет' ) )            // Получаем лицевой счёт
@@ -181,7 +182,7 @@ async function getData() {
       result[ 0 ] = result[ 1 ].split( '</li>' );         // Замещаем первый элемент массива на массив позиций списка с остатками пакетов
       result[ 0 ].forEach( function( item ) {
         if ( item.includes( 'inet' ) ) {                  // Получаем остатки пакета интернета
-          let tmp = (item.split( 'inet: ' )[ 1 ]).split( ' ' );
+          tmp = (item.split( 'inet: ' )[ 1 ]).split( ' ' );
           let ratio = 1; // Приводим значение к мегабайтам (размерность для ответа расширению)
           switch ( tmp[ 1 ] ) {
             case 'КБ.': {
@@ -195,59 +196,47 @@ async function getData() {
               break; }
           }
           MBResult.Internet = parseFloat( ( parseFloat( tmp[ 0 ] ) * ratio ).toFixed( 3 ) );
-          // Если ранее не была принята дата следующего платежа, то пытаемся получить дату из данных остатка
-          if ( ( !MBResult.TurnOffStr ) || ( MBResult.TurnOffStr === '' ) )
-            MBResult.TurnOffStr = tmp[ 3 ];
         }
         if ( item.includes( 'sms' ) ) {                   // Получаем остатки пакета SMS
-//          if ( ??? )  MBResult.SMS = -1                   // Если опция безлимитная, то возвращаем значение -1
-//          else {
-          let tmp = (item.split( 'sms: ' )[ 1 ]).split( ' ' );
+          tmp = (item.split( 'sms: ' )[ 1 ]).split( ' ' );
           MBResult.SMS = parseInt( tmp[ 0 ] );
-          // Если ранее не была принята дата следующего платежа, то пытаемся получить дату из данных остатка
-          if ( ( !MBResult.TurnOffStr ) || ( MBResult.TurnOffStr === '' ) )
-            MBResult.TurnOffStr = tmp[ 3 ];
-//          }
         }
         if ( item.includes( 'on-net' ) ) {                // Получаем остатки пакета минут
-//          if ( ??? )  MBResult.Minutes = -1               // Если опция безлимитная, то возвращаем значение -1
-//          else {
-          let tmp = (item.split( 'on-net: ' )[ 1 ]).split( ' ' );
+          tmp = (item.split( 'on-net: ' )[ 1 ]).split( ' ' );
           MBResult.Minutes = parseInt( tmp[ 0 ] );
-          // Если ранее не была принята дата следующего платежа, то пытаемся получить дату из данных остатка
-          if ( ( !MBResult.TurnOffStr ) || ( MBResult.TurnOffStr === '' ) )
-            MBResult.TurnOffStr = tmp[ 3 ];
-//          }
         }
         if ( item.includes( 'во все сети' ) ) {           // Получаем остатки пакета минут
-//          if ( ??? )  MBResult.Minutes = -1               // Если опция безлимитная, то возвращаем значение -1
-//          else {
-          let tmp = (item.split( 'во все сети: ' )[ 1 ]).split( ' ' );
+          tmp = (item.split( 'во все сети: ' )[ 1 ]).split( ' ' );
           MBResult.Minutes = parseInt( tmp[ 0 ] );
-          // Если ранее не была принята дата следующего платежа, то пытаемся получить дату из данных остатка
-          if ( ( !MBResult.TurnOffStr ) || ( MBResult.TurnOffStr === '' ) )
-            MBResult.TurnOffStr = tmp[ 3 ];
-//          }
         }
       });
-      // Проверяем наличие безлимитных опций по интернету
-      result = await (await fetch( window.location.origin + `/Selfcare/Services/mtsrequestv3.ashx?r=` +
-                                   `${Math.random()}&code=selfcare&method=getquotes&js=account-status&data=null`,
-                                   { method: 'GET', credentials: 'include' })
-                     ).text();
-      if ( result.includes( 'Безлимит' ) )  MBResult.Internet = -1;     // Опция безлимитная, возвращаем значение -1
-      // Если ранее не была принята дата следующего платежа, то пытаемся получить дату из данных остатка
-      if ( ( !MBResult.TurnOffStr ) || ( MBResult.TurnOffStr === '' ) ) {
-        tmp = result.split( 'обновление <b>' )[ 1 ].split( ' ' )[ 0 ];
-        MBResult.TurnOffStr = tmp;
+
+      // ---- Получаем дату следующего платежа
+      tmp = result[ 0 ].find( function( item ) {
+        if ( item.includes( ' до ' ) )  return true
+      });
+      if ( ( tmp !== undefined ) && ( tmp !== '' ) ) {
+        tmp = (tmp.split( ' до ' )[ 1 ]).split( ' ' );
+        MBResult.TurnOffStr = tmp[ 0 ];
       }
 
+      // Проверяем безлимитный доступ в интернет
+      tmp = window.location.origin + `/Selfcare/Services/mtsrequestv3.ashx?r=${Math.random()}&code=selfcare`;
+      result = await (await fetch( tmp + `&method=gethonestinfo`, { method: 'GET', credentials: 'include' } )).text();
+      // "Открытый интернет" - трафик с интервальной тарификацей (после превышения очередного порога сумма месячной оплаты увеличивается), то есть интернет безлимитный
+      if ( result.includes( 'honest-internet-table' ) )  MBResult.Internet = -1   // Интернет с интервальной тарификацей, возвращаем значение -1
+      else {  // Проверяем наличие безлимитных опций по интернету
+        result = await (await fetch( tmp + `&method=getquotes`, { method: 'GET', credentials: 'include' } )).text();
+        if ( result.includes( 'езлимит' ) )  MBResult.Internet = -1;              // Безлимитная опция для интернета, возвращаем значение -1
+      }
+
+      // ---- Получаем список услуг, собираем их в строку формата: 'бесплатные' / 'платные' / (сумма по платным)
       fetch( window.location.origin + '/product-2-view.aspx', { method: 'GET', credentials: 'include' } )
       .then( function( response ) {
         response.text()
         .then( function( response ) {
           let freeCounter = 0, paidCounter = 0, paidAmmount = 0;
-          let result = [], tmp = '';
+          let result = [];
           let html = response.replace( /\r|\n|\t/g, '' );   // Преобразовывем полученный текст в одну стрку (удаляем переводы строк и табуляции)
           html = html.replaceAll( ',', '.' );               // Заменяем в полученных данных запятые на точки
           // ---- Получаем список услуг
@@ -270,16 +259,15 @@ async function getData() {
             else
               ++freeCounter;
           });
-          // Формируем строку в формате: 'бесплатные' / 'платные' / (сумма по платным)
-          MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;
+          MBResult.UslugiOn = `${freeCounter} / ${paidCounter} (${paidAmmount.toFixed(2)})`;  // Формируем строку списка услуг
 
+          // ---- Получаем (если есть) количество бонусных баллов и баллов к списанию
           fetch( window.location.origin + '/bonus.aspx', { method: 'GET', credentials: 'include' } )
           .then( function( response ) {
             response.text()
             .then( function( response ) {
               let html = response.replace( /\r|\n|\t/g, '' );   // Преобразовывем полученный текст в одну стрку (удаляем переводы строк и табуляции)
               html = html.replaceAll( ',', '.' );               // Заменяем в полученных данных запятые на точки
-              // ---- Получаем количество бонусных баллов и баллов к списанию
               let regexp = /balance-allcount">.*?(\d+).*?<\/span>/i;          // Задаём шаблон для поиска значения бонусных баллов
               result = regexp.exec( html );
               result[ 0 ] = parseFloat( result[ 1 ] );

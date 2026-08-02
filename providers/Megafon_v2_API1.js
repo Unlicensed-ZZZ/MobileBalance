@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2026.07.30
+ * Редакция:  2026.07.31
  *
 */
 
@@ -183,21 +183,21 @@ async function getData() {
   let hdrs = { 'X-App-Type': 'react_lk',
                'X-Cabinet-Authorization': 'Bearer ' + await localStorage.getItem( 'JWT_TOKEN' ) };
   // Получаем имя файла 'app.<id>.js' из массива объектов в тексте 'service-worker.js'
-  let appText = await ( await fetch( 'https://lk.megafon.ru/public/rwlk/service-worker.js', { method: 'GET', mode: 'cors', credentials: 'include' } )).text()
-  regexp = /\[{'revision':.*?}\]/i
-  appText = regexp.exec( appText );                   // Забираем из текста фала фрагмент с массивом объектов путей к файлам
-  appText = JSON.stringify( appText );                // Трансформируем полученный объект в строку
-  appText = appText.slice( 2, appText.length - 2 );   // Обрезаем символы массива-обёртки, оставшиеся после запроса ( `["` в начале и `"]` в конце )
-  appText = appText.replaceAll( `'`, `"` );           // Заменяем символы `'` на `"` для преобразования строки в объект (для JSON.parse разделители `"`)
-  appText = JSON.parse( appText );                    // Преобразоваовываем строку в массив объектов
-  appText = appText.find( function( item ) {          // Находим объект с путём к файлу 'app.<id>.js'
-    if ( item.url.includes( '/public/rwlk/app.' ) && item.url.includes( '.js' ) )
-      return item.url
-  })
-  appText = appText.url                               // Сохраняем путь к файлу 'app.<id>.js'
+  let appPath = await ( await fetch( 'https://lk.megafon.ru/public/rwlk/service-worker.js', { method: 'GET', mode: 'cors', credentials: 'include' } )).text()
+  regexp = /\[{'revision':.*?}\]/i;
+  appPath = regexp.exec( appPath );                   // Забираем из текста фала фрагмент с массивом объектов с данными о путях к файлам
+  appPath = JSON.stringify( appPath );                // Трансформируем полученный результат в строку
+  appPath = appPath.slice( 2, appPath.length - 2 );   // Вырезаем символы массива-обёртки, оставшиеся после запроса ( `["` в начале и `"]` в конце )
+  appPath = appPath.replaceAll( `'`, `"` );           // 'JSON.parse()' требует разделителей `"`, заменяем символы `'` на `"`
+  appPath = JSON.parse( appPath );                    // Преобразовываем строку в массив объектов
+  appPath = appPath.find( function( item ) {          // Находим объект с путём к файлу 'app.<id>.js'
+    if ( item.url.includes( '/app.' ) && item.url.includes( '.js' ) )
+      return true
+  });
+  appPath = appPath.url;                              // Сохраняем путь к файлу 'app.<id>.js'
 
   // Считываем файл 'app.<id>.js'
-  appText = await( await fetch( window.location.origin + appText, { method: 'GET', mode: 'cors', credentials: 'include' } ) ).text();
+  let appText = await( await fetch( window.location.origin + appPath, { method: 'GET', mode: 'cors', credentials: 'include' } ) ).text();
   // Находим в тексте файла значения для остальных заголовков и вносим их в структуру для запросов
   regexp = /X-Cabinet-Id-Param":"(.*?)"/i;
   hdrs['X-Cabinet-Id-Param'] = regexp.exec( appText )[ 1 ];
