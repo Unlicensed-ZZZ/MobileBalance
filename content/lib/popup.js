@@ -3,7 +3,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Скрипт для окна меню расширения MobileBalance
- * Редакция:  2026.06.08
+ * Редакция:  2026.08.18
  *
 */
 
@@ -240,6 +240,10 @@ infoState.addEventListener( 'change', async () => {
   };
   popupTable.style.display = 'table'; // В html таблица исходно скрыта. Теперь она сформирована, режим отображения данных определён - показываем её
   await chrome.storage.local.set( { popupShortInfo: infoState.checked } ); // Сохраняем значение режима отображения данных в хранилище
+  document.documentElement.style.display = 'table';   // После обновления (июль-август 2026) корневой html-элемент popup-окна 'забыл' как восстанавливать
+  setTimeout( function() {                            //   размер под содержимое. Принудительное присвоение ему значения display = 'table' с последующим
+    document.documentElement.style.display = 'block'; //   восстановлением display = 'block' обновляет размер html-элемента под содержимое
+  }, 10 );
 })
 
 // Отображение статуса текущих значений для учётных данных
