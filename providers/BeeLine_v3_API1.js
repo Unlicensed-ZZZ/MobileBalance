@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2026.07.13
+ * Редакция:  2026.08.29
  *
 */
 
@@ -262,6 +262,8 @@ async function authInput( login, passw, pageVersion ) {
       }
 
     // ---- Однократная попытка решить капчу -------------------------------------------
+    // Если сценарий входа не запрашивает решение капчи, то страница обновится с открытием личного кабинета
+    // Выполнение нижеследующего кода прервётся (в это время он будет крутиться в цикле ожидания капчи), поскольку этот экземпляр скрипта утратится
       let captchaOriginal = undefined;
       do {
         await sleep( 100 );
@@ -269,10 +271,19 @@ async function authInput( login, passw, pageVersion ) {
         for ( idx = 0; idx < imgArr.length; ++idx ) {                                   //   в объект с классом, содержащим в названии 'captcha-wrap'
           if ( imgArr[ idx ].parentElement.className.includes( 'captcha-wrap' ) ) {
             do { sleep( 10 );
-            } while( !imgArr[ idx ].complete );                                         // Дожидаемся готовности (загрузки) нового изображения капчи
+            } while( !imgArr[ idx ].complete );                                         // Дожидаемся готовности (загрузки) изображения капчи
             captchaOriginal = imgArr[ idx ];                                            // Фиксируем обнаруженный элемент изображения капчи
             break;
           }
+        }
+        inpElem = document.getElementsByTagName( 'section' );   // При срабатывании защиты на странице формируется тэг <section>, в дочерних
+                                                                //   элементах которого присутствует текст ошибки: 'слишком много попыток входа'
+        if ( ( inpElem.length > 0 ) && ( inpElem[ 0 ].textContent.includes( 'слишком много попыток входа' ) ) ) {
+          // В этом случае передаём расширению ошибку и требование прекращения дальнейших запросов (data: 'StopPooling')
+          console.log( requestError = `[MB] Authtorization error "${inpElem[ 0 ].textContent}". Canceling remaining requests` );
+          chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
+                                                       status: false, error: requestError, data: 'StopPooling' }, null );
+          return;
         }
       } while ( captchaOriginal === undefined );
       let captchaElem = document.createElement( 'img' );                                // Подготавливаем копию объекта изображения капчи,
