@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных) по учётным данным логин / пароль
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2026.09.05
+ * Редакция:  2026.06.29
  *
 */
 
@@ -63,21 +63,8 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
       switch( request.action ) {
         case 'log&pass': {
           if ( !window.location.origin.includes( 'login.mts.ru' ) ) { // Если мы находимся не на странице входа, значит
-            // 1) произошла ошибка и открыта страница ( https://lk.mts.ru/error ) с информацией об этом в тэге 'mts-lk-not-found'
-            if ( window.location.href.includes( 'error' ) && ( document.getElementsByTagName( 'mts-lk-not-found' ).length !== 0 ) &&
-                 ( request.phaseRepeated < 3 ) ) {  // Если плагин уже направлял запросы на повтор этапа (request.phaseRepeated > 0),
-                 // значит были попытки устранить ошибку загрузки страницы, но это не помогло. Повторы этапа могли быть также инициированы
-                 // при прохождении антибот-проверки и сброса 'чужих' cookie, поэтому допускаем 3 предыдущих повтора ( request.phaseRepeated < 3 )
-              await localStorage.clear();     // Очищаем для сайта localStorage и sessionStorage. С высокой вероятностью ошибка загрузки
-              await sessionStorage.clear();   //   вызвана конфликтом элементов или их значений, оставшихся там от предыдущих запросов
-              console.log( '[MB] ' + ( requestError = `Error loading login page, trying to reload it...` ) );
-              chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_repeatCurrentPhase',
-                                                           error: requestError, accIdx: MBcurrentNumber }, null );
-              window.location.replace( 'https://lk.mts.ru' );     // Перезагружаем страницу, ошибка загрузки должна пропасть
-              return;
-            }
-            // 2) личный кабинет открыт по сохранённной OTP-сесии / не был выполнен выход по предыдущим учётным
-            //   данным и мы попали в личный кабинет по ним, либо ошибки на сервере
+            // либо личный кабинет открыт по сохранённной OTP-сесии, либо не был выполнен выход по предыдущим учётным
+            // данным и мы попали в личный кабинет по ним, либо ошибки на сервере
             // Проверяем соответствие учётных данных запрашиваемым. Вызов проходит как со страницы личного кабинета, так и со страницы профиля
             fetch( 'https://login.mts.ru/amserver/rest/widget', { method: 'GET', mode: 'cors', credentials: 'include' } )
             .then( function( response ) {
@@ -665,21 +652,6 @@ function countersSearch( inpStruct, packageType, partType ) {
 
 async function getData() {
 //             ---------
-  // Если произошла ошибка входа в ЛК и открыта страница ( https://lk.mts.ru/error ) с информацией об этом в тэге 'mts-lk-not-found'
-  if ( window.location.href.includes( 'error' ) && ( document.getElementsByTagName( 'mts-lk-not-found' ).length !== 0 ) &&
-       ( request.phaseRepeated < 3 ) ) {  // Если плагин уже направлял запросы на повтор этапа (request.phaseRepeated > 0),
-       // значит были попытки устранить ошибку загрузки страницы, но это не помогло. Повторы этапа могли быть также инициированы
-       // при прохождении антибот-проверки и сброса 'чужих' cookie, поэтому допускаем 3 предыдущих повтора ( request.phaseRepeated < 3 )
-    await localStorage.clear();     // Очищаем для сайта localStorage и sessionStorage. С высокой вероятностью ошибка загрузки
-    await sessionStorage.clear();   //   вызвана конфликтом элементов или их значений, оставшихся там от предыдущих запросов
-    requestStatus = false;
-    console.log( '[MB] ' + ( requestError = `Error loading personal data page, stopping current login attempt...` ) );
-    waitingCookieRemove = false;  // Завершим работу плагина после отработки вспомогательного helper-модуля
-    chrome.runtime.sendMessage( MBextentionId, { message: 'MB_helperClaim', args: { removeCookie: true } }, null );
-    // Ожидаем от расширения сообщения о завершении действий вспомогательного helper-модуля
-    return;
-  }
-
   let freeCounter = 0, paidCounter = 0, // Счётчики услуг (бесплатных, платных)
       paidAmmount = 0, tarifPrice = 0;  // Сумма к оплате за период, стоимость тарифа (для API v2)
   fetch( window.location.origin + '/api/login/profile', { method: 'GET', mode: 'no-cors' } )
