@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи МТС через API (весь набор данных) по учётным данным логин / пароль
  *            Получение данных в интерфейсе и через обновлённый (в 2025 году) API личного кабинета
- * Редакция:  2026.09.05
+ * Редакция:  2026.09.09
  *
 */
 
@@ -64,10 +64,11 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
         case 'log&pass': {
           if ( !window.location.origin.includes( 'login.mts.ru' ) ) { // Если мы находимся не на странице входа, значит
             // 1) произошла ошибка и открыта страница ( https://lk.mts.ru/error ) с информацией об этом в тэге 'mts-lk-not-found'
-            if ( window.location.href.includes( 'error' ) && ( document.getElementsByTagName( 'mts-lk-not-found' ).length !== 0 ) &&
-                 ( request.phaseRepeated < 3 ) ) {  // Если плагин уже направлял запросы на повтор этапа (request.phaseRepeated > 0),
-                 // значит были попытки устранить ошибку загрузки страницы, но это не помогло. Повторы этапа могли быть также инициированы
-                 // при прохождении антибот-проверки и сброса 'чужих' cookie, поэтому допускаем 3 предыдущих повтора ( request.phaseRepeated < 3 )
+            // Страница наполняется долго и тэг 'mts-lk-not-found' не всегда успевает сформироваться, из проектки его наличие исключил
+            if ( window.location.href.includes( 'error' ) && ( request.phaseRepeated < 3 ) ) {  // Если плагин уже направлял запросы на
+                 // повтор этапа (request.phaseRepeated > 0), значит были попытки устранить ошибку загрузки страницы, но это не помогло.
+                 // Повторы этапа могли быть также инициированы при прохождении антибот-проверки и сброса 'чужих' cookie, поэтому
+                 // допускаем 3 предыдущих повтора ( request.phaseRepeated < 3 )
               await localStorage.clear();     // Очищаем для сайта localStorage и sessionStorage. С высокой вероятностью ошибка загрузки
               await sessionStorage.clear();   //   вызвана конфликтом элементов или их значений, оставшихся там от предыдущих запросов
               console.log( '[MB] ' + ( requestError = `Error loading login page, trying to reload it...` ) );
@@ -666,10 +667,11 @@ function countersSearch( inpStruct, packageType, partType ) {
 async function getData() {
 //             ---------
   // Если произошла ошибка входа в ЛК и открыта страница ( https://lk.mts.ru/error ) с информацией об этом в тэге 'mts-lk-not-found'
-  if ( window.location.href.includes( 'error' ) && ( document.getElementsByTagName( 'mts-lk-not-found' ).length !== 0 ) &&
-       ( request.phaseRepeated < 3 ) ) {  // Если плагин уже направлял запросы на повтор этапа (request.phaseRepeated > 0),
-       // значит были попытки устранить ошибку загрузки страницы, но это не помогло. Повторы этапа могли быть также инициированы
-       // при прохождении антибот-проверки и сброса 'чужих' cookie, поэтому допускаем 3 предыдущих повтора ( request.phaseRepeated < 3 )
+  // Страница наполняется долго и тэг 'mts-lk-not-found' не всегда успевает сформироваться, из проектки его наличие исключил
+  if ( window.location.href.includes( 'error' ) && ( request.phaseRepeated < 3 ) ) {  // Если плагин уже направлял запросы на повтор
+       // этапа (request.phaseRepeated > 0), значит были попытки устранить ошибку загрузки страницы, но это не помогло. Повторы этапа
+       // могли быть также инициированы при прохождении антибот-проверки и сброса 'чужих' cookie, поэтому допускаем 3 предыдущих
+       // повтора ( request.phaseRepeated < 3 )
     await localStorage.clear();     // Очищаем для сайта localStorage и sessionStorage. С высокой вероятностью ошибка загрузки
     await sessionStorage.clear();   //   вызвана конфликтом элементов или их значений, оставшихся там от предыдущих запросов
     requestStatus = false;
