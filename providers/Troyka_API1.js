@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для кошелька карты 'Тройка' в 'mosmetro.ru' через API
  *            Логин - номер карты, пароль не используется
- * Редакция:  2026.05.16
+ * Редакция:  2026.09.19
  *
 */
 
@@ -182,7 +182,7 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
           result = result.data.cards.find( item => item.card.cardNumber === MBLogin )
           if ( result !== undefined ) { // Если карта с указанным номером есть в ответе, то получаем по ней значения
             // Получаем значение текущего баланса
-            MBResult = { Balance: parseFloat( result.balance.balance.toFixed(2) ) }; // Создаём 1-ое значение объекта ответа
+            MBResult = { Balance: parseFloat( result.balance.balance.toFixed( 2 ) ) }; // Создаём 1-ое значение объекта ответа
             // Принимаем статус блокировки. При статусах, отличных от активного, проставляем его
             if ( result.status.toUpperCase() !== 'ACTION' ) {
               MBResult.BlockStatus = result.status;
@@ -205,11 +205,16 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
             //                                                карты"
             // 'annulled'       = <'Аннулирована'>          - <Пояснения на сайте нет, но очевидно, что карта аннулирована>
 
-            // Если есть сумма, ожидающая зачисления, то принимаем её
+            // Если есть суммы, ожидающие зачисления, то принимаем мх
             if ( result.deferredActions !== undefined ) {
-              result = result.deferredActions.find( item => item.operationName === 'КОШЕЛЕК' )
-              if ( result !== undefined )
-                MBResult.Balance2 = parseFloat( result.sum.toFixed(2) );
+              result.deferredActions.forEach( function( item ) {
+                if ( item.operationName === 'КОШЕЛЕК' ) {
+                  if ( MBResult.Balance2 === undefined )
+                    MBResult.Balance2 = parseFloat( item.sum.toFixed( 2 ) )   // Если это первое присвоение значения
+                  else
+                    MBResult.Balance2 += parseFloat( item.sum.toFixed( 2 ) )  // Если это увеличение значения
+                }
+              })
             }
             // Принимаем имя пользователя
             result = await (await fetch( window.location.origin + '/api/accounts/v1.0/info',
