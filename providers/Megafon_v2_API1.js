@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2026.07.31
+ * Редакция:  2026.09.26
  *
 */
 
@@ -178,10 +178,14 @@ async function getData() {
   С 30.07.2026 Мегафон убрал файл карты сгенерированных идентификаторов для файлов 'https://lk.megafon.ru/public/stats.json'. Теперь ссылки на файлы
    с полным путём обнаруживаются в тексте файла 'service-worker.js', в массиве объектов вида { 'revision': 'xxx', 'url': 'xxx' }, в элементе 'url'
    Пример объекта: ... { 'revision': null, 'url': '/public/rwlk/app.65ef6f9c.js' }, ...
+   
+   С 24.09.2026 Мегафон убрал из localStorage параметр 'JWT_TOKEN' и из запросов параметр 'X-Cabinet-Authorization' со значением этого JWT-токена.
+   Некоторые запросы со значением заголовка 'X-Cabinet-Authorization': 'Bearer ' продолжали работать, некоторые (например,
+   '/api/options/v2/remainders?remainderType=<значение>') вызывали ошибку авторизации. Формирование параметра из заголовков убрано
+   'X-Cabinet-Authorization': 'Bearer ' + await localStorage.getItem( 'JWT_TOKEN' )
 */
-  // Формируем для запросов структуру с первыми заголовками - 'X-App-Type' и 'X-Cabinet-Authorization'
-  let hdrs = { 'X-App-Type': 'react_lk',
-               'X-Cabinet-Authorization': 'Bearer ' + await localStorage.getItem( 'JWT_TOKEN' ) };
+  // Формируем для запросов структуру заголовков с первым параметром - 'X-App-Type'
+  let hdrs = { 'X-App-Type': 'react_lk' };
   // Получаем имя файла 'app.<id>.js' из массива объектов в тексте 'service-worker.js'
   let appPath = await ( await fetch( 'https://lk.megafon.ru/public/rwlk/service-worker.js', { method: 'GET', mode: 'cors', credentials: 'include' } )).text()
   regexp = /\[{'revision':.*?}\]/i;
@@ -392,45 +396,54 @@ async function getData() {
 
   // Если ранее не была принята дата следующего платежа и есть остаток пакета голосовых минут, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.Minutes )) {
-    response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=VOICE',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
-    if ( response.ok && ( response.status === 200 ) ) {
-      jsonResult = await response.json();
-      if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
-        jsonResult.remainders[ 0 ].remainderDetails.forEach( ( item ) => {          //   то ищем дату окончания срока их действия
-          if ( item.dateTo )
-            MBResult.TurnOffStr = item.dateTo.split( ' ' )[ 0 ]; // Для даты в формате "дд.мм.гггг чч:мм" берём только информацию о дате
-        })
+    try {
+      response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=VOICE',
+                              { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
+      if ( response.ok && ( response.status === 200 ) ) {
+        jsonResult = await response.json();
+        if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
+          jsonResult.remainders[ 0 ].remainderDetails.forEach( ( item ) => {          //   то ищем дату окончания срока их действия
+            if ( item.dateTo )
+              MBResult.TurnOffStr = item.dateTo.split( ' ' )[ 0 ]; // Для даты в формате "дд.мм.гггг чч:мм" берём только информацию о дате
+          })
+        }
       }
     }
+    catch( err ) { console.log( `[MB] ${err}` ); }
   }
   // Если ранее не была принята дата следующего платежа и есть остаток пакета сообщений, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.SMS )) {
-    response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=MESSAGE',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
-    if ( response.ok && ( response.status === 200 ) ) {
-      jsonResult = await response.json();
-      if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
-        jsonResult.remainders[ 0 ].remainderDetails.forEach( ( item ) => {          //   то ищем дату окончания срока их действия
-          if ( item.dateTo )
-            MBResult.TurnOffStr = item.dateTo.split( ' ' )[ 0 ]; // Для даты в формате "дд.мм.гггг чч:мм" берём только информацию о дате
-        })
+    try {
+      response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=MESSAGE',
+                              { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
+      if ( response.ok && ( response.status === 200 ) ) {
+        jsonResult = await response.json();
+        if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
+          jsonResult.remainders[ 0 ].remainderDetails.forEach( ( item ) => {          //   то ищем дату окончания срока их действия
+            if ( item.dateTo )
+              MBResult.TurnOffStr = item.dateTo.split( ' ' )[ 0 ]; // Для даты в формате "дд.мм.гггг чч:мм" берём только информацию о дате
+          })
+        }
       }
     }
+    catch( err ) { console.log( `[MB] ${err}` ); }
   }
   // Если ранее не была принята дата следующего платежа и есть остаток пакета интернета, то пытаемся получить дату из него
   if ( ( MBResult.TurnOffStr === undefined ) && ( MBResult.Internet )) {
-    response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=INTERNET',
-                            { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
-    if ( response.ok && ( response.status === 200 ) ) {
-      jsonResult = await response.json();
-      if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
-        jsonResult.remainders[ 0 ].remainderDetails.forEach( ( item ) => {          //   то ищем дату окончания срока их действия
-          if ( item.dateTo )
-            MBResult.TurnOffStr = item.dateTo.split( ' ' )[ 0 ]; // Для даты в формате "дд.мм.гггг чч:мм" берём только информацию о дате
-        })
+    try {
+      response = await fetch( apiUrl + '/api/options/v2/remainders?remainderType=INTERNET',
+                              { method: 'GET', mode: 'cors', credentials: 'include', headers: hdrs } );
+      if ( response.ok && ( response.status === 200 ) ) {
+        jsonResult = await response.json();
+        if ( jsonResult.remainders && jsonResult.remainders[ 0 ].remainderDetails ) { // Если в пакете есть данные об остатках,
+          jsonResult.remainders[ 0 ].remainderDetails.forEach( ( item ) => {          //   то ищем дату окончания срока их действия
+            if ( item.dateTo )
+              MBResult.TurnOffStr = item.dateTo.split( ' ' )[ 0 ]; // Для даты в формате "дд.мм.гггг чч:мм" берём только информацию о дате
+          })
+        }
       }
     }
+    catch( err ) { console.log( `[MB] ${err}` ); }
   }
 
   initLogout(); // Выходим из личного кабинета. Страницу на следующем шаге перезагрузит расширение
