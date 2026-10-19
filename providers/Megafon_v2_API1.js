@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Мегафон через API (весь набор данных)
  *            Адаптирован к новой версии личного кабинета (с 29.09.2022) + изменения (с 21.11.2024)
- * Редакция:  2026.09.26
+ * Редакция:  2026.10.07
  *
 */
 
@@ -92,7 +92,6 @@ async function initLogout() {
   // На странице личного кабинета сразу есть позиция меню выхода с классом 'menu-dropdown__leave'
   let exitButton = document.getElementsByClassName( 'menu-dropdown__leave' );
   if ( exitButton.length > 0 )  exitButton[ 0 ].click();  // Если кнопка выхода нашлась, то 'нажимаем' её
-  await sleep( 200 );                                     // Задержка для инициализации структур 'модального окна' подтверждения выхода
 /*
   С 20.05.2025 при выборе этого пункта меню появляется 'модальное окно' подтверждения выхода
   'Модальное окно' формируется в 'div' с классом 'mfui-modal-desktop'
@@ -103,16 +102,30 @@ async function initLogout() {
   С 10.06.2026 'модальное окно' подтверждения выхода изменилось (Подтвердите, что хотите выйти на этом устройстве)
     'Модальное окно' формируется в 'div' с классом 'mfui-9-modal-desktop'
 */
-  let exitConfirm = document.getElementsByClassName( 'mfui-9-modal-desktop' ); 
-  // В 'модальном окне' две кнопки с классом 'mfui-9-button' ("Подтвердить" и "Не выходить"), определяем их
-  exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-9-button' );
-  // Передаём результаты опроса расширению MobileBalance с задержкой, чтобы успели отработать вызовы завершения сессии
-  setTimeout( function() {
+  let exitConfirm = undefined, i = 0;
+  do {
+    await sleep( 100 );                                                             // Пауза, чтобы cформировалась форма и кнопки на ней
+    ++i;
+    exitConfirm = document.getElementsByClassName( 'mfui-9-modal-desktop' );        // Ждём завершения формирования 'модального окна'
+    if ( exitConfirm.length > 0 ) {                                                 // Если оно сформировалось, то в нём должны быть две кнопки
+      exitConfirm = exitConfirm[ 0 ].getElementsByClassName( 'mfui-9-button' );     //  с классом 'mfui-9-button' ("Подтвердить" и "Не выходить")
+    }
+  } while ( ( exitConfirm.length === 0 ) && ( i <= 50 ) );                          // Ждём появления на форме кнопок в течение не более ~5 сек
+  if ( i > 50 ) {                                                                   // Если кнопка не обнаружилась, значит она не сформировалась
+    console.log( requestError = `[MB] Exit form wasn't completely loaded` );        // Выдаём расширению MobileBalance ошибку и выходим
     chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
                                                  status: requestStatus, error: requestError,
                                                  data: (MBResult === undefined) ? undefined : MBResult }, null );
-  }, 500);
-  if ( exitConfirm.length > 0 )  exitConfirm[ 0 ].click();  // Если кнопка выхода нашлась, то 'нажимаем' её
+    return;
+  }
+  else {  // Передаём результаты опроса расширению MobileBalance с задержкой, чтобы успели отработать вызовы завершения сессии
+    setTimeout( function() {
+      chrome.runtime.sendMessage( MBextentionId, { message: 'MB_workTab_takeData',
+                                                   status: requestStatus, error: requestError,
+                                                   data: (MBResult === undefined) ? undefined : MBResult }, null );
+    }, 500);
+    if ( exitConfirm.length > 0 )  exitConfirm[ 0 ].click();  // Если кнопка 'Подтвердить' нашлась, то 'нажимаем' её
+  }
 /*
   Вызов для завершения сессии теперь требует использования токена, полученного при авторизации
   Получить и передать его возможно, но после вызова выхода нужна отправка события для завершения сессии

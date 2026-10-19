@@ -3,7 +3,7 @@
  * Проект:    MobileBalance
  * Описание:  Обработчик для провайдера BeeLine через обновлённый API
  *            Редакция на основе возможностей API личного кабинета
- * Редакция:  2026.08.29
+ * Редакция:  2026.10.19
  *
 */
 
@@ -457,7 +457,8 @@ async function getData() {
                 MBResult.SMS = ( response.accumulators.items[ i ].isUnlimited ) ? -1 :
                   response.accumulators.items[ i ].rest;
               // Получаем остаток пакета Интернет (если предусмотрено тарифом) или обозначаем признак безлимитного пакета (-1)
-              if ( response.accumulators.items[ i ].unit === 'KBYTE' )
+              if ( ( response.accumulators.items[ i ].unit === 'KBYTE' ) &&
+                   ( response.accumulators.items[ i ].socType === 'PricePlan' ) ) // Только остаток по тарифу, без сервисов (socType = 'Service')
                 MBResult.Internet = ( response.accumulators.items[ i ].isUnlimited ) ? -1 :
                   parseFloat( ( response.accumulators.items[ i ].rest / 1024 ).toFixed(3) );    // Всегда в мегабайтах
             }
