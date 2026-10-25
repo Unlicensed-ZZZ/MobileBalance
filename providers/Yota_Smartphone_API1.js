@@ -2,7 +2,7 @@
  * --------------------------------
  * Проект:    MobileBalance
  * Описание:  Обработчик для оператора связи Yota через API
- * Редакция:  2026.07.13
+ * Редакция:  2026.10.22
  *
 */
 
@@ -35,8 +35,9 @@ chrome.runtime.onMessage.addListener( async function( request, sender, sendRespo
             if ( window.location.pathname === '/profile' ) {                                    // ... и есть текущая авторизация в личном кабинете
               let prevAccount = document.getElementsByClassName( 'authorized-menu__btn' );
               if ( prevAccount.length > 0 ) {
-                // В меню перехода / выхода учётные данные показаны в формате '+7 111 222 33 44'. Приводим их к виду '1112223344', пригодному для сравнения
-                prevAccount = prevAccount[ 0 ].firstChild.innerText.replaceAll( ' ', '' ).slice( 2 );
+                // В меню перехода / выхода учётные данные показаны в формате '+7 111 222 33 44'. С октября 2026 - в формате '+7 111 222-33-44'
+                // Приводим их к виду '1112223344', пригодному для сравнения
+                prevAccount = prevAccount[ 0 ].firstChild.innerText.replaceAll( ' ', '' ).replaceAll( '-', '' ).slice( 2 );
                 if ( prevAccount === MBLogin ) {                                                // Если сессия открыта для нужных нам учётных данных ...
                   window.location.reload();                                                     // ... то мы уже на странице ЛК, переходим к этапу опроса
                   return;
